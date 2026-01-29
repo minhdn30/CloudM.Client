@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Personal Post List</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.7/signalr.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 900px;
+        margin: 20px auto;
+        padding: 10px;
+      }
+      .post-item {
+        border: 1px solid #ccc;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        box-shadow: 0 0 6px rgba(0, 0, 0, 0.05);
+      }
+      .post-medias img {
+        max-width: 150px;
+        margin: 5px;
+        border-radius: 4px;
+      }
+      .post-time {
+        color: #888;
+        font-size: 0.9em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Personal Posts</h1>
+    <div id="posts-container"></div>
+
+    <script>
+      // ======== CONFIG ========
+      const accountId = "0ed81ec6-7e8c-40d0-86ae-077413c7f753"; // ID user
+      const apiBase = "http://localhost:5000/api/posts/personal"; // API list posts
+      const hubUrl = "http://localhost:5000/postHub"; // SignalR hub
+
+      const postsMap = new Map(); // Map lưu postId => post object
+
+      // ======== FETCH LIST POST ========
+      async function fetchPosts() {
+        try {
+          const res = await fetch(`${apiBase}/${accountId}?page=1&pageSize=20`);
+          if (!res.ok) throw new Error("Failed to fetch posts");
+          const data = await res.json();
+          // data.items hoặc tuỳ API trả về
+          data.items.forEach((post) => {
+            postsMap.set(post.postId, post);
+          });
+          renderPosts();
+        } catch (err) {
+          console.error(err);
+          document.getElementById("posts-container").innerHTML =
+            "<p>Failed to load posts.</p>";
+        }
+      }
+
+      // ======== RENDER LIST POST ========
+      function renderPosts() {
+        const container = document.getElementById("posts-container");
+        container.innerHTML = "";
+        postsMap.forEach((post) => {
+          const div = document.createElement("div");
+          div.className = "post-item";
+          div.id = `post-${post.postId}`;
+
+          const owner = document.createElement("h3");
+          owner.textContent = post.owner?.username || "Unknown";
+
+          const content = document.createElement("p");
+          content.textContent = post.content || "";
+
+          const mediasDiv = document.createElement("div");
+          mediasDiv.className = "post-medias";
+          post.medias.forEach((m) => {
+            const img = document.createElement("img");
+            img.src = m.mediaUrl;
+            mediasDiv.appendChild(img);
+          });
+
+          const time = document.createElement("small");
+          time.className = "post-time";
+          time.textContent = `Created at: ${new Date(
+            post.createdAt
+          ).toLocaleString()}`;
+
+          div.appendChild(owner);
+          div.appendChild(content);
+          div.appendChild(mediasDiv);
+          div.appendChild(time);
+
+          container.appendChild(div);
+        });
+      }
+
+      // ======== UPDATE / DELETE HANDLER ========
+      function updatePostInList(post) {
+        postsMap.set(post.postId, post);
+        renderPosts();
+      }
+
+      function removePostFromList(postId) {
+        postsMap.delete(postId);
+        renderPosts();
+      }
+
+      // ======== SIGNALR CONNECTION ========
+      const connection = new signalR.HubConnectionBuilder()
+        .withUrl(hubUrl)
+        .withAutomaticReconnect()
+        .build();
+
+      connection.on("ReceiveUpdatedPost", (post) => {
+        console.log("Post updated", post);
+        updatePostInList(post);
+      });
+
+      connection.on("ReceiveDeletedPost", (postId) => {
+        console.log("Post deleted", postId);
+        removePostFromList(postId);
+      });
+
+      connection
+        .start()
+        .then(() => {
+          console.log("Connected to SignalR hub");
+          connection
+            .invoke("JoinPostListGroup", accountId)
+            .catch((err) => console.error("JoinPostListGroup failed:", err));
+        })
+        .catch((err) => console.error("SignalR connection error:", err));
+
+      window.addEventListener("beforeunload", () => {
+        connection
+          .invoke("LeavePostListGroup", accountId)
+          .catch((err) => console.error(err));
+      });
+
+      // ======== INITIAL LOAD ========
+      fetchPosts();
+    </script>
+  </body>
+</html>

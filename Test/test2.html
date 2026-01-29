@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Private Chat Test</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+
+    <style>
+      body {
+        font-family: Arial;
+        background: #f5f5f5;
+      }
+
+      #chatBox {
+        width: 420px;
+        height: 420px;
+        margin: 20px auto;
+        background: white;
+        border-radius: 8px;
+        padding: 10px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .message {
+        max-width: 70%;
+        padding: 8px 12px;
+        margin: 6px 0;
+        border-radius: 12px;
+        font-size: 14px;
+        word-wrap: break-word;
+      }
+
+      .me {
+        align-self: flex-end;
+        background: #0084ff;
+        color: white;
+      }
+
+      .other {
+        align-self: flex-start;
+        background: #e4e6eb;
+        color: black;
+      }
+
+      .sender {
+        font-size: 11px;
+        opacity: 0.7;
+        margin-bottom: 2px;
+      }
+
+      #inputArea {
+        width: 420px;
+        margin: auto;
+        display: flex;
+        gap: 5px;
+      }
+
+      input {
+        flex: 1;
+        padding: 8px;
+      }
+
+      button {
+        padding: 8px 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="chatBox"></div>
+    <div id="preview" class="preview"></div>
+
+    <div id="inputArea">
+      <input type="file" id="imageInput" accept="image/*" multiple />
+      <input id="messageInput" placeholder="Nhập tin nhắn..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+      /* ================= CONFIG ================= */
+
+      const API_BASE = "http://localhost:5000";
+
+      /**
+       * 👉 MỖI TAB DÙNG TOKEN KHÁC
+       */
+      const accessToken =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjBlZDgxZWM2LTdlOGMtNDBkMC04NmFlLTA3NzQxM2M3Zjc1MyIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWUiOiJjaGFuaDIxMTAwNCIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6IlVzZXIiLCJlbWFpbCI6ImNoYW5oMjExMDA0QGdtYWlsLmNvbSIsImZ1bGxOYW1lIjoiQ2hhbmggTmdvdCIsImF2YXRhclVybCI6Imh0dHBzOi8vcmVzLmNsb3VkaW5hcnkuY29tL2hhbGxvYmFyYmVyc2hvcC9pbWFnZS91cGxvYWQvdjE3NjQ2ODEwNDIvY2xvdWRtc29jaWFsbmV0d29yay9zZXJ2aWNlcy8wYjg2ZWEwMjczZjIzM2M1NjRlNTk1NTZlOWUyZGE2OV91MnB2bTIuanBnIiwiaXNWZXJpZmllZCI6IlRydWUiLCJleHAiOjE3Njc3MTQ0MjgsImlzcyI6Ik1pbmlTb2NpYWxOZXR3b3JrIiwiYXVkIjoiTWluaVNvY2lhbE5ldHdvcmtDbGllbnQifQ.Kcj4pd3LRGmj9HjyRWX2ke9_k_FP2Ixf55z0gA0VBBI";
+
+      /**
+       * 👉 conversationId test chung cho 2 tab
+       */
+      const conversationId = "90b6a309-3ea6-406b-bd78-10a812ecf765";
+
+      /**
+       * 👉 current user id (decode từ JWT hoặc fix cứng để test)
+       */
+      const currentUserId = getCurrentUserIdFromToken(accessToken);
+      const imageInput = document.getElementById("imageInput");
+      const previewDiv = document.getElementById("preview");
+
+      imageInput.addEventListener("change", () => {
+        previewDiv.innerHTML = "";
+
+        for (const file of imageInput.files) {
+          const img = document.createElement("img");
+          img.src = URL.createObjectURL(file);
+          previewDiv.appendChild(img);
+        }
+      });
+
+      /* ================= LOAD HISTORY ================= */
+
+      async function loadOldMessages() {
+        try {
+          const res = await fetch(
+            `${API_BASE}/api/messages/${conversationId}?page=1&pageSize=20`,
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+            }
+          );
+
+          if (!res.ok) {
+            console.error("❌ Load messages failed");
+            return;
+          }
+
+          const data = await res.json();
+
+          // clear trước khi render
+          const chatBox = document.getElementById("chatBox");
+          chatBox.innerHTML = "";
+
+          // BE thường trả newest → oldest → cần reverse
+          data.items.reverse().forEach((msg) => {
+            renderMessage(msg);
+          });
+        } catch (err) {
+          console.error("❌ Load history error", err);
+        }
+      }
+      /* ================= SIGNALR ================= */
+
+      let connection = null;
+      let isConnected = false;
+
+      async function startSignalR() {
+        if (isConnected) {
+          console.log("Already connected");
+          return;
+        }
+
+        connection = new signalR.HubConnectionBuilder()
+          .withUrl(`${API_BASE}/chatHub`, {
+            accessTokenFactory: () => accessToken,
+          })
+          .withAutomaticReconnect()
+          .build();
+
+        connection.on("ReceiveNewMessage", (message) => {
+          renderMessage(message);
+        });
+
+        try {
+          await connection.start();
+          console.log("✅ SignalR connected");
+          isConnected = true;
+
+          await connection.invoke("JoinConversation", conversationId);
+          console.log("📌 Joined conversation");
+          await loadOldMessages();
+        } catch (err) {
+          console.error("❌ SignalR error", err);
+        }
+      }
+
+      startSignalR();
+
+      /* ================= RENDER ================= */
+
+      function renderMessage(message) {
+        const chatBox = document.getElementById("chatBox");
+        const isMe = message.sender.accountId === currentUserId;
+
+        const msgDiv = document.createElement("div");
+        msgDiv.className = `message ${isMe ? "me" : "other"}`;
+
+        if (!isMe) {
+          const senderDiv = document.createElement("div");
+          senderDiv.className = "sender";
+          senderDiv.innerText = message.sender.fullName;
+          msgDiv.appendChild(senderDiv);
+        }
+
+        // TEXT
+        if (message.content) {
+          const textDiv = document.createElement("div");
+          textDiv.innerText = message.content;
+          msgDiv.appendChild(textDiv);
+        }
+
+        // MEDIA
+        if (message.medias && message.medias.length > 0) {
+          message.medias.forEach((m) => {
+            if (m.mediaType === 0 || m.mediaType === "Image") {
+              const img = document.createElement("img");
+              img.src = m.mediaUrl;
+              img.style.maxWidth = "220px";
+              img.style.borderRadius = "8px";
+              img.style.marginTop = "4px";
+              msgDiv.appendChild(img);
+            }
+          });
+        }
+
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+
+      /* ================= SEND ================= */
+
+      async function sendMessage() {
+        const input = document.getElementById("messageInput");
+        const content = input.value.trim();
+        const files = imageInput.files;
+
+        if (!content && files.length === 0) return;
+
+        const formData = new FormData();
+        formData.append("receiverId", "ab3922a2-03f7-4adf-afb4-e300d0e289f5");
+
+        if (content) {
+          formData.append("content", content);
+        }
+
+        // 👉 KEY PHẢI LÀ mediaFiles (match BE)
+        for (const file of files) {
+          formData.append("mediaFiles", file);
+        }
+
+        await fetch(`${API_BASE}/api/messages/private-chat`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: formData,
+        });
+
+        input.value = "";
+        imageInput.value = "";
+        previewDiv.innerHTML = "";
+      }
+
+      /* ================= UTILS ================= */
+
+      function getCurrentUserIdFromToken(token) {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        return payload[
+          "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
+        ];
+      }
+    </script>
+  </body>
+</html>
