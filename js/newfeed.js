@@ -79,7 +79,7 @@ function renderFeed(posts) {
         <div class="post-header">
           <div class="post-user" data-account-id="${post.author.accountId}">
             <img class="post-avatar"
-                 src="${post.author?.avatarUrl || "/images/default-avatar.png"}"
+                 src="${post.author?.avatarUrl || APP_CONFIG.DEFAULT_AVATAR}"
                  alt="">
             <span class="post-username">${post.author?.fullName || "Unknown"}</span>
             <span class="post-time">• ${timeAgo(post.createdAt)}</span>
@@ -150,7 +150,18 @@ function renderMedias(medias) {
     <div class="post-media">
       <div class="media-slider">
         <div class="media-track">
-          ${medias.map((m) => `<img src="${m.mediaUrl}" />`).join("")}
+          ${medias
+            .map((m) => {
+              // Kiểm tra Type để render đúng tag
+              if (m.type === 1) {
+                // Video
+                return `<video src="${m.mediaUrl}" controls></video>`;
+              } else {
+                // Image (type === 0)
+                return `<img src="${m.mediaUrl}" />`;
+              }
+            })
+            .join("")}
         </div>
 
         <button class="nav prev">‹</button>
@@ -190,19 +201,20 @@ function escapeHtml(text) {
       })[m],
   );
 }
+
 function initMediaSlider(postEl) {
   const track = postEl.querySelector(".media-track");
   if (!track) return;
 
-  const images = track.querySelectorAll("img");
+  const medias = track.querySelectorAll("img, video"); // Lấy cả img và video
   const prev = postEl.querySelector(".prev");
   const next = postEl.querySelector(".next");
   const dotsContainer = postEl.querySelector(".media-dots");
 
   let index = 0;
-  const total = images.length;
+  const total = medias.length;
 
-  // chỉ 1 ảnh → ẩn nút
+  // chỉ 1 media → ẩn nút
   if (total <= 1) {
     prev.style.display = "none";
     next.style.display = "none";
@@ -210,7 +222,7 @@ function initMediaSlider(postEl) {
   }
 
   // create dots
-  images.forEach((_, i) => {
+  medias.forEach((_, i) => {
     const dot = document.createElement("span");
 
     if (i === 0) dot.classList.add("active");
@@ -229,6 +241,15 @@ function initMediaSlider(postEl) {
     track.style.transform = `translateX(-${index * 100}%)`;
     dots.forEach((d) => d.classList.remove("active"));
     dots[index].classList.add("active");
+
+    // Tự động pause video khi chuyển slide
+    medias.forEach((media, i) => {
+      if (media.tagName === "VIDEO") {
+        if (i !== index) {
+          media.pause();
+        }
+      }
+    });
   }
 
   prev.onclick = () => {
@@ -241,6 +262,7 @@ function initMediaSlider(postEl) {
     update();
   };
 }
+
 document.addEventListener("click", (e) => {
   if (!e.target.classList.contains("caption-toggle")) return;
 
@@ -316,6 +338,7 @@ document.addEventListener("click", async (e) => {
     countEl.textContent = oldCount;
   }
 });
+
 document.addEventListener("DOMContentLoaded", () => {
   initProfilePreview();
 });

@@ -9,10 +9,8 @@ async function loadSidebar() {
   const avatarElement = document.getElementById("sidebar-avatar");
   const nameElement = document.getElementById("sidebar-name");
 
-  const defaultAvatar = "assets/images/default-avatar.jpg";
-
   if (!avatarUrl || avatarUrl === "null" || avatarUrl.trim() === "") {
-    avatarElement.src = defaultAvatar;
+    avatarElement.src = APP_CONFIG.DEFAULT_AVATAR;
   } else {
     avatarElement.src = avatarUrl;
   }
@@ -22,6 +20,45 @@ async function loadSidebar() {
 
   // Load theme preference
   loadThemePreference();
+
+  // Setup auto-close on mouse leave
+  setupAutoClose();
+}
+
+// THÊM MỚI: Tự động collapse sidebar khi chuột rời khỏi
+function setupAutoClose() {
+  const sidebar = document.querySelector(".sidebar");
+
+  sidebar.addEventListener("mouseleave", () => {
+    const moreDropdown = document.getElementById("moreDropdown");
+    const settingsDropdown = document.getElementById("settingsDropdown");
+    const createDropdown = document.getElementById("createDropdown");
+
+    // Kiểm tra có popup nào đang mở không
+    const hasOpenPopup =
+      moreDropdown?.classList.contains("show") ||
+      settingsDropdown?.classList.contains("show") ||
+      createDropdown?.classList.contains("show");
+
+    // Nếu có popup mở, giữ sidebar expanded
+    // Nếu không, cho phép sidebar tự thu gọn (CSS hover sẽ xử lý)
+    if (!hasOpenPopup) {
+      sidebar.classList.remove("expanded");
+    }
+  });
+}
+
+// THÊM MỚI: Hàm đóng tất cả dropdown và collapse sidebar
+function closeAllDropdowns() {
+  const sidebar = document.querySelector(".sidebar");
+  const moreDropdown = document.getElementById("moreDropdown");
+  const settingsDropdown = document.getElementById("settingsDropdown");
+  const createDropdown = document.getElementById("createDropdown");
+
+  moreDropdown?.classList.remove("show");
+  settingsDropdown?.classList.remove("show");
+  createDropdown?.classList.remove("show");
+  sidebar?.classList.remove("expanded");
 }
 
 function toggleMoreMenu(e) {
@@ -29,9 +66,11 @@ function toggleMoreMenu(e) {
   const sidebar = document.querySelector(".sidebar");
   const moreDropdown = document.getElementById("moreDropdown");
   const settingsDropdown = document.getElementById("settingsDropdown");
+  const createDropdown = document.getElementById("createDropdown");
 
-  // Close settings if open
+  // Close settings and create if open
   settingsDropdown.classList.remove("show");
+  createDropdown?.classList.remove("show");
 
   // Toggle more menu
   const isOpening = !moreDropdown.classList.contains("show");
@@ -87,11 +126,53 @@ function backToMoreMenu(e) {
   sidebar.classList.add("expanded");
 }
 
-document.addEventListener("click", () => {
+// Toggle Create Menu
+function toggleCreateMenu(e) {
+  e.stopPropagation();
   const sidebar = document.querySelector(".sidebar");
-  document.getElementById("moreDropdown")?.classList.remove("show");
-  document.getElementById("settingsDropdown")?.classList.remove("show");
-  sidebar?.classList.remove("expanded");
+  const createDropdown = document.getElementById("createDropdown");
+  const moreDropdown = document.getElementById("moreDropdown");
+  const settingsDropdown = document.getElementById("settingsDropdown");
+
+  // Close other menus
+  moreDropdown?.classList.remove("show");
+  settingsDropdown?.classList.remove("show");
+
+  // Toggle create menu
+  const isOpening = !createDropdown.classList.contains("show");
+
+  if (isOpening) {
+    // Reset animation by removing and re-adding the class
+    createDropdown.classList.remove("show");
+    void createDropdown.offsetWidth; // Force reflow to restart animation
+    createDropdown.classList.add("show");
+    sidebar.classList.add("expanded");
+  } else {
+    createDropdown.classList.remove("show");
+    sidebar.classList.remove("expanded");
+  }
+
+  // Recreate icons
+  lucide.createIcons();
+}
+
+document.addEventListener("click", (e) => {
+  const sidebar = document.querySelector(".sidebar");
+  const moreDropdown = document.getElementById("moreDropdown");
+  const settingsDropdown = document.getElementById("settingsDropdown");
+  const createDropdown = document.getElementById("createDropdown");
+
+  // Kiểm tra click có nằm trong sidebar hoặc popup không
+  const clickedInside =
+    sidebar?.contains(e.target) ||
+    moreDropdown?.contains(e.target) ||
+    settingsDropdown?.contains(e.target) ||
+    createDropdown?.contains(e.target);
+
+  // Nếu click bên ngoài, đóng tất cả popup và collapse sidebar
+  if (!clickedInside) {
+    closeAllDropdowns();
+  }
 });
 
 function setActiveSidebar(route) {
@@ -105,14 +186,19 @@ function setActiveSidebar(route) {
 function navigate(e, route) {
   e.preventDefault();
 
+  // Special handling for create post
+  if (route === "/create/post") {
+    openCreatePostModal();
+    // Close dropdowns and collapse sidebar
+    closeAllDropdowns();
+    return;
+  }
+
   // Set active sidebar
   setActiveSidebar(route);
 
   // Close dropdowns and collapse sidebar
-  const sidebar = document.querySelector(".sidebar");
-  document.getElementById("moreDropdown")?.classList.remove("show");
-  document.getElementById("settingsDropdown")?.classList.remove("show");
-  sidebar?.classList.remove("expanded");
+  closeAllDropdowns();
 
   // TODO: logic SPA của bạn
   // loadPage(route);
@@ -195,9 +281,4 @@ function openAbout(e) {
   e.stopPropagation();
   console.log("Open about");
   // TODO: Implement about page
-}
-
-function logout() {
-  console.log("Logging out...");
-  // TODO: Implement logout logic
 }

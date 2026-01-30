@@ -1,5 +1,5 @@
 // ===== Theme Management =====
-const THEME_KEY = "cloudm-theme";
+const THEME_KEY = "theme";
 
 // Get saved theme or default to dark
 function getTheme() {

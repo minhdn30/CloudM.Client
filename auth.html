@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Auth</title>
+    <script>
+      (function () {
+        const theme = localStorage.getItem("theme") || "dark";
+        console.log("Current theme:", theme);
+
+        if (theme === "light") {
+          document.documentElement.classList.add("light-mode");
+        }
+      })();
+    </script>
     <link rel="stylesheet" href="css/theme.css" />
     <link rel="stylesheet" href="css/auth.css" />
     <link rel="stylesheet" href="css/toast.css" />
@@ -153,6 +163,13 @@
     </div>
 
     <script src="js/shared/toast.js"></script>
+    <script src="js/shared/theme.js"></script>
     <script src="js/auth.js"></script>
+    <script>
+      const theme = localStorage.getItem("theme") || "dark";
+      if (theme === "light") {
+        document.body.classList.add("light-mode");
+      }
+    </script>
   </body>
 </html>

@@ -50,7 +50,7 @@
   --logo-bg: #1f1f1f;
 
   /* ===== Overlays & Shadows ===== */
-  --overlay-bg: rgba(0, 0, 0, 0.7);
+  --overlay-bg: rgba(0, 0, 0, 0.5);
   --overlay-blur: rgba(0, 0, 0, 0.95);
   --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.1);
   --shadow-md: 0 8px 16px rgba(0, 0, 0, 0.3);
@@ -110,7 +110,7 @@ body.light-mode {
   --logo-bg: #f0f0f0;
 
   /* ===== Overlays & Shadows ===== */
-  --overlay-bg: rgba(255, 255, 255, 0.9);
+  --overlay-bg: rgba(255, 255, 255, 0.5);
   --overlay-blur: rgba(255, 255, 255, 0.95);
   --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.08);
   --shadow-md: 0 8px 16px rgba(0, 0, 0, 0.1);

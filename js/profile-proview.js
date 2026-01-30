@@ -72,7 +72,7 @@ function renderProfilePreview(data) {
 
   previewEl.innerHTML = `
     <div class="preview-header">
-      <img src="${data.account.avatarUrl || "/images/default-avatar.png"}" alt="avatar" />
+      <img src="${data.account.avatarUrl || APP_CONFIG.DEFAULT_AVATAR}" alt="avatar" />
       <div>
         <div class="name">${data.account.fullName}</div>
       </div>

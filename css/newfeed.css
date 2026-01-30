@@ -211,17 +211,22 @@
   width: 100%;
   overflow: hidden;
   border-radius: inherit;
+  aspect-ratio: 1 / 1; /* Tỷ lệ vuông 1:1 - có thể đổi thành 4/3 hoặc 16/9 */
 }
 
 .media-track {
   display: flex;
   transition: transform var(--transition-slow);
+  height: 100%;
+  width: 100%;
 }
 
-.media-track img {
+.media-track img,
+.media-track video {
+  flex: 0 0 100%; /* Mỗi item chiếm đúng 100% width */
   width: 100%;
-  flex-shrink: 0;
-  object-fit: cover;
+  height: 100%;
+  object-fit: cover; /* Đổi thành 'contain' nếu muốn giữ nguyên tỷ lệ */
   display: block;
 }
 
@@ -237,6 +242,7 @@
   color: var(--text-primary);
   border: none;
   cursor: pointer;
+  z-index: 10;
 }
 
 .media-slider .prev {

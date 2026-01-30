@@ -39,9 +39,35 @@ window.onpopstate = router;
 router();
 
 //logout
-function logout() {
-  localStorage.clear();
-  window.location.href = "auth.html";
+async function logout() {
+  const accessToken = localStorage.getItem("accessToken");
+
+  try {
+    const res = await fetch(`${APP_CONFIG.API_BASE}/Auths/logout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Logout failed: ${res.status}`);
+    }
+
+    showToast("Logged out successfully", "success");
+  } catch (error) {
+    console.error("Logout API error:", error);
+    showToast("Logout failed, force logout", "warning");
+  } finally {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("avatarUrl");
+    localStorage.removeItem("fullname");
+
+    setTimeout(() => {
+      window.location.href = "/auth.html";
+    }, 800);
+  }
 }
 
 (async function bootstrap() {
