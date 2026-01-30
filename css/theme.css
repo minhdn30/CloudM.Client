@@ -1,0 +1,122 @@
+/* ===============================================
+   THEME.CSS - Color Variables Only
+   =============================================== */
+
+/* ================= DARK MODE (DEFAULT) ================= */
+:root {
+  /* ===== Background Colors ===== */
+  --bg-primary: #0a1317;
+  --bg-secondary: #000000;
+  --bg-tertiary: #111111;
+  --bg-hover: #1a1a1a;
+  --bg-active: #262626;
+  --bg-menu-hover: #3432328c;
+
+  /* ===== Text Colors ===== */
+  --text-primary: #ffffff;
+  --text-secondary: #eaeaea;
+  --text-tertiary: #8e8e8e;
+  --text-disabled: #888888;
+  --text-white: #ffffff;
+  --text-black: #000000;
+
+  /* ===== Border Colors ===== */
+  --border-primary: #262626;
+  --border-secondary: #363636;
+  --border-tertiary: #1f1f1f;
+
+  /* ===== Accent Colors ===== */
+  --accent-primary: #ff416c;
+  --accent-hover: #e43c60;
+  --accent-active: #e63960;
+  --accent-secondary: #0095f6;
+  --accent-secondary-hover: #0083f6;
+  --accent-secondary-active: #0082d9;
+
+  /* ===== Status Colors ===== */
+  --success: #38ef7d;
+  --success-dark: #11998e;
+  --danger: #ed4956;
+  --danger-alt: #ff5a5a;
+  --danger-gradient-start: #eb3349;
+  --danger-gradient-end: #f45c43;
+  --info-gradient-start: #667eea;
+  --info-gradient-end: #764ba2;
+
+  /* ===== Component Specific ===== */
+  --toggle-bg: #333333;
+  --toggle-active: #ff416c;
+  --badge-bg: #ff0000;
+  --logo-bg: #1f1f1f;
+
+  /* ===== Overlays & Shadows ===== */
+  --overlay-bg: rgba(0, 0, 0, 0.7);
+  --overlay-blur: rgba(0, 0, 0, 0.95);
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 8px 16px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.6);
+
+  /* ===== Transitions ===== */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow: 0.3s ease;
+}
+
+/* ================= LIGHT MODE ================= */
+body.light-mode {
+  /* ===== Background Colors ===== */
+  --bg-primary: #f5f5f5; /* Nền chính - xám sáng nhạt */
+  --bg-secondary: #ffffff; /* Nền phụ - trắng */
+  --bg-tertiary: #fafafa; /* Nền cấp 3 - trắng xám rất nhạt */
+  --bg-hover: #eeeeee; /* Nền khi hover - xám nhạt */
+  --bg-active: #e0e0e0; /* Nền khi active - xám đậm hơn */
+  --bg-menu-hover: #e6e6e6cc;
+
+  /* ===== Text Colors ===== */
+  --text-primary: #1a1a1a;
+  --text-secondary: #1a1a1a;
+  --text-tertiary: #8e8e8e;
+  --text-disabled: #c7c7c7;
+  --text-white: #ffffff;
+  --text-black: #000000;
+
+  /* ===== Border Colors ===== */
+  --border-primary: #e0e0e0;
+  --border-secondary: #d0d0d0;
+  --border-tertiary: #e0e0e0;
+
+  /* ===== Accent Colors (giữ nguyên) ===== */
+  --accent-primary: #ff416c;
+  --accent-hover: #e43c60;
+  --accent-active: #e63960;
+  --accent-secondary: #0095f6;
+  --accent-secondary-hover: #0083f6;
+  --accent-secondary-active: #0082d9;
+
+  /* ===== Status Colors (giữ nguyên) ===== */
+  --success: #38ef7d;
+  --success-dark: #11998e;
+  --danger: #ed4956;
+  --danger-alt: #ff5a5a;
+  --danger-gradient-start: #eb3349;
+  --danger-gradient-end: #f45c43;
+  --info-gradient-start: #667eea;
+  --info-gradient-end: #764ba2;
+
+  /* ===== Component Specific ===== */
+  --toggle-bg: #d0d0d0;
+  --toggle-active: #ff416c;
+  --badge-bg: #ff0000;
+  --logo-bg: #f0f0f0;
+
+  /* ===== Overlays & Shadows ===== */
+  --overlay-bg: rgba(255, 255, 255, 0.9);
+  --overlay-blur: rgba(255, 255, 255, 0.95);
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 8px 16px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.15);
+  /* ===== Transitions ===== */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow: 0.3s ease;
+}

@@ -1,0 +1,84 @@
+/* ===== Toast Notification ===== */
+.toast-notification {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: linear-gradient(
+    135deg,
+    var(--info-gradient-start) 0%,
+    var(--info-gradient-end) 100%
+  );
+  color: var(--text-primary);
+  padding: 16px 24px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  z-index: 10001;
+  opacity: 0;
+  transform: translateX(400px);
+  transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  pointer-events: none;
+  box-shadow:
+    var(--shadow-md),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 400px;
+  backdrop-filter: blur(10px);
+  font-family: "Montserrat", sans-serif;
+}
+
+.toast-notification.show {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+/* Success */
+.toast-notification.success {
+  background: linear-gradient(
+    135deg,
+    var(--success-dark) 0%,
+    var(--success) 100%
+  );
+  box-shadow:
+    0 8px 16px rgba(17, 153, 142, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+/* Error / Danger */
+.toast-notification.error {
+  background: linear-gradient(
+    135deg,
+    var(--danger-gradient-start) 0%,
+    var(--danger-gradient-end) 100%
+  );
+  box-shadow:
+    0 8px 16px rgba(235, 51, 73, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+/* Info */
+.toast-notification.info {
+  background: linear-gradient(
+    135deg,
+    var(--info-gradient-start) 0%,
+    var(--info-gradient-end) 100%
+  );
+  box-shadow:
+    0 8px 16px rgba(102, 126, 234, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .toast-notification {
+    right: 16px;
+    bottom: 16px;
+    min-width: 250px;
+    max-width: calc(100vw - 32px);
+    font-size: 14px;
+    padding: 14px 20px;
+  }
+}

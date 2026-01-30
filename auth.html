@@ -1,10 +1,12 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Auth</title>
+    <link rel="stylesheet" href="css/theme.css" />
     <link rel="stylesheet" href="css/auth.css" />
+    <link rel="stylesheet" href="css/toast.css" />
   </head>
   <body>
     <div class="container" id="container">
@@ -20,9 +22,23 @@
               type="password"
               placeholder="Password"
             />
-            <span class="toggle-password" data-target="signup-password"
-              >👁️</span
-            >
+            <span class="toggle-password" data-target="signup-password">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="eye-icon"
+              >
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </span>
           </div>
           <div class="password-wrapper">
             <input
@@ -30,7 +46,23 @@
               type="password"
               placeholder="Confirm Password"
             />
-            <span class="toggle-password" data-target="cf-password">👁️</span>
+            <span class="toggle-password" data-target="cf-password">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="eye-icon"
+              >
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </span>
           </div>
           <button>Sign Up</button>
         </form>
@@ -41,7 +73,23 @@
           <input id="login-username" type="text" placeholder="Username" />
           <div class="password-wrapper">
             <input id="login-password" type="password" placeholder="Password" />
-            <span class="toggle-password" data-target="login-password">👁️</span>
+            <span class="toggle-password" data-target="login-password">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="eye-icon"
+              >
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </span>
           </div>
 
           <button>Sign In</button>
@@ -66,7 +114,7 @@
               />
             </a>
           </div>
-          <a href="#">Forgot your password?</a>
+          <a class="forgot-password" href="#">Forgot your password?</a>
         </form>
       </div>
       <div class="overlay-container">
@@ -104,8 +152,7 @@
       </div>
     </div>
 
-    <!-- Toast notification -->
-    <div id="toast" class="toast"></div>
+    <script src="js/shared/toast.js"></script>
     <script src="js/auth.js"></script>
   </body>
 </html>
