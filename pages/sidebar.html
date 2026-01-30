@@ -69,17 +69,38 @@
       data-route="/notifications"
       onclick="navigate(event, '/notifications')"
     >
-      <i data-lucide="heart"></i>
+      <i data-lucide="bell"></i>
       <span>Notifications</span>
     </a>
-    <a
-      class="menu-item"
-      data-route="/create"
-      onclick="navigate(event, '/create')"
-    >
-      <i data-lucide="plus"></i>
-      <span>Create</span>
-    </a>
+
+    <!-- Create Menu with Dropdown -->
+    <div class="create-wrapper">
+      <a
+        class="menu-item"
+        id="createButton"
+        data-route="/create"
+        onclick="toggleCreateMenu(event)"
+      >
+        <i data-lucide="plus"></i>
+        <span>Create</span>
+      </a>
+
+      <!-- Create dropdown -->
+      <div class="create-dropdown" id="createDropdown">
+        <div class="dropdown-item" onclick="navigate(event, '/create/story')">
+          <i data-lucide="circle-plus"></i>
+          <span>Story</span>
+        </div>
+        <div class="dropdown-item" onclick="navigate(event, '/create/post')">
+          <i data-lucide="file-text"></i>
+          <span>Post</span>
+        </div>
+        <div class="dropdown-item" onclick="navigate(event, '/create/reel')">
+          <i data-lucide="video"></i>
+          <span>Reel</span>
+        </div>
+      </div>
+    </div>
   </nav>
 
   <!-- Footer -->

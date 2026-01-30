@@ -1,0 +1,147 @@
+<!-- Create Post Modal -->
+<div class="modal-overlay" id="createPostModal">
+  <div class="modal-container">
+    <!-- Header -->
+    <div class="modal-header">
+      <button class="modal-back-btn" onclick="closeCreatePostModal()">
+        <i data-lucide="arrow-left"></i>
+      </button>
+      <h2 class="modal-title">Tạo bài viết mới</h2>
+      <button class="modal-share-btn" onclick="submitPost()">Chia sẻ</button>
+    </div>
+
+    <!-- Content -->
+    <div class="modal-content">
+      <!-- Image Preview Area -->
+      <div class="post-image-container">
+        <img id="postImagePreview" src="" alt="Preview" />
+        <button class="change-image-btn" onclick="triggerImageUpload()">
+          <i data-lucide="image"></i>
+        </button>
+        <input
+          type="file"
+          id="postImageInput"
+          accept="image/*"
+          style="display: none"
+          onchange="handleImageUpload(event)"
+        />
+      </div>
+
+      <!-- Right Panel -->
+      <div class="post-details-panel">
+        <!-- User Info -->
+        <div class="post-user-info">
+          <img id="post-user-avatar" src="" alt="avatar" class="user-avatar" />
+          <span id="post-user-name" class="user-name">User</span>
+        </div>
+
+        <!-- Caption Input -->
+        <div class="post-caption-container">
+          <textarea
+            id="postCaption"
+            class="post-caption-input"
+            placeholder="Viết chú thích..."
+            maxlength="2200"
+            oninput="updateCharCount()"
+          ></textarea>
+          <div class="char-count"><span id="charCount">0</span>/2200</div>
+        </div>
+
+        <!-- Emoji Button -->
+        <button class="emoji-btn" onclick="toggleEmojiPicker()">
+          <i data-lucide="smile"></i>
+        </button>
+
+        <!-- Location Section -->
+        <div class="post-section">
+          <div class="section-header" onclick="toggleSection('location')">
+            <span class="section-title">Thêm vị trí</span>
+            <i data-lucide="map-pin" class="section-icon"></i>
+          </div>
+          <div
+            class="section-content"
+            id="locationContent"
+            style="display: none"
+          >
+            <input
+              type="text"
+              class="location-input"
+              placeholder="Tìm kiếm vị trí..."
+            />
+          </div>
+        </div>
+
+        <!-- Collaborators Section -->
+        <div class="post-section">
+          <div class="section-header" onclick="toggleSection('collaborators')">
+            <span class="section-title">Thêm cộng tác viên</span>
+            <i data-lucide="users" class="section-icon"></i>
+          </div>
+          <div
+            class="section-content"
+            id="collaboratorsContent"
+            style="display: none"
+          >
+            <input
+              type="text"
+              class="collaborator-input"
+              placeholder="Tìm kiếm người dùng..."
+            />
+          </div>
+        </div>
+
+        <!-- Advanced Settings -->
+        <div class="post-section">
+          <div
+            class="section-header expandable"
+            onclick="toggleSection('advanced')"
+          >
+            <span class="section-title">Chia sẻ lên</span>
+            <i data-lucide="chevron-down" class="chevron-icon"></i>
+          </div>
+          <div
+            class="section-content advanced-settings"
+            id="advancedContent"
+            style="display: none"
+          >
+            <!-- Share to Threads -->
+            <div class="setting-item">
+              <div class="setting-info">
+                <img
+                  src="https://via.placeholder.com/32"
+                  alt="Threads"
+                  class="platform-icon"
+                />
+                <div class="setting-details">
+                  <span class="setting-name">nmin301</span>
+                  <span class="setting-desc">Threads • Công khai</span>
+                </div>
+              </div>
+              <div class="toggle-switch active">
+                <div class="toggle-slider"></div>
+              </div>
+            </div>
+
+            <!-- Share to Facebook -->
+            <div class="setting-item">
+              <div class="setting-info">
+                <img
+                  src="https://via.placeholder.com/32"
+                  alt="Facebook"
+                  class="platform-icon"
+                />
+                <div class="setting-details">
+                  <span class="setting-name">Đặng Nhật Minh</span>
+                  <span class="setting-desc">Facebook • Chỉ mình tôi</span>
+                </div>
+              </div>
+              <div class="toggle-switch">
+                <div class="toggle-slider"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
