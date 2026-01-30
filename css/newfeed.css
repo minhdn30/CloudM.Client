@@ -46,15 +46,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 200px;
-}
-
-.post-username:hover,
-.post-avatar:hover {
-  transform: scale(1.05);
+  color: var(--text-primary);
 }
 
 .post-time {
-  color: #aaa;
+  color: var(--text-tertiary);
   font-size: 14px;
   white-space: nowrap;
   flex-shrink: 0;
@@ -65,19 +61,18 @@
   cursor: pointer;
   background: none;
   border: none;
-  color: #ffffff;
+  color: var(--text-primary);
   padding: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: all var(--transition-normal);
   border-radius: 50%;
   flex-shrink: 0;
 }
 
 .post-more:hover {
-  opacity: 0.7;
-  transform: rotate(90deg);
+  transform: scale(1.05);
 }
 
 .post-more:active {
@@ -131,6 +126,7 @@
 .post-likes {
   font-weight: 600;
   font-size: 15px;
+  color: var(--text-primary);
 }
 
 /* 🔥 RESET TOÀN BỘ ELEMENT BÊN TRONG CAPTION */
@@ -138,6 +134,10 @@
   margin: 0;
   padding: 0;
   text-indent: 0;
+}
+
+.post-caption {
+  color: var(--text-primary);
 }
 
 /* clamp */
@@ -151,7 +151,7 @@
 
 /* more / less */
 .caption-toggle {
-  color: #aaa;
+  color: var(--text-tertiary);
   font-size: 14px;
   cursor: pointer;
   display: inline-block;
@@ -160,7 +160,7 @@
 
 /* ===== Comments ===== */
 .post-comments {
-  color: #aaa;
+  color: var(--text-tertiary);
   font-size: 14px;
   margin-top: 8px;
   cursor: pointer;
@@ -175,11 +175,15 @@
   width: 100%;
   background: transparent;
   border: none;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid var(--border-tertiary);
   padding: 8px 0;
-  color: #fff;
+  color: var(--text-primary);
   outline: none;
   font-size: 15px;
+}
+
+.post-add-comment input::placeholder {
+  color: var(--text-tertiary);
 }
 
 /* ===== Action item ===== */
@@ -198,7 +202,7 @@
 
 .action-item .count {
   font-size: 13px;
-  color: #eaeaea;
+  color: var(--text-secondary);
 }
 
 /* ===== Media slider ===== */
@@ -211,7 +215,7 @@
 
 .media-track {
   display: flex;
-  transition: transform 0.3s ease;
+  transition: transform var(--transition-slow);
 }
 
 .media-track img {
@@ -229,8 +233,8 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.4);
-  color: white;
+  background: var(--overlay-bg);
+  color: var(--text-primary);
   border: none;
   cursor: pointer;
 }
@@ -255,12 +259,12 @@
 .media-dots span {
   width: 6px;
   height: 6px;
-  background: #ccc;
+  background: var(--text-tertiary);
   border-radius: 50%;
 }
 
 .media-dots span.active {
-  background: #ff416c;
+  background: var(--accent-primary);
 }
 
 /* ===== React (Like) ===== */
@@ -270,16 +274,16 @@
 
 .react-icon {
   transition:
-    transform 0.15s ease,
-    fill 0.15s ease,
-    color 0.15s ease;
-  color: #fff;
+    transform var(--transition-fast) ease,
+    fill var(--transition-fast) ease,
+    color var(--transition-fast) ease;
+  color: var(--text-primary);
   fill: none;
 }
 
 .react-icon.reacted {
-  color: #ff416c;
-  fill: #ff416c;
+  color: var(--accent-primary);
+  fill: var(--accent-primary);
   transform: scale(1.05);
 }
 
@@ -291,7 +295,7 @@
 }
 
 .post-actions .action-item {
-  transition: transform 0.15s ease;
+  transition: transform var(--transition-fast) ease;
 }
 
 /* hover → scale nhẹ */
@@ -302,9 +306,9 @@
 /* icon hover mượt hơn */
 .post-actions .action-item i {
   transition:
-    transform 0.15s ease,
-    color 0.15s ease,
-    stroke 0.15s ease;
+    transform var(--transition-fast) ease,
+    color var(--transition-fast) ease,
+    stroke var(--transition-fast) ease;
 }
 
 .post-actions .action-item:hover i {
@@ -315,7 +319,7 @@
   background: none;
   margin-top: 3px;
   border: none;
-  color: #ff416c;
+  color: var(--accent-primary);
   font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;

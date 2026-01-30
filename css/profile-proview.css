@@ -1,16 +1,16 @@
 .profile-preview {
   position: absolute;
   width: 340px;
-  background: #000000;
-  border: 1px solid #262626;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
   border-radius: 16px;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--shadow-lg);
   padding: 16px;
   z-index: 9999;
   transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
-  color: #ffffff;
+    opacity var(--transition-normal),
+    transform var(--transition-normal);
+  color: var(--text-primary);
   opacity: 1;
   transform: scale(1);
   transform-origin: top left;
@@ -36,7 +36,6 @@
   height: 56px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid #262626;
   flex-shrink: 0;
 }
 
@@ -48,7 +47,7 @@
 .preview-header .name {
   font-weight: 600;
   font-size: 15px;
-  color: #ffffff;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -61,7 +60,7 @@
   gap: 4px;
   margin-bottom: 12px;
   font-size: 14px;
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .preview-stats > div {
@@ -73,13 +72,13 @@
 
 .preview-stats b {
   font-weight: 600;
-  color: #ffffff;
-  font-size: 15px;
+  color: var(--text-primary);
+  font-size: 16px;
 }
 
 .preview-stats span {
-  color: #8e8e8e;
-  font-size: 13px;
+  color: var(--text-secondary);
+  font-size: 15px;
 }
 
 /* ===== Media grid ===== */
@@ -94,13 +93,13 @@
   width: 100%;
   height: 100px;
   object-fit: cover;
-  background: #1a1a1a;
+  background: var(--bg-hover);
   border-radius: 8px;
 }
 
 .no-media {
   font-size: 13px;
-  color: #8e8e8e;
+  color: var(--text-tertiary);
   text-align: center;
   grid-column: span 3;
   padding: 20px 0;
@@ -120,7 +119,7 @@
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
-  transition: all 0.2s ease;
+  transition: all var(--transition-normal);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -135,61 +134,61 @@
 
 /* Message */
 .btn-message {
-  background: #ff416c;
-  color: #ffffff;
+  background: var(--accent-primary);
+  color: var(--text-white);
 }
 
 .btn-message:hover {
-  background: #ff5a7f;
+  background: var(--accent-hover);
 }
 
 .btn-message:active {
-  background: #e63960;
+  background: var(--accent-active);
   transform: scale(0.98);
 }
 
 /* Follow */
 .btn-follow {
-  background: #0095f6;
-  color: #ffffff;
+  background: var(--accent-secondary);
+  color: var(--text-white);
 }
 
 .btn-follow:hover {
-  background: #1877f2;
+  background: var(--accent-secondary-hover);
 }
 
 .btn-follow:active {
-  background: #0082d9;
+  background: var(--accent-secondary-active);
   transform: scale(0.98);
 }
 
 /* Following */
 .btn-following {
-  background: #262626;
-  color: #ffffff;
+  background: var(--border-primary);
+  color: var(--text-primary);
 }
 
 .btn-following:hover {
-  background: #363636;
+  background: var(--border-secondary);
 }
 
 .btn-following:active {
-  background: #1a1a1a;
+  background: var(--bg-hover);
   transform: scale(0.98);
 }
 
 /* View Profile */
 .btn-view-profile {
-  background: #ff416c;
-  color: #ffffff;
+  background: var(--accent-primary);
+  color: var(--text-primary);
 }
 
 .btn-view-profile:hover {
-  background: #ff5a7f;
+  background: var(--accent-hover);
 }
 
 .btn-view-profile:active {
-  background: #e63960;
+  background: var(--accent-active);
   transform: scale(0.98);
 }
 
@@ -217,9 +216,8 @@
     max-width: 360px;
     padding: 14px;
     border-radius: 12px;
-    /* Thêm backdrop blur cho mobile */
     backdrop-filter: blur(10px);
-    background: rgba(0, 0, 0, 0.95);
+    background: var(--overlay-blur);
   }
 
   .preview-header {
@@ -333,41 +331,32 @@
 
 /* ===== Touch device improvements ===== */
 @media (hover: none) and (pointer: coarse) {
-  /* Remove hover effects on touch devices */
   .btn:hover {
     transform: none;
   }
 
-  /* Better active/pressed states */
   .btn:active {
     transform: scale(0.96);
   }
 
-  /* Prevent text selection on buttons */
   .btn {
     -webkit-tap-highlight-color: transparent;
     user-select: none;
   }
 
   .profile-preview {
-    /* Prevent accidental scrolling while interacting */
     touch-action: pan-y;
   }
-}
-
-/* ===== Dark mode support (if needed) ===== */
-@media (prefers-color-scheme: light) {
-  /* Currently using dark theme by default, but can add light mode here if needed */
 }
 
 /* ===== High contrast mode ===== */
 @media (prefers-contrast: high) {
   .profile-preview {
-    border: 2px solid #ffffff;
+    border: 2px solid var(--text-primary);
   }
 
   .preview-header img {
-    border: 2px solid #ffffff;
+    border: 2px solid var(--text-primary);
   }
 
   .btn {
@@ -394,14 +383,14 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--overlay-bg);
   backdrop-filter: blur(4px);
   z-index: 10000;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity var(--transition-normal);
 }
 
 .unfollow-overlay.show {
@@ -409,13 +398,13 @@
 }
 
 .unfollow-popup {
-  background: #262626;
+  background: var(--border-primary);
   border-radius: 16px;
   width: 90%;
   max-width: 400px;
   overflow: hidden;
   transform: scale(0.9);
-  transition: transform 0.2s ease;
+  transition: transform var(--transition-normal);
 }
 
 .unfollow-overlay.show .unfollow-popup {
@@ -425,18 +414,18 @@
 .unfollow-content {
   padding: 32px 24px;
   text-align: center;
-  border-bottom: 1px solid #363636;
+  border-bottom: 1px solid var(--border-secondary);
 }
 
 .unfollow-content h3 {
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 18px;
   font-weight: 600;
   margin: 0 0 8px 0;
 }
 
 .unfollow-content p {
-  color: #8e8e8e;
+  color: var(--text-tertiary);
   font-size: 14px;
   margin: 0;
   line-height: 1.5;
@@ -452,12 +441,12 @@
   padding: 14px;
   border: none;
   background: transparent;
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s ease;
-  border-bottom: 1px solid #363636;
+  transition: background var(--transition-normal);
+  border-bottom: 1px solid var(--border-secondary);
 }
 
 .unfollow-btn:last-child {
@@ -465,19 +454,19 @@
 }
 
 .unfollow-btn:hover {
-  background: #363636;
+  background: var(--border-secondary);
 }
 
 .unfollow-btn:active {
-  background: #1a1a1a;
+  background: var(--bg-hover);
 }
 
 .unfollow-confirm {
-  color: #ed4956;
+  color: var(--danger);
 }
 
 .unfollow-cancel {
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 /* Mobile adjustments for unfollow popup */

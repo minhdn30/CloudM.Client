@@ -92,9 +92,10 @@
 
       <!-- More dropdown -->
       <div class="more-dropdown" id="moreDropdown">
-        <div class="dropdown-item" onclick="navigate(event, '/settings')">
+        <div class="dropdown-item" onclick="toggleSettingsMenu(event)">
           <i data-lucide="settings"></i>
           <span>Settings</span>
+          <i data-lucide="chevron-right" class="chevron-icon"></i>
         </div>
         <div class="dropdown-item" onclick="navigate(event, '/profile')">
           <i data-lucide="user"></i>
@@ -104,6 +105,57 @@
         <div class="dropdown-item danger" onclick="logout()">
           <i data-lucide="log-out"></i>
           <span>Log out</span>
+        </div>
+      </div>
+
+      <!-- Settings dropdown -->
+      <div class="settings-dropdown" id="settingsDropdown">
+        <div class="dropdown-header" onclick="backToMoreMenu(event)">
+          <button class="back-button">
+            <i data-lucide="chevron-left"></i>
+          </button>
+          <span>Settings</span>
+        </div>
+
+        <div class="dropdown-item" onclick="toggleTheme(event)">
+          <i data-lucide="moon" id="theme-icon"></i>
+          <span>Dark Mode</span>
+          <div class="toggle-switch" id="theme-toggle">
+            <div class="toggle-slider"></div>
+          </div>
+        </div>
+
+        <div class="dropdown-item" onclick="openLanguageMenu(event)">
+          <i data-lucide="languages"></i>
+          <span>Language</span>
+          <span class="dropdown-value">English</span>
+        </div>
+
+        <div class="dropdown-item" onclick="openNotificationSettings(event)">
+          <i data-lucide="bell"></i>
+          <span>Notifications</span>
+        </div>
+
+        <div class="dropdown-item" onclick="openPrivacySettings(event)">
+          <i data-lucide="shield"></i>
+          <span>Privacy & Security</span>
+        </div>
+
+        <div class="dropdown-item" onclick="openAccountSettings(event)">
+          <i data-lucide="user-cog"></i>
+          <span>Account Settings</span>
+        </div>
+
+        <div class="dropdown-divider"></div>
+
+        <div class="dropdown-item" onclick="openHelp(event)">
+          <i data-lucide="help-circle"></i>
+          <span>Help & Support</span>
+        </div>
+
+        <div class="dropdown-item" onclick="openAbout(event)">
+          <i data-lucide="info"></i>
+          <span>About</span>
         </div>
       </div>
     </div>
