@@ -6,13 +6,13 @@
       <button class="modal-back-btn" onclick="handleBackButton()">
         <i data-lucide="arrow-left"></i>
       </button>
-      <h2 class="modal-title" id="modalTitle">Upload and Edit Photos</h2>
+      <h2 class="modal-title" id="modalTitle">Upload and Edit Photos/Videos</h2>
       <button
         class="modal-next-btn"
         id="modalActionBtn"
         onclick="handleNextStep()"
       >
-        Next Step
+        Next
       </button>
     </div>
 
@@ -101,8 +101,8 @@
             <h3>Crop Ratio</h3>
           </div>
           <p class="crop-info-desc">
-            Choose a ratio that fits the aesthetic of your post. 1:1 is
-            recommended for most feeds.
+            Choose a ratio that fits the aesthetic of your post. <br />
+            1:1 (Square) is recommended for most feeds.
           </p>
 
           <div class="crop-ratio-grid">
@@ -144,8 +144,8 @@
             <div class="help-item">
               <i data-lucide="info" style="width: 20px; height: 20px"></i>
               <div>
-                <strong>Image Details</strong>
-                <p id="imageResolution">No image selected</p>
+                <strong>Media Details</strong>
+                <p id="imageResolution">No file selected</p>
               </div>
             </div>
             <div class="help-item">
@@ -168,17 +168,10 @@
       <!-- Media Preview Area (Read-only) -->
       <div class="post-media-container step2-media">
         <div class="media-preview-readonly" id="mediaPreviewReadonly">
-          <div
-            class="media-readonly-container crop-1-1"
-            id="mediaReadonlyContainer"
-          >
-            <img
-              id="postImagePreviewFinal"
-              src=""
-              alt="Preview"
-              style="display: none"
-            />
-            <video id="postVideoPreviewFinal" style="display: none"></video>
+          <div class="media-readonly-container" id="mediaReadonlyContainer">
+            <div class="media-slider-wrapper" id="mediaSliderWrapper">
+              <!-- Slider track will be built dynamically -->
+            </div>
           </div>
 
           <!-- Navigation for multiple images -->
