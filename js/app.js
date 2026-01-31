@@ -1,15 +1,4 @@
 /* =========================
-   AUTH GUARD (SAFE)
-   ========================= */
-(function authGuard() {
-  // Chỉ redirect nếu đã logout thật sự
-  const forceLoggedOut = sessionStorage.getItem("forceLogout");
-  if (forceLoggedOut) {
-    window.location.href = "/auth.html";
-  }
-})();
-
-/* =========================
    GLOBAL
    ========================= */
 const app = document.getElementById("app");
@@ -54,18 +43,14 @@ router();
 async function logout() {
   try {
     await apiFetch("/Auths/logout", { method: "POST" });
-    showToast("Logged out successfully", "success");
-  } catch (error) {
-    console.warn("Logout API failed, force logout");
-    showToast("Session cleared", "warning");
+  } catch (_) {
+    // ignore
   } finally {
-    forceLogout();
+    clearSessionAndRedirect();
   }
 }
 
-function forceLogout() {
-  sessionStorage.setItem("forceLogout", "true");
-
+function clearSessionAndRedirect() {
   localStorage.removeItem("accessToken");
   localStorage.removeItem("avatarUrl");
   localStorage.removeItem("fullname");
@@ -89,7 +74,7 @@ function forceLogout() {
 })();
 
 /* =========================
-   REFRESH TOKEN (LOCKED)
+   REFRESH TOKEN (LOCK)
    ========================= */
 async function refreshAccessToken() {
   if (!refreshPromise) {
@@ -98,7 +83,9 @@ async function refreshAccessToken() {
       credentials: "include",
     })
       .then((res) => {
-        if (!res.ok) throw new Error("Refresh token expired");
+        if (res.status === 401 || res.status === 403) {
+          throw new Error("REFRESH_EXPIRED");
+        }
         return res.json();
       })
       .then((data) => {
@@ -114,7 +101,7 @@ async function refreshAccessToken() {
 }
 
 /* =========================
-   API FETCH (AUTO REFRESH)
+   API FETCH
    ========================= */
 async function apiFetch(url, options = {}) {
   const accessToken = localStorage.getItem("accessToken");
@@ -128,10 +115,10 @@ async function apiFetch(url, options = {}) {
     },
   });
 
-  // ✅ Request OK
+  // OK
   if (res.status !== 401) return res;
 
-  // ⛔ AccessToken hết hạn → thử refresh
+  // Try refresh
   try {
     const newToken = await refreshAccessToken();
 
@@ -144,8 +131,8 @@ async function apiFetch(url, options = {}) {
       },
     });
   } catch (err) {
-    // ❌ Refresh token cũng hết hạn → logout thật
-    forceLogout();
+    // ❗ CHỈ logout khi refresh-token thật sự hết hạn
+    clearSessionAndRedirect();
     throw err;
   }
 }

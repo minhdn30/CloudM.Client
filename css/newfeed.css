@@ -238,8 +238,8 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--overlay-bg);
-  color: var(--text-primary);
+  background: var(--text-secondary);
+  color: var(--bg-primary);
   border: none;
   cursor: pointer;
   z-index: 10;

@@ -82,8 +82,82 @@ function openCreatePostModal() {
   lucide.createIcons();
 }
 
+// Check if modal has any content
+function hasModalContent() {
+  const captionInput = document.getElementById("postCaption");
+  const caption = captionInput ? captionInput.value.trim() : "";
+
+  return mediaFiles.length > 0 || caption.length > 0;
+}
+
+// Show discard confirmation popup
+function showDiscardConfirmation() {
+  const overlay = document.createElement("div");
+  overlay.className = "post-options-overlay";
+  overlay.id = "discardConfirmOverlay";
+
+  const popup = document.createElement("div");
+  popup.className = "post-options-popup";
+
+  popup.innerHTML = `
+    <div class="post-options-header">
+      <h3>Discard post?</h3>
+      <p>If you leave, your edits won't be saved.</p>
+    </div>
+    <button class="post-option post-option-danger" onclick="confirmDiscardPost()">
+      Discard
+    </button>
+    <button class="post-option post-option-cancel" onclick="cancelDiscardPost()">
+      Cancel
+    </button>
+  `;
+
+  overlay.appendChild(popup);
+  document.body.appendChild(overlay);
+
+  if (window.lucide) lucide.createIcons();
+
+  requestAnimationFrame(() => overlay.classList.add("show"));
+
+  overlay.onclick = (e) => {
+    if (e.target === overlay) cancelDiscardPost();
+  };
+}
+
+// Confirm discard
+function confirmDiscardPost() {
+  const overlay = document.getElementById("discardConfirmOverlay");
+  if (overlay) overlay.remove();
+
+  // Actually close the modal
+  const modal = document.getElementById("createPostModal");
+  if (!modal) return;
+
+  modal.classList.remove("show");
+  document.body.style.overflow = "";
+
+  resetPostForm();
+  currentStep = 1;
+  showStep(1);
+}
+
+// Cancel discard
+function cancelDiscardPost() {
+  const overlay = document.getElementById("discardConfirmOverlay");
+  if (overlay) {
+    overlay.classList.remove("show");
+    setTimeout(() => overlay.remove(), 200);
+  }
+}
+
 // Close create post modal
 function closeCreatePostModal() {
+  // Check if there's content
+  if (hasModalContent()) {
+    showDiscardConfirmation();
+    return;
+  }
+
   const modal = document.getElementById("createPostModal");
   if (!modal) return;
 
@@ -108,17 +182,28 @@ function handleBackButton() {
 // Handle next step / share
 function handleNextStep() {
   if (currentStep === 1) {
-    if (mediaFiles.length === 0) {
-      alert("Please upload an image or video!");
-      return;
-    }
+    // Save crop data for current media if exists
+    if (mediaFiles.length > 0) {
+      saveCropData();
 
-    // Save crop data for current media
-    saveCropData();
+      // Ensure all images have crop data before moving to step 2
+      ensureAllCropData();
+    }
 
     currentStep = 2;
     showStep(2);
-    prepareStep2Preview();
+    if (mediaFiles.length > 0) {
+      prepareStep2Preview();
+    } else {
+      // Clear any existing media previews in step 2
+      const sliderWrapper = document.getElementById("mediaSliderWrapper");
+      const navigation = document.getElementById("mediaNavigation");
+      const thumbnails = document.getElementById("mediaThumbnailsStep2");
+
+      if (sliderWrapper) sliderWrapper.innerHTML = "";
+      if (navigation) navigation.style.display = "none";
+      if (thumbnails) thumbnails.style.display = "none";
+    }
   } else {
     submitPost();
   }
@@ -134,7 +219,7 @@ function showStep(step) {
   if (step === 1) {
     if (step1Content) step1Content.style.display = "flex";
     if (step2Content) step2Content.style.display = "none";
-    if (modalTitle) modalTitle.textContent = "Upload and Edit Photos";
+    if (modalTitle) modalTitle.textContent = "Upload and Edit Photos/Videos";
     if (actionBtn) actionBtn.textContent = "Next Step";
   } else {
     if (step1Content) step1Content.style.display = "none";
@@ -165,24 +250,9 @@ function calculateCropFrameSize(ratio) {
   let width, height;
 
   if (ratio === "original") {
-    // For original, calculate based on image orientation
-    if (imageNaturalWidth && imageNaturalHeight) {
-      const imageRatio = imageNaturalWidth / imageNaturalHeight;
-
-      // Determine if image is portrait or landscape
-      if (imageRatio < 1) {
-        // Portrait - use 4:5 frame
-        width = maxSize * 0.8;
-        height = maxSize;
-      } else {
-        // Landscape or square - use 1:1 frame
-        width = maxSize;
-        height = maxSize;
-      }
-    } else {
-      width = maxSize;
-      height = maxSize;
-    }
+    // For original, always use 1:1 crop frame
+    width = maxSize;
+    height = maxSize;
   } else if (ratio === "1:1") {
     width = maxSize;
     height = maxSize;
@@ -244,8 +314,23 @@ function calculateOptimalCrop(ratio) {
   } else if (ratio === "16:9") {
     cropRatio = 16 / 9;
   } else if (ratio === "original") {
-    // For original, just fit the entire image
-    zoomLevel = 1;
+    // For original: fit entire image in 1:1 crop frame
+    // Always use 1:1 crop frame, but zoom to fit entire image
+    const cropFrameRatio = 1; // Always 1:1 for original
+
+    // Compare image dimensions to determine how to fit
+    if (imageNaturalHeight > imageNaturalWidth) {
+      // Portrait: fit by height (height of image = height of crop frame)
+      zoomLevel = cropFrameSize.height / (imageNaturalHeight * displayScale);
+    } else {
+      // Landscape or square: fit by width (width of image = width of crop frame)
+      zoomLevel = cropFrameSize.width / (imageNaturalWidth * displayScale);
+    }
+
+    // Constrain zoom level
+    zoomLevel = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomLevel));
+
+    // Reset position to center
     imageOffsetX = 0;
     imageOffsetY = 0;
     return;
@@ -392,6 +477,16 @@ function showMediaAtIndex(index) {
           calculateOptimalCrop(currentCropRatio);
         }
 
+        // Show/hide zoom controls based on ratio
+        const zoomControls = document.getElementById("zoomControls");
+        if (zoomControls) {
+          if (currentCropRatio === "original") {
+            zoomControls.classList.add("hidden");
+          } else {
+            zoomControls.classList.remove("hidden");
+          }
+        }
+
         updateImagePosition();
         updateCropOverlay();
         updateZoomSlider();
@@ -415,6 +510,12 @@ function showMediaAtIndex(index) {
     const imageResolution = document.getElementById("imageResolution");
     if (imageResolution) {
       imageResolution.textContent = "Video file";
+    }
+
+    // Hide zoom controls for video
+    const zoomControls = document.getElementById("zoomControls");
+    if (zoomControls) {
+      zoomControls.classList.add("hidden");
     }
   }
 }
@@ -562,8 +663,7 @@ function resetPostForm() {
   const captionInput = document.getElementById("postCaption");
   const imagePreview = document.getElementById("postImagePreview");
   const videoPreview = document.getElementById("postVideoPreview");
-  const imagePreviewFinal = document.getElementById("postImagePreviewFinal");
-  const videoPreviewFinal = document.getElementById("postVideoPreviewFinal");
+  const sliderWrapper = document.getElementById("mediaSliderWrapper");
   const mediaInput = document.getElementById("postMediaInput");
   const charCount = document.getElementById("charCount");
   const imageResolution = document.getElementById("imageResolution");
@@ -578,15 +678,7 @@ function resetPostForm() {
     videoPreview.style.display = "none";
     videoPreview.pause();
   }
-  if (imagePreviewFinal) {
-    imagePreviewFinal.src = "";
-    imagePreviewFinal.style.display = "none";
-  }
-  if (videoPreviewFinal) {
-    videoPreviewFinal.src = "";
-    videoPreviewFinal.style.display = "none";
-    videoPreviewFinal.pause();
-  }
+  if (sliderWrapper) sliderWrapper.innerHTML = "";
   if (mediaInput) mediaInput.value = "";
   if (charCount) charCount.textContent = "0";
   if (imageResolution) imageResolution.textContent = "No image selected";
@@ -626,14 +718,18 @@ function handleMediaUpload(event) {
     const isVideo = file.type.startsWith("video/");
 
     if (!isImage && !isVideo) {
-      alert("Please select image or video files only!");
+      if (window.toastError) {
+        toastError("Please select image or video files only!");
+      }
       return;
     }
 
     const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
     if (file.size > maxSize) {
       const limit = isVideo ? "50MB" : "10MB";
-      alert(`File size must not exceed ${limit}!`);
+      if (window.toastError) {
+        toastError(`File size must not exceed ${limit}!`);
+      }
       return;
     }
 
@@ -698,19 +794,23 @@ function toggleSection(sectionName) {
 
 // Toggle emoji picker
 function toggleEmojiPicker() {
-  alert("Emoji feature is under development!");
+  if (window.toastInfo) {
+    toastInfo("Emoji feature is under development!");
+  }
 }
 
 // Submit post
 function submitPost() {
   const captionInput = document.getElementById("postCaption");
+  const caption = captionInput ? captionInput.value.trim() : "";
 
-  if (mediaFiles.length === 0) {
-    alert("Please select at least one image or video!");
+  // Allow posting without media (text-only post)
+  if (mediaFiles.length === 0 && !caption) {
+    if (window.toastError) {
+      toastError("Please add a caption or media to your post!");
+    }
     return;
   }
-
-  const caption = captionInput ? captionInput.value.trim() : "";
 
   const selectedPlatforms = [];
   document.querySelectorAll(".setting-item").forEach((item) => {
@@ -731,11 +831,205 @@ function submitPost() {
     platforms: selectedPlatforms,
   });
 
-  alert(`Post with ${mediaFiles.length} media file(s) shared successfully!`);
+  if (mediaFiles.length === 0) {
+    if (window.toastSuccess) {
+      toastSuccess("Text-only post shared successfully!");
+    }
+  } else {
+    if (window.toastSuccess) {
+      toastSuccess(
+        `Post with ${mediaFiles.length} media file(s) shared successfully!`,
+      );
+    }
+  }
+
   closeCreatePostModal();
 }
 
 // ================= CROP RATIO FUNCTIONALITY =================
+
+// Recalculate crop data for all images with new ratio
+function recalculateAllCropData(ratio) {
+  const savedIndex = currentMediaIndex;
+  const savedZoom = zoomLevel;
+  const savedOffsetX = imageOffsetX;
+  const savedOffsetY = imageOffsetY;
+
+  mediaFiles.forEach((media, index) => {
+    if (media.type !== "image") return;
+
+    // Load this image temporarily
+    const tempImg = new Image();
+    tempImg.onload = function () {
+      const tempNaturalWidth = tempImg.naturalWidth;
+      const tempNaturalHeight = tempImg.naturalHeight;
+
+      // Calculate display scale for this image
+      const container = document.getElementById("mediaZoomContainer");
+      if (!container) return;
+      const containerRect = container.getBoundingClientRect();
+      const scaleX = containerRect.width / tempNaturalWidth;
+      const scaleY = containerRect.height / tempNaturalHeight;
+      const tempDisplayScale = Math.min(scaleX, scaleY);
+
+      // Calculate crop frame size for this ratio
+      const tempCropFrameSize = calculateCropFrameSize(ratio);
+
+      // Calculate optimal zoom for this image
+      let tempZoomLevel = 1;
+      const imageRatio = tempNaturalWidth / tempNaturalHeight;
+
+      if (ratio === "original") {
+        if (tempNaturalHeight > tempNaturalWidth) {
+          tempZoomLevel =
+            tempCropFrameSize.height / (tempNaturalHeight * tempDisplayScale);
+        } else {
+          tempZoomLevel =
+            tempCropFrameSize.width / (tempNaturalWidth * tempDisplayScale);
+        }
+      } else {
+        let cropRatio;
+        if (ratio === "1:1") cropRatio = 1;
+        else if (ratio === "4:5") cropRatio = 4 / 5;
+        else if (ratio === "16:9") cropRatio = 16 / 9;
+
+        if (imageRatio > cropRatio) {
+          tempZoomLevel =
+            tempCropFrameSize.height / (tempNaturalHeight * tempDisplayScale);
+        } else {
+          tempZoomLevel =
+            tempCropFrameSize.width / (tempNaturalWidth * tempDisplayScale);
+        }
+      }
+
+      tempZoomLevel = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, tempZoomLevel));
+
+      // Calculate crop coordinates (centered, no offset)
+      const centerX = containerRect.width / 2;
+      const centerY = containerRect.height / 2;
+      const finalScale = tempDisplayScale * tempZoomLevel;
+
+      const cropLeft = centerX - tempCropFrameSize.width / 2;
+      const cropTop = centerY - tempCropFrameSize.height / 2;
+
+      const imgCenterX = centerX; // No offset
+      const imgCenterY = centerY; // No offset
+      const imgLeft = imgCenterX - (tempNaturalWidth * finalScale) / 2;
+      const imgTop = imgCenterY - (tempNaturalHeight * finalScale) / 2;
+
+      const cropX = (cropLeft - imgLeft) / finalScale;
+      const cropY = (cropTop - imgTop) / finalScale;
+      const cropWidth = tempCropFrameSize.width / finalScale;
+      const cropHeight = tempCropFrameSize.height / finalScale;
+
+      // Save crop data for this image
+      media.cropData = {
+        ratio: ratio,
+        zoomLevel: tempZoomLevel,
+        offsetX: 0,
+        offsetY: 0,
+        cropX: Math.max(0, cropX),
+        cropY: Math.max(0, cropY),
+        cropWidth: Math.min(cropWidth, tempNaturalWidth),
+        cropHeight: Math.min(cropHeight, tempNaturalHeight),
+        displayScale: tempDisplayScale,
+      };
+    };
+    tempImg.src = media.data;
+  });
+
+  // Restore current image state (for the visible image)
+  // The current image will be saved again with saveCropData() if user modifies it
+}
+
+// Ensure all images have crop data before moving to step 2
+function ensureAllCropData() {
+  mediaFiles.forEach((media, index) => {
+    if (media.type !== "image") return;
+
+    // If this image doesn't have cropData or has wrong ratio, calculate it
+    if (!media.cropData || media.cropData.ratio !== globalCropRatio) {
+      // Load this image temporarily
+      const tempImg = new Image();
+      tempImg.onload = function () {
+        const tempNaturalWidth = tempImg.naturalWidth;
+        const tempNaturalHeight = tempImg.naturalHeight;
+
+        // Calculate display scale for this image
+        const container = document.getElementById("mediaZoomContainer");
+        if (!container) return;
+        const containerRect = container.getBoundingClientRect();
+        const scaleX = containerRect.width / tempNaturalWidth;
+        const scaleY = containerRect.height / tempNaturalHeight;
+        const tempDisplayScale = Math.min(scaleX, scaleY);
+
+        // Calculate crop frame size for current ratio
+        const tempCropFrameSize = calculateCropFrameSize(globalCropRatio);
+
+        // Calculate optimal zoom for this image
+        let tempZoomLevel = 1;
+        const imageRatio = tempNaturalWidth / tempNaturalHeight;
+
+        if (globalCropRatio === "original") {
+          if (tempNaturalHeight > tempNaturalWidth) {
+            tempZoomLevel =
+              tempCropFrameSize.height / (tempNaturalHeight * tempDisplayScale);
+          } else {
+            tempZoomLevel =
+              tempCropFrameSize.width / (tempNaturalWidth * tempDisplayScale);
+          }
+        } else {
+          let cropRatio;
+          if (globalCropRatio === "1:1") cropRatio = 1;
+          else if (globalCropRatio === "4:5") cropRatio = 4 / 5;
+          else if (globalCropRatio === "16:9") cropRatio = 16 / 9;
+
+          if (imageRatio > cropRatio) {
+            tempZoomLevel =
+              tempCropFrameSize.height / (tempNaturalHeight * tempDisplayScale);
+          } else {
+            tempZoomLevel =
+              tempCropFrameSize.width / (tempNaturalWidth * tempDisplayScale);
+          }
+        }
+
+        tempZoomLevel = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, tempZoomLevel));
+
+        // Calculate crop coordinates (centered, no offset)
+        const centerX = containerRect.width / 2;
+        const centerY = containerRect.height / 2;
+        const finalScale = tempDisplayScale * tempZoomLevel;
+
+        const cropLeft = centerX - tempCropFrameSize.width / 2;
+        const cropTop = centerY - tempCropFrameSize.height / 2;
+
+        const imgCenterX = centerX; // No offset
+        const imgCenterY = centerY; // No offset
+        const imgLeft = imgCenterX - (tempNaturalWidth * finalScale) / 2;
+        const imgTop = imgCenterY - (tempNaturalHeight * finalScale) / 2;
+
+        const cropX = (cropLeft - imgLeft) / finalScale;
+        const cropY = (cropTop - imgTop) / finalScale;
+        const cropWidth = tempCropFrameSize.width / finalScale;
+        const cropHeight = tempCropFrameSize.height / finalScale;
+
+        // Save crop data for this image
+        media.cropData = {
+          ratio: globalCropRatio,
+          zoomLevel: tempZoomLevel,
+          offsetX: 0,
+          offsetY: 0,
+          cropX: Math.max(0, cropX),
+          cropY: Math.max(0, cropY),
+          cropWidth: Math.min(cropWidth, tempNaturalWidth),
+          cropHeight: Math.min(cropHeight, tempNaturalHeight),
+          displayScale: tempDisplayScale,
+        };
+      };
+      tempImg.src = media.data;
+    }
+  });
+}
 
 function changeCropRatio(ratio) {
   // Save crop data for current image before changing ratio
@@ -751,15 +1045,21 @@ function changeCropRatio(ratio) {
   // Apply optimal crop to current image
   calculateOptimalCrop(ratio);
 
-  // Clear saved crop data for all images (they need to be recalculated for new ratio)
-  mediaFiles.forEach((media) => {
-    if (media.type === "image") {
-      media.cropData = null;
-    }
-  });
+  // Calculate crop data for ALL images with new ratio
+  recalculateAllCropData(ratio);
 
   updateImagePosition();
   updateZoomSlider();
+
+  // Show/hide zoom controls based on ratio
+  const zoomControls = document.getElementById("zoomControls");
+  if (zoomControls) {
+    if (ratio === "original") {
+      zoomControls.classList.add("hidden");
+    } else {
+      zoomControls.classList.remove("hidden");
+    }
+  }
 
   document.querySelectorAll(".crop-ratio-card").forEach((card) => {
     card.classList.remove("active");
@@ -916,6 +1216,9 @@ document.addEventListener(
     if (!wrapper || wrapper.style.display === "none") return;
     if (currentStep !== 1) return;
 
+    // Disable zoom for original ratio
+    if (currentCropRatio === "original") return;
+
     const rect = wrapper.getBoundingClientRect();
     if (
       e.clientX >= rect.left &&
@@ -941,7 +1244,7 @@ function prepareStep2Preview() {
   if (mediaFiles.length === 0) return;
 
   currentMediaIndex = 0;
-  showMediaAtIndexStep2(currentMediaIndex);
+  buildSlider();
   updateThumbnailsStep2();
 
   const navigation = document.getElementById("mediaNavigation");
@@ -955,7 +1258,56 @@ function prepareStep2Preview() {
   lucide.createIcons();
 }
 
-// Create cropped image canvas
+// Build slider with all images
+async function buildSlider() {
+  const sliderWrapper = document.getElementById("mediaSliderWrapper");
+  const container = document.getElementById("mediaReadonlyContainer");
+
+  if (!sliderWrapper || !container) return;
+
+  sliderWrapper.innerHTML = "";
+
+  const track = document.createElement("div");
+  track.className = "media-slider-track";
+  track.id = "mediaSliderTrack";
+
+  for (let i = 0; i < mediaFiles.length; i++) {
+    const media = mediaFiles[i];
+    const slide = document.createElement("div");
+    slide.className = "media-slide";
+
+    if (media.type === "image") {
+      const croppedSrc = await createCroppedImage(media);
+      const img = document.createElement("img");
+      img.src = croppedSrc;
+      slide.appendChild(img);
+    } else if (media.type === "video") {
+      const video = document.createElement("video");
+      video.src = media.data;
+      slide.appendChild(video);
+    }
+
+    track.appendChild(slide);
+  }
+
+  sliderWrapper.appendChild(track);
+
+  // Remove all crop classes
+  container.className = "media-readonly-container";
+
+  updateSliderPosition();
+}
+
+// Update slider position
+function updateSliderPosition() {
+  const track = document.getElementById("mediaSliderTrack");
+  if (!track) return;
+
+  const translateX = -currentMediaIndex * 100;
+  track.style.transform = `translateX(${translateX}%)`;
+}
+
+// Create cropped image canvas - FIXED FOR ORIGINAL RATIO
 function createCroppedImage(media) {
   return new Promise((resolve) => {
     if (media.type !== "image" || !media.cropData) {
@@ -965,24 +1317,81 @@ function createCroppedImage(media) {
 
     const img = new Image();
     img.onload = function () {
+      const cropData = media.cropData;
+      const ratio = cropData.ratio;
+
+      // Determine canvas size based on crop ratio
+      let canvasWidth, canvasHeight;
+
+      if (ratio === "original") {
+        // For original: canvas is square (1:1), but image maintains its aspect ratio
+        // Determine canvas size to be square based on the longer dimension of the cropped area
+        const maxDimension = Math.max(cropData.cropWidth, cropData.cropHeight);
+        canvasWidth = maxDimension;
+        canvasHeight = maxDimension;
+      } else if (ratio === "1:1") {
+        // For 1:1: canvas is square with crop dimensions
+        canvasWidth = cropData.cropWidth;
+        canvasHeight = cropData.cropHeight;
+      } else if (ratio === "4:5") {
+        // For 4:5: canvas is square, crop area is 4:5 in the middle
+        // Canvas height = crop height (which is the max dimension)
+        canvasHeight = cropData.cropHeight;
+        canvasWidth = canvasHeight; // Make it square
+
+        // Crop width is smaller (4/5 of height)
+        // We'll center the crop horizontally
+      } else if (ratio === "16:9") {
+        // For 16:9: canvas is square, crop area is 16:9 in the middle
+        // Canvas width = crop width (which is the max dimension)
+        canvasWidth = cropData.cropWidth;
+        canvasHeight = canvasWidth; // Make it square
+
+        // Crop height is smaller (9/16 of width)
+        // We'll center the crop vertically
+      }
+
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
-      const cropData = media.cropData;
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
 
-      canvas.width = cropData.cropWidth;
-      canvas.height = cropData.cropHeight;
+      // Fill with black background
+      ctx.fillStyle = "rgba(0, 0, 0, 0)";
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
+      // Calculate position to center the cropped content
+      let drawX = 0;
+      let drawY = 0;
+      let drawWidth = cropData.cropWidth;
+      let drawHeight = cropData.cropHeight;
+
+      if (ratio === "original") {
+        // Center the image (keep aspect ratio)
+        drawX = (canvasWidth - cropData.cropWidth) / 2;
+        drawY = (canvasHeight - cropData.cropHeight) / 2;
+      } else if (ratio === "4:5") {
+        // Center horizontally
+        drawX = (canvasWidth - cropData.cropWidth) / 2;
+        drawY = 0;
+      } else if (ratio === "16:9") {
+        // Center vertically
+        drawX = 0;
+        drawY = (canvasHeight - cropData.cropHeight) / 2;
+      }
+
+      // Draw the cropped image
       ctx.drawImage(
         img,
         cropData.cropX,
         cropData.cropY,
         cropData.cropWidth,
         cropData.cropHeight,
-        0,
-        0,
-        cropData.cropWidth,
-        cropData.cropHeight,
+        drawX,
+        drawY,
+        drawWidth,
+        drawHeight,
       );
 
       resolve(canvas.toDataURL());
@@ -991,65 +1400,14 @@ function createCroppedImage(media) {
   });
 }
 
-async function showMediaAtIndexStep2(index) {
-  if (index < 0 || index >= mediaFiles.length) return;
-
-  const media = mediaFiles[index];
-  const imagePreviewFinal = document.getElementById("postImagePreviewFinal");
-  const videoPreviewFinal = document.getElementById("postVideoPreviewFinal");
-  const container = document.getElementById("mediaReadonlyContainer");
-
-  if (media.type === "image") {
-    // Create cropped image
-    const croppedSrc = await createCroppedImage(media);
-
-    if (imagePreviewFinal) {
-      imagePreviewFinal.src = croppedSrc;
-      imagePreviewFinal.style.display = "block";
-    }
-    if (videoPreviewFinal) {
-      videoPreviewFinal.style.display = "none";
-      videoPreviewFinal.src = "";
-      videoPreviewFinal.pause();
-    }
-
-    // Update container class based on crop ratio
-    if (container && media.cropData) {
-      container.className = "media-readonly-container";
-      if (media.cropData.ratio === "1:1") {
-        container.classList.add("crop-1-1");
-      } else if (media.cropData.ratio === "4:5") {
-        container.classList.add("crop-4-5");
-      } else if (media.cropData.ratio === "16:9") {
-        container.classList.add("crop-16-9");
-      } else if (media.cropData.ratio === "original") {
-        const imageRatio = media.cropData.cropWidth / media.cropData.cropHeight;
-        if (imageRatio < 1) {
-          container.classList.add("crop-4-5");
-        } else {
-          container.classList.add("crop-1-1");
-        }
-      }
-    }
-  } else if (media.type === "video") {
-    if (videoPreviewFinal) {
-      videoPreviewFinal.src = media.data;
-      videoPreviewFinal.style.display = "block";
-    }
-    if (imagePreviewFinal) {
-      imagePreviewFinal.style.display = "none";
-      imagePreviewFinal.src = "";
-    }
-  }
-}
-
 function updateThumbnailsStep2() {
   const container = document.getElementById("mediaThumbnailsStep2");
   if (!container) return;
 
   container.innerHTML = "";
 
-  if (mediaFiles.length <= 1) {
+  // Always display thumbnails if there are media files
+  if (mediaFiles.length === 0) {
     container.style.display = "none";
     return;
   }
@@ -1080,7 +1438,7 @@ function updateThumbnailsStep2() {
 function navigateToMedia(index) {
   if (index >= 0 && index < mediaFiles.length) {
     currentMediaIndex = index;
-    showMediaAtIndexStep2(index);
+    updateSliderPosition();
 
     document
       .querySelectorAll("#mediaThumbnailsStep2 .thumbnail-item")
@@ -1093,7 +1451,7 @@ function navigateToMedia(index) {
 function previousImage() {
   let newIndex = currentMediaIndex - 1;
   if (newIndex < 0) {
-    newIndex = mediaFiles.length - 1; // Loop to last
+    newIndex = mediaFiles.length - 1;
   }
   navigateToMedia(newIndex);
 }
@@ -1101,7 +1459,7 @@ function previousImage() {
 function nextImage() {
   let newIndex = currentMediaIndex + 1;
   if (newIndex >= mediaFiles.length) {
-    newIndex = 0; // Loop to first
+    newIndex = 0;
   }
   navigateToMedia(newIndex);
 }
@@ -1119,8 +1477,20 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     const modal = document.getElementById("createPostModal");
     if (modal && modal.classList.contains("show")) {
+      // Don't close if discard confirmation is showing
+      if (document.getElementById("discardConfirmOverlay")) return;
       closeCreatePostModal();
     }
+  }
+});
+
+// Prevent accidental page close when modal has content
+window.addEventListener("beforeunload", (e) => {
+  const modal = document.getElementById("createPostModal");
+  if (modal && modal.classList.contains("show") && hasModalContent()) {
+    e.preventDefault();
+    e.returnValue = "";
+    return "";
   }
 });
 

@@ -32,7 +32,7 @@
 .modal-container {
   background: var(--bg-primary);
   border-radius: 16px;
-  width: 1100px;
+  width: 1020px;
   height: 700px;
   display: flex;
   flex-direction: column;
@@ -91,7 +91,7 @@
 
 .modal-next-btn {
   background: var(--accent-primary);
-  color: white;
+  color: var(--text-white);
   border: none;
   padding: 8px 20px;
   border-radius: 8px;
@@ -181,7 +181,7 @@
 
 .select-btn {
   background: var(--accent-primary);
-  color: white;
+  color: var(--text-white);
   border: none;
   padding: 10px 24px;
   border-radius: 8px;
@@ -204,7 +204,7 @@
   justify-content: center;
   position: relative;
   overflow: hidden;
-  background: #000;
+  background: var(--bg-tertiary);
 }
 
 .media-zoom-container {
@@ -251,7 +251,7 @@
 
 .crop-frame {
   position: absolute;
-  border: 2px solid rgba(255, 255, 255, 0.9);
+  border: 2px solid var(--accent-primary);
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
   pointer-events: none;
   z-index: 5;
@@ -289,23 +289,27 @@
 /* ================= ZOOM CONTROLS - VERTICAL ON RIGHT ================= */
 .zoom-controls {
   position: absolute;
-  right: 20px;
+  left: 20px;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   z-index: 10;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--text-secondary);
   padding: 12px 10px;
   border-radius: 24px;
   backdrop-filter: blur(10px);
 }
 
+.zoom-controls.hidden {
+  display: none;
+}
+
 .zoom-btn {
   background: transparent;
-  color: white;
+  color: var(--bg-primary);
   border: none;
   padding: 6px;
   border-radius: 50%;
@@ -317,19 +321,15 @@
   flex-shrink: 0;
 }
 
-.zoom-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
 .zoom-btn svg {
   width: 18px;
   height: 18px;
 }
 
 .zoom-slider {
-  width: 4px;
-  height: 200px;
-  background: rgba(255, 255, 255, 0.3);
+  width: 3px;
+  height: 280px;
+  background: var(--text-tertiary);
   border-radius: 2px;
   position: relative;
   cursor: pointer;
@@ -341,7 +341,6 @@
   border-radius: 2px;
   position: absolute;
   bottom: 0;
-  transition: height 0.05s ease;
   pointer-events: none;
 }
 
@@ -352,11 +351,11 @@
 .zoom-slider-thumb {
   position: absolute;
   left: 50%;
-  top: -6px;
+  top: -5x;
   transform: translateX(-50%);
-  width: 12px;
-  height: 12px;
-  background: white;
+  width: 11px;
+  height: 11px;
+  background: var(--bg-primary);
   border-radius: 50%;
   cursor: grab;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
@@ -369,13 +368,13 @@
 /* ================= MEDIA THUMBNAILS - UPDATED STYLE ================= */
 .media-thumbnails {
   position: absolute;
-  bottom: 16px;
+  bottom: 12px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   gap: 8px;
   z-index: 10;
-  background: rgba(0, 0, 0, 0.6);
+  background: color-mix(in srgb, var(--text-primary) 20%, transparent);
   padding: 8px 12px;
   border-radius: 12px;
   backdrop-filter: blur(10px);
@@ -395,7 +394,7 @@
 
 .thumbnail-item:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: color-mix(in srgb, var(--text-primary) 15%, transparent);
 }
 
 .thumbnail-item:hover .thumbnail-delete {
@@ -420,7 +419,7 @@
   right: 2px;
   width: 20px;
   height: 20px;
-  background: rgba(0, 0, 0, 0.8);
+  background: var(--bg-primary);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -439,15 +438,15 @@
 .thumbnail-delete svg {
   width: 12px;
   height: 12px;
-  color: white;
+  color: var(--text-primary);
 }
 
 .thumbnail-add {
   width: 60px;
   height: 60px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px dashed rgba(255, 255, 255, 0.4);
+  background: color-mix(in srgb, var(--text-primary) 10%, transparent);
+  border: 2px dashed var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -456,14 +455,14 @@
 }
 
 .thumbnail-add:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.6);
+  background: color-mix(in srgb, var(--text-primary) 15%, transparent);
+  border-color: var(--text-secondary);
 }
 
 .thumbnail-add svg {
   width: 24px;
   height: 24px;
-  color: white;
+  color: var(--text-primary);
 }
 
 /* ================= STEP 1 RIGHT PANEL ================= */
@@ -502,22 +501,24 @@
 }
 
 .crop-ratio-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
 }
 
 .crop-ratio-card {
   background: var(--bg-secondary);
   border: 2px solid var(--border-tertiary);
   border-radius: 8px;
-  padding: 10px;
+  padding: 8px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
   transition: all var(--transition-fast);
+  flex: 1;
+  min-width: 0;
 }
 
 .crop-ratio-card:hover {
@@ -531,7 +532,7 @@
 
 .ratio-preview {
   width: 100%;
-  height: 40px;
+  height: 32px;
   background: var(--border-tertiary);
   border-radius: 4px;
   position: relative;
@@ -562,13 +563,14 @@
 }
 
 .ratio-original {
-  height: 40px;
+  display: none;
 }
 
 .crop-ratio-card span {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--text-primary);
+  white-space: nowrap;
 }
 
 .step1-help {
@@ -587,8 +589,8 @@
   border-radius: 6px;
 }
 
-.help-item i {
-  color: var(--accent-primary);
+.help-item svg {
+  color: var(--text-primary);
   flex-shrink: 0;
 }
 
@@ -609,6 +611,11 @@
 /* ================= STEP 2 MEDIA PREVIEW (READ-ONLY) ================= */
 .step2-media {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  overflow: hidden;
 }
 
 .media-preview-readonly {
@@ -619,40 +626,61 @@
   justify-content: center;
   position: relative;
   background: var(--bg-secondary);
+  overflow: hidden;
 }
 
 .media-readonly-container {
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  overflow: hidden;
+  position: relative;
+}
+
+.media-slider-wrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.media-slider-track {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+/* FIX: Prevent image overflow between slides */
+.media-slide {
+  min-width: 100%;
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg-secondary);
 }
 
-.media-readonly-container img,
-.media-readonly-container video {
+.media-slide img,
+.media-slide video {
+  display: block;
+  user-select: none;
+  pointer-events: none;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   max-width: 100%;
   max-height: 100%;
-  object-fit: contain;
-  user-select: none;
-}
-
-.media-readonly-container.crop-1-1 img,
-.media-readonly-container.crop-1-1 video {
-  aspect-ratio: 1 / 1;
-  object-fit: cover;
-}
-
-.media-readonly-container.crop-4-5 img,
-.media-readonly-container.crop-4-5 video {
-  aspect-ratio: 4 / 5;
-  object-fit: cover;
-}
-
-.media-readonly-container.crop-16-9 img,
-.media-readonly-container.crop-16-9 video {
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
+  flex-shrink: 0;
 }
 
 /* Media Navigation */
@@ -666,8 +694,8 @@
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
+  background: var(--text-secondary);
+  color: var(--bg-primary);
   border: none;
   width: 40px;
   height: 40px;
@@ -682,7 +710,7 @@
 }
 
 .nav-btn:hover {
-  background: rgba(0, 0, 0, 0.85);
+  background: var(--text-tertiary);
 }
 
 .prev-btn {
@@ -706,7 +734,7 @@
   display: flex;
   gap: 8px;
   z-index: 10;
-  background: rgba(0, 0, 0, 0.6);
+  background: color-mix(in srgb, var(--text-primary) 15%, transparent);
   padding: 8px 12px;
   border-radius: 12px;
   backdrop-filter: blur(10px);
@@ -1046,5 +1074,124 @@
     width: 100%;
     border-left: none;
     border-top: 1px solid var(--border-tertiary);
+  }
+}
+
+/* ================= DISCARD CONFIRMATION POPUP ================= */
+.post-options-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-bg);
+  backdrop-filter: blur(4px);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  padding: 20px;
+}
+
+.post-options-overlay.show {
+  opacity: 1;
+}
+
+.post-options-popup {
+  background: var(--bg-active);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 340px;
+  transform: scale(0.9);
+  transition: transform var(--transition-fast);
+  max-height: 80vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 0 20px rgba(255, 65, 108, 0.1),
+    0 16px 48px rgba(0, 0, 0, 0.6);
+}
+
+.post-options-overlay.show .post-options-popup {
+  transform: scale(1);
+}
+
+.post-options-header {
+  padding: 24px 20px;
+  text-align: center;
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+.post-options-header h3 {
+  color: var(--text-primary);
+  font-size: 18px;
+  margin-bottom: 6px;
+  margin-top: 0;
+}
+
+.post-options-header p {
+  color: var(--text-tertiary);
+  font-size: 14px;
+  margin: 0;
+}
+
+.post-option {
+  width: 100%;
+  padding: 14px 20px;
+  padding-right: 23px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-secondary);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  transition:
+    background var(--transition-normal),
+    transform var(--transition-normal);
+}
+
+.post-option:last-child {
+  border-bottom: none;
+}
+
+.post-option:hover {
+  background: var(--bg-hover);
+  transform: translateX(3px);
+}
+
+.post-option:active {
+  background: var(--bg-active);
+}
+
+.post-option-danger {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.post-option-cancel {
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .post-options-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .post-options-popup {
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    transform: translateY(100%);
+    box-shadow:
+      0 -4px 20px rgba(0, 0, 0, 0.3),
+      0 -1px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .post-options-overlay.show .post-options-popup {
+    transform: translateY(0);
   }
 }
