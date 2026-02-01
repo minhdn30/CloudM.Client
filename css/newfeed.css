@@ -219,7 +219,7 @@
   transition: transform var(--transition-slow);
   height: 100%;
   width: 100%;
-  background-color: red;
+  background-color: var(--bg-primary);
 }
 
 .media-track img,
@@ -229,6 +229,11 @@
   height: 100%;
   object-fit: cover; /* Đổi thành 'contain' nếu muốn giữ nguyên tỷ lệ */
   display: block;
+}
+
+.media-slider.fit-contain .media-track img,
+.media-slider.fit-contain .media-track video {
+  object-fit: contain;
 }
 
 /* arrows */

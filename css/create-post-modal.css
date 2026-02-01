@@ -340,6 +340,7 @@
   padding: 12px 10px;
   border-radius: 24px;
   backdrop-filter: blur(10px);
+  width: 35px;
 }
 
 .zoom-controls.hidden {
@@ -363,6 +364,7 @@
 .zoom-btn svg {
   width: 18px;
   height: 18px;
+  color: var(--bg-primary);
 }
 
 .zoom-slider {

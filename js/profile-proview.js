@@ -89,9 +89,13 @@ function renderProfilePreview(data) {
     <div class="preview-medias">
       ${
         !data.recentPosts || data.recentPosts.length === 0
-          ? `<div class="no-media">No posts yet</div>`
+          ? ""
           : data.recentPosts
-              .map((p) => `<img src="${p.mediaUrl}" alt="post">`)
+              .map((p) => `
+                <div class="preview-media-item">
+                  <img src="${p.mediaUrl}" alt="post">
+                </div>
+              `)
               .join("")
       }
     </div>

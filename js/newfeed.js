@@ -32,7 +32,12 @@ async function loadFeed() {
   if (isLoading || !hasMore) return;
 
   isLoading = true;
-  loader.style.display = "block";
+
+  // Chỉ hiện loader khi đã có bài viết (load more)
+  // Mới vào trang (feed trống) -> Không hiện loader theo yêu cầu
+  if (feedContainer.children.length > 0) {
+    loader.style.display = "block";
+  }
 
   let url = `${API_BASE}/Posts/feed?limit=${LIMIT}`;
 
@@ -137,7 +142,21 @@ function renderFeed(posts) {
       `;
 
     feedContainer.appendChild(postEl);
+    
+    // Apply dynamic aspect ratio based on FeedAspectRatio
+    const mediaSlider = postEl.querySelector('.media-slider');
+    if (mediaSlider) {
+      const aspectRatio = getAspectRatioCSS(post.feedAspectRatio);
+      mediaSlider.style.aspectRatio = aspectRatio;
+
+      // Nếu là Original (0), dùng contain để hiển thị full ảnh trong khung vuông (lòi bg)
+      if (post.feedAspectRatio === 0) {
+        mediaSlider.classList.add("fit-contain");
+      }
+    }
+    
     initMediaSlider(postEl);
+    applyDominantColors(postEl);
   });
 
   lucide.createIcons();
@@ -172,6 +191,55 @@ function renderMedias(medias) {
     </div>
   `;
 }
+
+// Map FeedAspectRatio enum to CSS aspect-ratio
+function getAspectRatioCSS(feedAspectRatio) {
+  switch (feedAspectRatio) {
+    case 0: // Original - hiển thị 1:1, bg thừa dùng dominant color
+      return "1 / 1";
+    case 1: // Square 1:1
+      return "1 / 1";
+    case 2: // Portrait 4:5
+      return "4 / 5";
+    case 3: // Landscape 16:9
+      return "16 / 9";
+    default:
+      return "1 / 1";
+  }
+}
+
+
+// Apply dominant color background to images
+function applyDominantColors(postEl) {
+  const images = postEl.querySelectorAll(".media-track img");
+  console.log("🎨 applyDominantColors: Found", images.length, "images");
+  
+  images.forEach(async (img) => {
+    try {
+      if (!window.extractDominantColor) {
+        console.warn("❌ extractDominantColor not available");
+        return;
+      }
+      
+      console.log("🔍 Extracting color from:", img.src);
+      const color = await extractDominantColor(img.src);
+      console.log("✅ Extracted color:", color);
+      
+      // Set linear gradient background: dominant color -> dark
+      img.style.background = `linear-gradient(135deg, ${color}, #1a1a1a)`;
+      
+      // Also apply to parent media-track for better effect
+      const track = img.closest('.media-track');
+      if (track) {
+        track.style.background = `linear-gradient(135deg, ${color}, #1a1a1a)`;
+        console.log("✅ Applied gradient to track:", track.style.background);
+      }
+    } catch (e) {
+      console.error("❌ Failed to extract color:", e);
+    }
+  });
+}
+
 
 function timeAgo(dateStr) {
   const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
