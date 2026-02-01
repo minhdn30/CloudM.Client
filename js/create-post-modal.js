@@ -45,16 +45,7 @@ let selectedPrivacy = 0;
 // Emoji picker instance
 let emojiPicker = null;
 
-// Format file size from bytes to KB/MB
-function formatFileSize(bytes) {
-  if (bytes === 0) return "0 Bytes";
-
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
-}
+// File size formatting moved to js/shared/file-utils.js
 
 // Load user info for create post modal
 function loadCreatePostUserInfo() {
@@ -282,7 +273,7 @@ function showStep(step) {
   if (step === 1) {
     if (step1Content) step1Content.style.display = "flex";
     if (step2Content) step2Content.style.display = "none";
-    if (modalTitle) modalTitle.textContent = "Upload and Edit Photos/Videos";
+    if (modalTitle) modalTitle.textContent = "Upload and Edit Photos";
     if (actionBtn) actionBtn.textContent = "Next Step";
   } else {
     if (step1Content) step1Content.style.display = "none";
@@ -723,23 +714,73 @@ function resetPostForm() {
   const charCount = document.getElementById("charCount");
   const imageResolution = document.getElementById("imageResolution");
 
+  // 1. Reset UI form elements
   if (captionInput) captionInput.value = "";
+  if (charCount) charCount.textContent = "0";
+  if (imageResolution) imageResolution.textContent = "No image selected";
+  if (mediaInput) mediaInput.value = "";
+
+  // 2. Clean up image preview - force remove Base64 from memory
   if (imagePreview) {
     imagePreview.src = "";
     imagePreview.style.display = "none";
+    imagePreview.removeAttribute("src"); // Force cleanup
   }
+
+  // 3. Clean up video preview - force unload video data
   if (videoPreview) {
+    videoPreview.pause();
     videoPreview.src = "";
     videoPreview.style.display = "none";
-    videoPreview.pause();
+    videoPreview.load(); // Force unload video from memory
+    videoPreview.removeAttribute("src");
   }
-  if (sliderWrapper) sliderWrapper.innerHTML = "";
-  if (mediaInput) mediaInput.value = "";
-  if (charCount) charCount.textContent = "0";
-  if (imageResolution) imageResolution.textContent = "No image selected";
 
+  // 4. Clear slider DOM
+  if (sliderWrapper) sliderWrapper.innerHTML = "";
+
+  // 5. Deep clean mediaFiles array - explicitly nullify large objects
+  if (mediaFiles && mediaFiles.length > 0) {
+    mediaFiles.forEach((media) => {
+      // Nullify Base64 data (can be very large, ~7MB per image)
+      if (media.data) {
+        media.data = null;
+      }
+      // Nullify File object reference
+      if (media.file) {
+        media.file = null;
+      }
+      // Nullify crop data object
+      if (media.cropData) {
+        media.cropData = null;
+      }
+      // Nullify other properties
+      media.dominantColor = null;
+    });
+  }
+
+  // Clear the array
   mediaFiles = [];
   currentMediaIndex = 0;
+
+  // 6. Reset all global state variables
+  currentImage = null;
+  imageNaturalWidth = 0;
+  imageNaturalHeight = 0;
+  containerWidth = 0;
+  containerHeight = 0;
+  displayScale = 1;
+  isDragging = false;
+  dragStartX = 0;
+  dragStartY = 0;
+  imageOffsetX = 0;
+  imageOffsetY = 0;
+  zoomLevel = 1;
+  currentCropRatio = "1:1";
+  globalCropRatio = "1:1";
+  cropFrameSize = { width: 400, height: 400 };
+
+  // 7. Reset UI state
   showMediaPlaceholder();
 
   const sections = ["location", "collaborators", "accessibility", "advanced"];
@@ -754,26 +795,7 @@ function resetPostForm() {
   });
 }
 
-// Extract dominant color from image
-function extractDominantColor(imageDataUrl) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = function () {
-      const canvas = document.createElement("canvas");
-      canvas.width = 1;
-      canvas.height = 1;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, 1, 1);
-      const imageData = ctx.getImageData(0, 0, 1, 1).data;
-      const rgb = `rgb(${imageData[0]}, ${imageData[1]}, ${imageData[2]})`;
-      resolve(rgb);
-    };
-    img.onerror = () => {
-      resolve("var(--accent-primary)"); // Fallback
-    };
-    img.src = imageDataUrl;
-  });
-}
+// Extract dominant color moved to js/shared/image-utils.js
 
 // Trigger media upload
 function triggerMediaUpload() {
@@ -1185,7 +1207,7 @@ async function submitPost() {
       let imageDataUrl = m.data;
       if (m.cropData) {
         try {
-          imageDataUrl = await createCroppedImage(m);
+          imageDataUrl = await createCleanCroppedImage(m);
         } catch (err) {
           console.warn("Failed to create cropped image for index", i, err);
           imageDataUrl = m.data;
@@ -1332,10 +1354,19 @@ function calculateCropDataForImage(media, ratio, tempCropFrameSize) {
         zoomLevel: tempZoomLevel,
         offsetX: 0,
         offsetY: 0,
-        cropX: Math.max(0, cropX),
-        cropY: Math.max(0, cropY),
-        cropWidth: Math.min(cropWidth, tempNaturalWidth),
-        cropHeight: Math.min(cropHeight, tempNaturalHeight),
+        // Pixel values (required by createCroppedImage in Step 2)
+        cropX_px: Math.max(0, cropX),
+        cropY_px: Math.max(0, cropY),
+        cropWidth_px: Math.min(cropWidth, tempNaturalWidth),
+        cropHeight_px: Math.min(cropHeight, tempNaturalHeight),
+        // Normalized values (0-1) for API submission
+        cropX: Math.max(0, cropX / tempNaturalWidth),
+        cropY: Math.max(0, cropY / tempNaturalHeight),
+        cropWidth: Math.min(cropWidth / tempNaturalWidth, 1),
+        cropHeight: Math.min(cropHeight / tempNaturalHeight, 1),
+        // Image dimensions (required by createCroppedImage)
+        imageNaturalWidth: tempNaturalWidth,
+        imageNaturalHeight: tempNaturalHeight,
         displayScale: tempDisplayScale,
       };
 
@@ -1396,6 +1427,9 @@ async function changeCropRatio(ratio) {
 
   // Calculate crop data for ALL images in background (without displaying them)
   await recalculateAllCropDataInBackground(ratio);
+
+  // Restore the original index to keep the same image selected
+  currentMediaIndex = originalIndex;
 
   // Now update only the currently visible image
   calculateOptimalCrop(ratio);
@@ -1690,6 +1724,47 @@ function updateSliderPosition() {
 
   const translateX = -currentMediaIndex * 100;
   track.style.transform = `translateX(${translateX}%)`;
+}
+
+// Create clean cropped image (exact dimensions, no padding) for Server Upload
+function createCleanCroppedImage(media) {
+  return new Promise((resolve) => {
+    if (!media.cropData) {
+      resolve(media.data);
+      return;
+    }
+
+    const img = new Image();
+    img.onload = function () {
+      const cropData = media.cropData;
+
+      // Canvas size matches the crop size exactly
+      const canvasWidth = cropData.cropWidth_px;
+      const canvasHeight = cropData.cropHeight_px;
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+
+      // Draw image offset by crop position
+      ctx.drawImage(
+        img,
+        cropData.cropX_px,
+        cropData.cropY_px,
+        cropData.cropWidth_px,
+        cropData.cropHeight_px,
+        0,
+        0,
+        canvasWidth,
+        canvasHeight
+      );
+
+      resolve(canvas.toDataURL());
+    };
+    img.src = media.data;
+  });
 }
 
 // Create cropped image canvas - FIXED FOR ORIGINAL RATIO
