@@ -1,0 +1,98 @@
+<!-- Post Detail Modal -->
+<div id="postDetailModal" class="modal-overlay">
+    <div class="modal-backdrop" onclick="closePostDetailModal()"></div>
+    <div class="modal-card post-detail-card">
+
+
+        <!-- Split Layout -->
+        <div class="post-detail-layout">
+            <!-- Left: Media (Images/Video) -->
+            <div class="detail-media-container" id="detailMediaContainer">
+                <div class="detail-slider-wrapper" id="detailSliderWrapper">
+                    <!-- Media Items Injected Here -->
+                </div>
+                <div class="media-dots" id="detailSliderDots"></div>
+                <button class="detail-nav prev" id="detailNavPrev"><i data-lucide="chevron-left"></i></button>
+                <button class="detail-nav next" id="detailNavNext"><i data-lucide="chevron-right"></i></button>
+            </div>
+
+            <!-- Right: Info & Interaction -->
+            <div class="detail-info-container">
+                <!-- Header: Author Info -->
+                <div class="detail-header">
+                    <div class="user-info">
+                        <img id="detailAvatar" src="" alt="" class="user-avatar">
+                        <div class="user-meta">
+                            <span id="detailUsername" class="username"></span>
+                            <span id="detailLocation" class="location"></span>
+                        </div>
+                    </div>
+                    <button class="more-options-btn">
+                        <i data-lucide="more-horizontal"></i>
+                    </button>
+                </div>
+
+                <!-- Body: Caption & Comments -->
+                <div class="detail-body custom-scrollbar" id="detailBody">
+                    <!-- Caption Section -->
+                    <div class="comment-item caption-item" id="detailCaptionItem">
+                        <img id="detailCaptionAvatar" src="" alt="" class="user-avatar small">
+                        <div class="comment-content">
+                            <span id="detailCaptionUsername" class="username"></span>
+                            <span id="detailCaptionText" class="text"></span>
+                            <div class="comment-meta">
+                                <span id="detailTime" class="time"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comments List -->
+                    <div class="comments-list" id="detailCommentsList">
+                        <!-- Comments injected here -->
+                    </div>
+                    
+                    <!-- Loading State -->
+                    <div id="detailCommentsLoader" class="comments-loader" style="display: none;">
+                        <div class="spinner-small"></div>
+                    </div>
+                </div>
+
+                <!-- Footer: Actions & Input -->
+                <div class="detail-footer">
+                    <div class="post-actions">
+                        <div class="left">
+                            <div class="action-item" id="detailLikeBtn">
+                                <i data-lucide="heart" id="detailLikeIcon" class="react-icon"></i>
+                                <span class="count" id="detailLikeCount">0</span>
+                            </div>
+                            <div class="action-item" id="detailCommentBtn" onclick="focusCommentInput()">
+                                <i data-lucide="message-circle"></i>
+                                <span class="count" id="detailCommentCount">0</span>
+                            </div>
+                            <div class="action-item">
+                                <i data-lucide="send"></i>
+                            </div>
+                        </div>
+                        <div class="action-item bookmark-btn">
+                            <i data-lucide="bookmark"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="post-date" id="detailDate"></div>
+
+                    <!-- Add Comment Input -->
+                    <div class="detail-comment-input-wrapper">
+                        <div class="emoji-trigger" onclick="toggleDetailEmojiPicker(event)">
+                            <i data-lucide="smile"></i>
+                        </div>
+                        <input type="text" id="detailCommentInput" placeholder="Add a comment..." autocomplete="off">
+                        <button id="postCommentBtn" class="post-btn" disabled>Post</button>
+                        
+                         <!-- Emoji Picker Container (Absolute positioning) -->
+                         <div id="detailEmojiPicker" class="detail-emoji-picker"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

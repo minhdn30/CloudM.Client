@@ -111,7 +111,7 @@ function renderFeed(posts) {
           isLong ? `<span class="caption-toggle more-btn">more</span>` : ""
         }                                         
         
-        ${renderMedias(post.medias)}
+        ${renderMedias(post.medias, post.postId)}
 
         <div class="post-actions">
           <div class="left">
@@ -127,7 +127,7 @@ function renderFeed(posts) {
 </div>
 
 
-            <div class="action-item">
+            <div class="action-item" onclick="openPostDetail('${post.postId}')" style="cursor: pointer;">
               <i data-lucide="message-circle"></i>
               <span class="count">${post.commentCount}</span>
             </div>
@@ -162,13 +162,13 @@ function renderFeed(posts) {
   lucide.createIcons();
 }
 
-function renderMedias(medias) {
+function renderMedias(medias, postId) {
   if (!medias || medias.length === 0) return "";
 
   return `
     <div class="post-media">
       <div class="media-slider">
-        <div class="media-track">
+        <div class="media-track" onclick="openPostDetail('${postId}')" style="cursor: pointer;">
           ${medias
             .map((m) => {
               // Kiểm tra Type để render đúng tag
