@@ -1,0 +1,162 @@
+/* =================================================================
+   SHARED POST STYLES (Newfeed & Post Detail)
+   ================================================================= */
+
+/* ===== Header ===== */
+.post-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.post-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.post-avatar, 
+.user-avatar { /* .user-avatar from post-detail */
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.post-username, 
+.username { /* .username from post-detail */
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+  color: var(--text-primary);
+}
+
+.post-time {
+  color: var(--text-tertiary);
+  font-size: 14px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ===== Post Actions ===== */
+.post-actions {
+  display: flex;
+  justify-content: space-between; /* Adjusted to space-between for left/right structure */
+  align-items: center;
+  gap: 6px;
+  padding-top: 12px; /* spacing after content */
+}
+
+.post-actions .left {
+  display: flex;
+  align-items: center;
+  gap: 16px; /* Restore gap for action items */
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: transform var(--transition-fast) ease;
+}
+
+.action-item i {
+  width: 22px;
+  height: 22px;
+  stroke-width: 1.8;
+  transition:
+    transform var(--transition-fast) ease,
+    color var(--transition-fast) ease,
+    stroke var(--transition-fast) ease;
+  color: var(--text-primary);
+}
+
+.action-item .count {
+  font-size: 13px;
+  color: var(--text-secondary);
+  transition: transform var(--transition-fast) ease;
+}
+
+/* Hover effects - Individual Scaling (Icon) */
+.action-item svg:hover {
+  transform: scale(1.05);
+}
+
+/* React Count Scaling */
+.react-btn .count:hover, 
+#detailLikeBtn .count:hover {
+  transform: scale(1.05);
+}
+
+/* React Icon (Heart) States */
+.react-icon.reacted {
+  fill: #ff3040;
+  color: #ff3040;
+  stroke: #ff3040;
+  animation: heartPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes heartPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+@keyframes heartUnpop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.react-icon.unreacting {
+  animation: heartUnpop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* ===== Caption Toggle (more/less) ===== */
+.caption-toggle {
+  color: var(--text-tertiary);
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-block;
+  margin-left: 0;
+  font-weight: 500;
+}
+
+.caption-toggle:hover {
+  color: var(--accent-primary);
+}
+
+/* ===== Comments (Shared basics) ===== */
+.post-comments {
+  color: var(--text-tertiary);
+  font-size: 14px;
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+.detail-comment-input-wrapper input,
+.post-add-comment input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-tertiary);
+  padding: 8px 0;
+  color: var(--text-primary);
+  outline: none;
+  font-size: 15px;
+}
+
+.detail-comment-input-wrapper input::placeholder,
+.post-add-comment input::placeholder {
+  color: var(--text-tertiary);
+}

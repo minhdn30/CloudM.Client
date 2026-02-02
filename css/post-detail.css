@@ -159,11 +159,28 @@
   align-items: center;
   justify-content: space-between;
 }
+/* User info styles mapped to shared/post-common.css */
 .user-info { display: flex; align-items: center; gap: 12px; }
-.user-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
-.username { font-weight: 600; font-size: 14px; color: var(--text-primary); }
+.user-meta { display: flex; flex-direction: column; gap: 2px; }
+.user-name-row { display: flex; align-items: center; gap: 6px; }
+.location { font-size: 12px; color: var(--text-secondary); display: block; }
 .location { font-size: 12px; color: var(--text-secondary); display: block; }
 .more-options-btn { background: none; border: none; color: var(--text-primary); cursor: pointer; }
+
+/* Caption Section */
+.caption-section {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.caption-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  word-wrap: break-word;
+}
+
+/* Caption toggle styles moved to shared/post-common.css */
 
 /* Body */
 .detail-body {
@@ -195,10 +212,13 @@
   z-index: 5;
 }
 
-/* Post Actions styles inherit from newfeed.css (.post-actions, .left, .action-item) */
+/* Post Actions styles inherit from shared/post-common.css */
+.detail-footer .post-actions {
+  padding-top: 3px;
+  padding-bottom: 8px;
+}
 
 /* Note: .action-item styles come from newfeed.css */
-.post-date { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px; }
 
 .detail-comment-input-wrapper {
   display: flex;
@@ -277,4 +297,31 @@
 #postDetailModal .media-dots span.active {
   background: #fff;
   transform: scale(1.2);
+}
+
+
+/* ================= CUSTOM SCROLLBAR (Match Create Post Modal) ================= */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--text-primary);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+  box-shadow: 0 0 6px rgba(255, 65, 108, 0.3);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:active {
+  background: var(--accent-primary);
+  box-shadow: 0 0 8px rgba(255, 65, 108, 0.5);
 }

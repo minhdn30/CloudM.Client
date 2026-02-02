@@ -93,6 +93,13 @@ function openCreatePostModal() {
   loadCreatePostUserInfo();
   resetPrivacySelector();
   showMediaPlaceholder();
+  
+  // Init caption limit
+  const captionInput = document.getElementById("postCaption");
+  const maxCharCount = document.getElementById("maxCharCount");
+  if (captionInput) captionInput.maxLength = APP_CONFIG.MAX_POST_CONTENT_LENGTH;
+  if (maxCharCount) maxCharCount.textContent = APP_CONFIG.MAX_POST_CONTENT_LENGTH;
+
   lucide.createIcons();
 }
 
@@ -648,8 +655,8 @@ function updateThumbnails() {
     container.appendChild(thumbDiv);
   });
 
-  // Only show + button if less than 8 images
-  if (mediaFiles.length < 8) {
+  // Only show + button if less than max images
+  if (mediaFiles.length < APP_CONFIG.MAX_UPLOAD_FILES) {
     const addBtn = document.createElement("button");
     addBtn.className = "thumbnail-add";
     addBtn.onclick = triggerMediaUpload;
@@ -825,9 +832,9 @@ function handleMediaUpload(event) {
 
   Array.from(files).forEach((file) => {
     // Check if we've reached the limit
-    if (mediaFiles.length >= 8) {
+    if (mediaFiles.length >= APP_CONFIG.MAX_UPLOAD_FILES) {
       if (window.toastError) {
-        toastError("Maximum 8 images per post!");
+        toastError(`Maximum ${APP_CONFIG.MAX_UPLOAD_FILES} images per post!`);
       }
       return;
     }
@@ -841,12 +848,12 @@ function handleMediaUpload(event) {
       return;
     }
 
-    const maxSize = 5 * 1024 * 1024; // 5MB for images
+    const maxSize = APP_CONFIG.MAX_UPLOAD_SIZE_MB * 1024 * 1024; 
     if (file.size > maxSize) {
       const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
       if (window.toastError) {
         toastError(
-          `Image "${file.name}" is ${fileSizeMB}MB. Maximum size is 5MB!`,
+          `Image "${file.name}" is ${fileSizeMB}MB. Maximum size is ${APP_CONFIG.MAX_UPLOAD_SIZE_MB}MB!`,
         );
       }
       return;
@@ -894,7 +901,7 @@ function updateCharCount() {
     const count = captionInput.value.length;
     charCount.textContent = count;
 
-    if (count >= 3000) {
+    if (count >= APP_CONFIG.MAX_POST_CONTENT_LENGTH) {
       charCount.style.color = "var(--danger-alt)";
     } else {
       charCount.style.color = "var(--text-disabled)";

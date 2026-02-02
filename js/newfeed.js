@@ -7,7 +7,7 @@ let hasMore = true;
 let cursorCreatedAt = null;
 let cursorPostId = null;
 
-const LIMIT = 10;
+const LIMIT = APP_CONFIG.NEWSFEED_LIMIT;
 
 function initFeed() {
   feedContainer = document.getElementById("feed");
@@ -79,7 +79,7 @@ function renderFeed(posts) {
     const postEl = document.createElement("div");
     postEl.className = "post";
 
-    const isLong = post.content && post.content.length > 150;
+    // const isLong = post.content && post.content.length > 150; // Handled in setupCaption
     postEl.innerHTML = `
         <div class="post-header">
           <div class="post-user" data-account-id="${post.author.accountId}">
@@ -87,7 +87,7 @@ function renderFeed(posts) {
                  src="${post.author?.avatarUrl || APP_CONFIG.DEFAULT_AVATAR}"
                  alt="">
             <span class="post-username">${post.author?.fullName || "Unknown"}</span>
-            <span class="post-time">• ${timeAgo(post.createdAt)}</span>
+            <span class="post-time" title="${PostUtils.formatFullDateTime(post.createdAt)}">• ${PostUtils.timeAgo(post.createdAt)}</span>
           </div>
           <div class="post-actions">
           ${
@@ -103,13 +103,7 @@ function renderFeed(posts) {
           </div>
         </div>
 
-        <div class="post-caption ${isLong ? "truncated" : ""}">
-            ${escapeHtml(post.content || "")}
-        </div>
-
-        ${
-          isLong ? `<span class="caption-toggle more-btn">more</span>` : ""
-        }                                         
+        <div class="post-caption"></div>
         
         ${renderMedias(post.medias, post.postId)}
 
@@ -157,10 +151,16 @@ function renderFeed(posts) {
     
     initMediaSlider(postEl);
     applyDominantColors(postEl);
+    
+    // Caption Logic
+    const captionEl = postEl.querySelector(".post-caption");
+    PostUtils.setupCaption(captionEl, post.content || "");
   });
 
   lucide.createIcons();
 }
+
+/* setupCaption moved to shared/post-utils.js */
 
 function renderMedias(medias, postId) {
   if (!medias || medias.length === 0) return "";
@@ -236,20 +236,7 @@ function applyDominantColors(postEl) {
 }
 
 
-function timeAgo(dateStr) {
-  const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
-
-  if (diff < 60) return "just now";
-
-  const minutes = Math.floor(diff / 60);
-  if (minutes < 60) return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
-
-  const days = Math.floor(hours / 24);
-  return `${days} day${days > 1 ? "s" : ""} ago`;
-}
+/* timeAgo and formatFullDateTime moved to shared/post-utils.js */
 
 function escapeHtml(text) {
   return text.replace(
@@ -326,19 +313,7 @@ function initMediaSlider(postEl) {
   };
 }
 
-document.addEventListener("click", (e) => {
-  if (!e.target.classList.contains("caption-toggle")) return;
 
-  const caption = e.target.previousElementSibling;
-
-  if (!caption) return;
-
-  caption.classList.toggle("truncated");
-
-  e.target.textContent = caption.classList.contains("truncated")
-    ? "more"
-    : "less";
-});
 
 //scroll => load more feed
 let scrollTimeout;
@@ -359,6 +334,18 @@ document.addEventListener("click", async (e) => {
   const reactBtn = e.target.closest(".react-btn");
   if (!reactBtn) return;
 
+  // Check specific click target
+  const clickedIcon = e.target.closest(".react-icon");
+  const clickedCount = e.target.closest(".count");
+  
+  if (!clickedIcon && !clickedCount) return; // Ignore click on gap
+
+  if (clickedCount) {
+    if (window.toastInfo) toastInfo("Feature coming soon: List of people who reacted");
+    return;
+  }
+
+  // Handle icon click (Toggle React)
   const postId = reactBtn.dataset.postId;
   const icon = reactBtn.querySelector(".react-icon");
   const countEl = reactBtn.querySelector(".count");
@@ -368,8 +355,19 @@ document.addEventListener("click", async (e) => {
 
   // 1️⃣ Optimistic UI
   reactBtn.dataset.reacted = (!wasReacted).toString();
-  icon.classList.toggle("reacted", !wasReacted);
-  countEl.textContent = wasReacted ? oldCount - 1 : oldCount + 1;
+  
+  if (!wasReacted) {
+    // User is Reacting
+    icon.classList.add("reacted");
+    icon.classList.remove("unreacting");
+    countEl.textContent = oldCount + 1;
+  } else {
+    // User is Unreacting
+    icon.classList.remove("reacted");
+    icon.classList.add("unreacting");
+    icon.addEventListener("animationend", () => icon.classList.remove("unreacting"), { once: true });
+    countEl.textContent = oldCount - 1;
+  }
 
   try {
     // 2️⃣ Call API
@@ -398,6 +396,9 @@ document.addEventListener("click", async (e) => {
     countEl.textContent = oldCount;
   }
 });
+
+// Sync Post Data from Detail Modal (Reacts + Comments + Time)
+/* syncPostFromDetail moved to shared/post-utils.js */
 
 document.addEventListener("DOMContentLoaded", () => {
   initProfilePreview();

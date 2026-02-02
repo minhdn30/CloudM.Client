@@ -1076,17 +1076,20 @@ svg {
 /* Emoji Picker Container */
 #emojiPickerContainer {
   position: relative;
-  max-height: 0;
+  height: 0;
   overflow: hidden;
   opacity: 0;
-  transition: all var(--transition-normal);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 #emojiPickerContainer.show {
-  max-height: 450px;
+  height: 424px; /* 400px picker + 12px padding top + 12px padding bottom */
   opacity: 1;
   padding: 12px;
   overflow: visible;
+  transform: scaleY(1);
 }
 
 #emojiPickerContainer emoji-picker {
