@@ -129,6 +129,43 @@ window.EmojiUtils = {
             });
             
             container.appendChild(picker);
+            
+            // Fix indicator bar width calculation in shadow DOM
+            setTimeout(() => {
+                try {
+                    const shadowRoot = picker.shadowRoot;
+                    if (shadowRoot) {
+                        // Count number of category buttons
+                        const buttons = shadowRoot.querySelectorAll('button[role="tab"]');
+                        const buttonCount = buttons.length;
+                        
+                        if (buttonCount > 0) {
+                            const style = document.createElement('style');
+                            style.textContent = `
+                                /* Fix indicator width to match button width */
+                                .indicator {
+                                    width: calc(100% / ${buttonCount}) !important;
+                                }
+                                
+                                /* Ensure buttons are evenly distributed */
+                                nav {
+                                    display: flex;
+                                    width: 100%;
+                                }
+                                
+                                button[role="tab"] {
+                                    flex: 1;
+                                    min-width: 0;
+                                }
+                            `;
+                            shadowRoot.appendChild(style);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Could not inject indicator fix styles:', e);
+                }
+            }, 150);
+            
             return picker;
 
         } catch (error) {
@@ -157,5 +194,25 @@ window.EmojiUtils = {
 
         // Trigger input event for auto-resize or validation listeners
         inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+    },
+
+    /**
+     * Setup click-outside handler to close emoji picker
+     * @param {string} containerSelector - CSS selector for the emoji picker container
+     * @param {string} triggerSelector - CSS selector for the trigger button
+     */
+    setupClickOutsideHandler: function(containerSelector, triggerSelector) {
+        document.addEventListener('click', (e) => {
+            const emojiContainer = document.querySelector(containerSelector);
+            const emojiTrigger = document.querySelector(triggerSelector);
+            
+            // Check if emoji picker is open
+            if (emojiContainer && emojiContainer.classList.contains('show')) {
+                // Check if click is outside both the picker and the trigger button
+                if (!emojiContainer.contains(e.target) && !emojiTrigger?.contains(e.target)) {
+                    this.closePicker(emojiContainer);
+                }
+            }
+        });
     }
 };

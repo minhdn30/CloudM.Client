@@ -23,7 +23,10 @@
                     <div class="user-info">
                         <img id="detailAvatar" src="" alt="" class="user-avatar">
                         <div class="user-meta">
-                            <span id="detailUsername" class="username"></span>
+                            <div class="user-name-row">
+                                <span id="detailUsername" class="username"></span>
+                                <span id="detailTime" class="post-time"></span>
+                            </div>
                             <span id="detailLocation" class="location"></span>
                         </div>
                     </div>
@@ -35,15 +38,8 @@
                 <!-- Body: Caption & Comments -->
                 <div class="detail-body custom-scrollbar" id="detailBody">
                     <!-- Caption Section -->
-                    <div class="comment-item caption-item" id="detailCaptionItem">
-                        <img id="detailCaptionAvatar" src="" alt="" class="user-avatar small">
-                        <div class="comment-content">
-                            <span id="detailCaptionUsername" class="username"></span>
-                            <span id="detailCaptionText" class="text"></span>
-                            <div class="comment-meta">
-                                <span id="detailTime" class="time"></span>
-                            </div>
-                        </div>
+                    <div class="caption-section" id="detailCaptionItem">
+                        <div id="detailCaptionText" class="caption-text"></div>
                     </div>
 
                     <!-- Comments List -->
@@ -78,8 +74,6 @@
                         </div>
                     </div>
                     
-                    <div class="post-date" id="detailDate"></div>
-
                     <!-- Add Comment Input -->
                     <div class="detail-comment-input-wrapper">
                         <div class="emoji-trigger" onclick="toggleDetailEmojiPicker(event)">

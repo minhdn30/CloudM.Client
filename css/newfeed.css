@@ -13,49 +13,7 @@
   box-sizing: border-box;
 }
 
-/* ===== Header ===== */
-.post-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-}
-
-.post-user {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  flex: 1;
-}
-
-.post-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  object-fit: cover;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.post-username {
-  font-weight: 600;
-  font-size: 15px;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 200px;
-  color: var(--text-primary);
-}
-
-.post-time {
-  color: var(--text-tertiary);
-  font-size: 14px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
+/* Post Header styles moved to shared/post-common.css */
 /* ===== Post More Button (•••) ===== */
 .post-more {
   cursor: pointer;
@@ -102,33 +60,8 @@
   display: block;
 }
 
-/* ===== Actions ===== */
-.post-actions {
-  display: flex;
-  justify-content: space-between;
-  padding: 12px 0;
-}
-
-.post-actions i {
-  width: 24px;
-  height: 24px;
-  cursor: pointer;
-  stroke-width: 1.9;
-}
-
-.post-actions .left {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-
-/* ===== Likes ===== */
-.post-likes {
-  font-weight: 600;
-  font-size: 15px;
-  color: var(--text-primary);
-}
-
+/* Post Actions styles moved to shared/post-common.css */
+/* Post Likes also removed as it seems unused or dup */
 /* 🔥 RESET TOÀN BỘ ELEMENT BÊN TRONG CAPTION */
 .post-caption * {
   margin: 0;
@@ -141,70 +74,7 @@
 }
 
 /* clamp */
-.post-caption.truncated {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  overflow: hidden;
-}
-
-/* more / less */
-.caption-toggle {
-  color: var(--text-tertiary);
-  font-size: 14px;
-  cursor: pointer;
-  display: inline-block;
-  margin-top: 4px;
-}
-
-/* ===== Comments ===== */
-.post-comments {
-  color: var(--text-tertiary);
-  font-size: 14px;
-  margin-top: 8px;
-  cursor: pointer;
-}
-
-/* ===== Add comment ===== */
-.post-add-comment {
-  margin-top: 10px;
-}
-
-.post-add-comment input {
-  width: 100%;
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid var(--border-tertiary);
-  padding: 8px 0;
-  color: var(--text-primary);
-  outline: none;
-  font-size: 15px;
-}
-
-.post-add-comment input::placeholder {
-  color: var(--text-tertiary);
-}
-
-/* ===== Action item ===== */
-.action-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-
-.action-item i {
-  width: 22px;
-  height: 22px;
-  stroke-width: 1.8;
-}
-
-.action-item .count {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
+/* Caption toggle, Comments, Add Comment, Action Item styles moved to shared/post-common.css */
 /* ===== Media slider ===== */
 .media-slider {
   position: relative;
@@ -299,34 +169,7 @@
   transform: scale(1.05);
 }
 
-/* ===== Post Actions Hover Effect ===== */
-.post-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.post-actions .action-item {
-  transition: transform var(--transition-fast) ease;
-}
-
-/* hover → scale nhẹ */
-.post-actions .action-item:hover {
-  transform: scale(1.12);
-}
-
-/* icon hover mượt hơn */
-.post-actions .action-item i {
-  transition:
-    transform var(--transition-fast) ease,
-    color var(--transition-fast) ease,
-    stroke var(--transition-fast) ease;
-}
-
-.post-actions .action-item:hover i {
-  transform: scale(1.05);
-}
-
+/* Hover effects moved to shared */
 .follow-btn {
   background: none;
   margin-top: 3px;

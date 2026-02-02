@@ -1,5 +1,8 @@
 const POST_DETAIL_MODAL_ID = "postDetailModal";
 let currentPostId = null;
+let currentPostCreatedAt = null;
+
+/* formatFullDateTime moved to shared/post-utils.js */
 
 // Open Modal
 async function openPostDetail(postId) {
@@ -50,17 +53,103 @@ async function loadPostDetailHTML() {
 
 // Close Modal
 function closePostDetailModal() {
+    // Check if comment input has content
+    const commentInput = document.getElementById('detailCommentInput');
+    if (commentInput && commentInput.value.trim().length > 0) {
+        showDiscardCommentConfirmation();
+        return;
+    }
+    
+    // Actually close the modal
+    performClosePostDetail();
+}
+
+// Show discard comment confirmation
+function showDiscardCommentConfirmation() {
+    const overlay = document.createElement("div");
+    overlay.className = "post-options-overlay";
+    overlay.id = "discardCommentOverlay";
+
+    const popup = document.createElement("div");
+    popup.className = "post-options-popup";
+
+    popup.innerHTML = `
+        <div class="post-options-header">
+            <h3>Discard comment?</h3>
+            <p>If you leave, your comment won't be saved.</p>
+        </div>
+        <button class="post-option post-option-danger" onclick="confirmDiscardComment()">
+            Discard
+        </button>
+        <button class="post-option post-option-cancel" onclick="cancelDiscardComment()">
+            Cancel
+        </button>
+    `;
+
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+
+    if (window.lucide) lucide.createIcons();
+
+    requestAnimationFrame(() => overlay.classList.add("show"));
+
+    overlay.onclick = (e) => {
+        if (e.target === overlay) cancelDiscardComment();
+    };
+}
+
+// Confirm discard comment
+function confirmDiscardComment() {
+    const overlay = document.getElementById("discardCommentOverlay");
+    if (overlay) overlay.remove();
+    
+    performClosePostDetail();
+}
+
+// Cancel discard comment
+function cancelDiscardComment() {
+    const overlay = document.getElementById("discardCommentOverlay");
+    if (overlay) {
+        overlay.classList.remove("show");
+        setTimeout(() => overlay.remove(), 200);
+    }
+}
+
+// Actually perform the close action
+function performClosePostDetail() {
+    // Sync data back to Feed before closing
+    if (currentPostId && window.PostUtils && window.PostUtils.syncPostFromDetail) {
+        const likeIcon = document.getElementById("detailLikeIcon");
+        const likeCount = document.getElementById("detailLikeCount");
+        const commentCount = document.getElementById("detailCommentCount");
+        
+        if (likeIcon && likeCount && commentCount) {
+             const isReacted = likeIcon.classList.contains("reacted");
+             const rCount = likeCount.textContent;
+             const cCount = commentCount.textContent;
+             
+             window.PostUtils.syncPostFromDetail(currentPostId, rCount, isReacted, cCount, currentPostCreatedAt);
+        }
+    }
+
     const modal = document.getElementById(POST_DETAIL_MODAL_ID);
     if (modal) {
         modal.classList.remove("show");
         document.body.style.overflow = "";
         
+        // Close emoji picker if open
+        const emojiContainer = document.querySelector('.detail-emoji-picker');
+        if (emojiContainer && window.EmojiUtils) {
+            window.EmojiUtils.closePicker(emojiContainer);
+        }
+        
         // Stop videos
         const videos = modal.querySelectorAll("video");
         videos.forEach(v => v.pause());
         
-        // Optional: remove from DOM to save memory? 
-        // Better to keep it for caching.
+        // Clear comment input
+        const commentInput = document.getElementById('detailCommentInput');
+        if (commentInput) commentInput.value = '';
     }
 }
 
@@ -69,7 +158,19 @@ function resetPostDetailView() {
     document.getElementById("detailAvatar").src = APP_CONFIG.DEFAULT_AVATAR;
     document.getElementById("detailUsername").textContent = "";
     document.getElementById("detailSliderWrapper").innerHTML = "";
-    document.getElementById("detailCaptionText").textContent = "";
+    document.getElementById("detailSliderWrapper").innerHTML = "";
+    
+    document.getElementById("detailSliderWrapper").innerHTML = "";
+    
+    // Clear Caption
+    const captionText = document.getElementById("detailCaptionText");
+    captionText.textContent = "";
+    
+    // Remove existing toggle button if any
+    const captionItem = document.getElementById("detailCaptionItem");
+    const existingToggle = captionItem.querySelector(".caption-toggle");
+    if (existingToggle) existingToggle.remove();
+
     document.getElementById("detailCommentsList").innerHTML = "";
     // Hide media container initially
     document.getElementById("detailMediaContainer").style.display = "flex"; 
@@ -106,23 +207,26 @@ function renderPostDetail(post) {
     // 2. Caption
     const captionItem = document.getElementById("detailCaptionItem");
     const captionText = document.getElementById("detailCaptionText");
-    const captionUsername = document.getElementById("detailCaptionUsername");
-    const captionAvatar = document.getElementById("detailCaptionAvatar");
-    const captionTime = document.getElementById("detailTime");
 
     if (!post.content) {
         captionItem.style.display = "none";
     } else {
-        captionItem.style.display = "flex";
-        captionUsername.textContent = post.owner.username;
-        captionAvatar.src = post.owner.avatarUrl || APP_CONFIG.DEFAULT_AVATAR;
-        captionText.textContent = post.content; // Should escape html?
-        // escapeHtml is global? Yes from newfeed.js context or app.js
-        if(typeof escapeHtml === 'function') {
-            captionText.innerHTML = escapeHtml(post.content);
-        }
-        captionTime.textContent = timeAgo(post.createdAt);
+        captionItem.style.display = "block";
+        
+        const captionText = document.getElementById("detailCaptionText");
+        PostUtils.setupCaption(captionText, post.content);
     }
+    
+    // Update timeago in header
+    const timeEl = document.getElementById("detailTime");
+    if (timeEl) {
+        timeEl.textContent = "• " + PostUtils.timeAgo(post.createdAt);
+        timeEl.title = PostUtils.formatFullDateTime(post.createdAt);
+    }
+    
+    // Store createdAt for sync
+    currentPostCreatedAt = post.createdAt;
+
 
     // 3. Media Layout
     const mediaContainer = document.getElementById("detailMediaContainer");
@@ -184,9 +288,17 @@ function renderPostDetail(post) {
     const likeIcon = document.getElementById("detailLikeIcon");
     const likeCount = document.getElementById("detailLikeCount");
     const commentCount = document.getElementById("detailCommentCount");
-    const dateEl = document.getElementById("detailDate");
 
-    likeBtn.onclick = () => handleLikePost(post.postId, likeBtn, likeIcon, likeCount);
+    likeBtn.onclick = (e) => {
+        const clickedIcon = e.target.closest(".react-icon");
+        const clickedCount = e.target.closest(".count");
+
+        if (clickedIcon) {
+            handleLikePost(post.postId, likeBtn, likeIcon, likeCount);
+        } else if (clickedCount) {
+            if (window.toastInfo) toastInfo("Feature coming soon: List of people who reacted");
+        }
+    };
     
     // Set initial state
     if (post.isReactedByCurrentUser) {
@@ -197,9 +309,6 @@ function renderPostDetail(post) {
     
     likeCount.textContent = post.totalReacts || 0;
     commentCount.textContent = post.totalComments || post.commentCount || 0;
-    
-    const d = new Date(post.createdAt);
-    dateEl.textContent = d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
     
     // Lucide icons
     if(window.lucide) lucide.createIcons();
@@ -260,10 +369,16 @@ async function handleLikePost(postId, btn, iconRef, countEl) {
     const isLiked = icon.classList.contains("reacted");
     const currentCount = parseInt(countEl.textContent || "0");
     
-    icon.classList.toggle("reacted");
     if (isLiked) {
+         // Unreacting
+         icon.classList.remove("reacted");
+         icon.classList.add("unreacting");
+         icon.addEventListener("animationend", () => icon.classList.remove("unreacting"), { once: true });
          countEl.textContent = currentCount > 0 ? currentCount - 1 : 0;
     } else {
+         // Reacting
+         icon.classList.add("reacted");
+         icon.classList.remove("unreacting");
          countEl.textContent = currentCount + 1;
     }
 
@@ -295,8 +410,18 @@ function focusCommentInput() {
     document.getElementById("detailCommentInput").focus();
 }
 
+
 // Global Exports
 window.openPostDetail = openPostDetail;
 window.closePostDetailModal = closePostDetailModal;
 window.toggleDetailEmojiPicker = toggleDetailEmojiPicker;
 window.focusCommentInput = focusCommentInput;
+window.confirmDiscardComment = confirmDiscardComment;
+window.cancelDiscardComment = cancelDiscardComment;
+
+// Initialize click-outside handler when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.EmojiUtils) {
+        window.EmojiUtils.setupClickOutsideHandler('#detailEmojiPicker', '#postDetailModal .emoji-trigger');
+    }
+});
