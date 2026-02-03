@@ -86,7 +86,9 @@
   background: var(--bg-active);
 }
 
-.post-option-danger {
+.post-option-danger,
+.post-option-danger i,
+.post-option-danger svg {
   color: var(--danger);
   font-weight: 600;
 }
@@ -98,7 +100,8 @@
   grid-template-columns: unset;
 }
 
-.post-option i {
+.post-option i,
+.post-option svg {
   width: 20px;
   height: 20px;
   flex-shrink: 0;

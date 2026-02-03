@@ -8,7 +8,7 @@
     var(--info-gradient-start) 0%,
     var(--info-gradient-end) 100%
   );
-  color: var(--text-primary);
+  color: var(--text-white);
   padding: 16px 24px;
   border-radius: 12px;
   font-size: 15px;

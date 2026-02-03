@@ -995,7 +995,7 @@ function togglePrivacyDropdown(event) {
     dropdown.classList.remove("show");
   } else {
     // Position dropdown relative to privacy selector button
-    const privacySelector = document.querySelector(".privacy-selector");
+    const privacySelector = document.querySelector("#createPostModal .privacy-selector");
     if (privacySelector) {
       const rect = privacySelector.getBoundingClientRect();
       dropdown.style.top = rect.bottom + 8 + "px";
@@ -1190,7 +1190,7 @@ async function submitPost() {
     // Ensure processing flag
     isProcessingCrop = true;
 
-    const res = await uploadFormDataWithProgress("/Posts", formData, (p) => {
+    const res = await API.Posts.create(formData, (p) => {
       // Do nothing with progress - just keep spinner spinning
     });
 
@@ -1211,6 +1211,14 @@ async function submitPost() {
       resetPostForm();
       currentStep = 1;
       showStep(1);
+
+      // Open the newly created post
+      if (data && data.postId && window.openPostDetail) {
+         // Small delay to ensure clean modal transition
+         setTimeout(() => {
+            window.openPostDetail(data.postId);
+         }, 100); 
+      }
     } else if (res.status === 401) {
       if (window.toastError) toastError("Unauthorized. Please login again.");
     } else {

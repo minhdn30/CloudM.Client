@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:5000/api";
+
 
 const signUpButton = document.getElementById("signUp");
 const signInButton = document.getElementById("signIn");
@@ -50,12 +50,7 @@ loginForm.addEventListener("submit", async (e) => {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/Auths/login-with-username`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
+    const res = await API.Auth.login(username, password);
 
     const data = await res.json();
 
@@ -124,11 +119,7 @@ signupForm.addEventListener("submit", async (e) => {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/Auths/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, email, fullname, password }),
-    });
+    const res = await API.Auth.register({ username, email, fullname, password });
 
     const data = await res.json();
 
@@ -138,11 +129,7 @@ signupForm.addEventListener("submit", async (e) => {
     }
 
     showToast("Registration successful!", "success");
-    const emailRes = await fetch(`${API_BASE}/Auths/send-email`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(email),
-    });
+    const emailRes = await API.Auth.sendEmail(email);
 
     if (!emailRes.ok) {
       showToast("Failed to send verification email.", "error");
@@ -178,11 +165,7 @@ document.getElementById("verify-btn").addEventListener("click", async () => {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/Auths/verify-code`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, code }),
-    });
+    const res = await API.Auth.verifyCode(email, code);
 
     const data = await res.json();
 
@@ -276,11 +259,7 @@ resendBtn.addEventListener("click", async () => {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/Auths/send-email`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: `"${email}"`, // giữ dạng string cho ASP.NET Core FromBody string
-    });
+    const res = await API.Auth.sendEmail(email);
 
     const data = await res.json();
 

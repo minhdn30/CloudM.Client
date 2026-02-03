@@ -71,7 +71,7 @@ window.EmojiUtils = {
         const isShowing = container.classList.contains("show");
 
         // 1. Close ALL other open pickers first
-        const allPickers = document.querySelectorAll('.detail-emoji-picker.show, .reply-emoji-picker-container.show');
+        const allPickers = document.querySelectorAll('.detail-emoji-picker.show, .reply-emoji-picker-container.show, .edit-emoji-picker-container.show');
         allPickers.forEach(p => {
             if (p !== container) EmojiUtils.closePicker(p);
         });

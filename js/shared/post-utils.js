@@ -35,9 +35,17 @@
      * @param {string} fullContent 
      * @param {number} maxLen 
      */
-    PostUtils.setupCommentContent = function(el, fullContent, maxLen = APP_CONFIG.COMMENT_CONTENT_TRUNCATE_LENGTH) {
-        if (!fullContent || fullContent.length <= maxLen) {
-            el.textContent = fullContent || "";
+    PostUtils.setupCommentContent = function(el, fullContent, maxLen = APP_CONFIG.COMMENT_CONTENT_TRUNCATE_LENGTH, forceExpand = false) {
+        if (!fullContent) {
+            el.textContent = "";
+            return;
+        }
+
+        // Always store full content for easier retrieval (e.g., when editing)
+        el.dataset.fullContent = fullContent;
+
+        if (fullContent.length <= maxLen) {
+            el.textContent = fullContent;
             return;
         }
 
@@ -47,20 +55,23 @@
             : fullContent.substring(0, maxLen) + "...";
         
         el.innerHTML = "";
-        const textNode = document.createTextNode(truncatedContent);
+        
+        // If forceExpand, show full content immediately
+        const initialText = forceExpand ? fullContent : truncatedContent;
+        const textNode = document.createTextNode(initialText);
         el.appendChild(textNode);
 
         const btn = document.createElement("span");
         btn.className = "caption-toggle comment-toggle";
-        btn.textContent = "more";
-        btn.style.display = "block";
+        // If forceExpand, button should be " less"
+        btn.textContent = forceExpand ? " less" : "more";
         
         btn.onclick = (e) => {
             e.stopPropagation();
             const isMore = btn.textContent === "more";
             if (isMore) {
                  textNode.textContent = fullContent;
-                 btn.textContent = "less";
+                 btn.textContent = " less";
             } else {
                  textNode.textContent = truncatedContent;
                  btn.textContent = "more";
@@ -118,8 +129,15 @@
      * @param {number} maxLen - Max length before truncation (default 150)
      */
     PostUtils.setupCaption = function(el, fullContent, maxLen = APP_CONFIG.CAPTION_TRUNCATE_LENGTH) {
-        if (!fullContent || fullContent.length <= maxLen) {
-            el.textContent = fullContent || "";
+        if (!fullContent) {
+            el.textContent = "";
+            return;
+        }
+
+        el.dataset.fullContent = fullContent;
+
+        if (fullContent.length <= maxLen) {
+            el.textContent = fullContent;
             return;
         }
 
@@ -130,9 +148,7 @@
         const textNode = document.createTextNode(truncatedContent);
         el.appendChild(textNode);
 
-        // Create line break to force toggle button to new line
-        const br = document.createElement("br");
-        el.appendChild(br);
+        // Create Toggle Btn (No <br> needed, handled by CSS)
 
         // Create Toggle Btn
         const btn = document.createElement("span");
@@ -152,6 +168,48 @@
         };
 
         el.appendChild(btn);
+    };
+
+    /**
+     * Get privacy icon name
+     * @param {number} privacy - 0: Public, 1: FollowOnly, 2: Private
+     */
+    PostUtils.getPrivacyIconName = function(privacy) {
+        switch (privacy) {
+            case 0: return "globe";
+            case 1: return "users";
+            case 2: return "lock";
+            default: return "globe";
+        }
+    };
+
+    /**
+     * Get privacy label
+     * @param {number} privacy 
+     */
+    PostUtils.getPrivacyLabel = function(privacy) {
+        switch (privacy) {
+            case 0: return "Public";
+            case 1: return "Followers";
+            case 2: return "Private";
+            default: return "Public";
+        }
+    };
+
+    /**
+     * Render privacy badge HTML (Read-only version of privacy-selector)
+     * @param {number} privacy 
+     */
+    PostUtils.renderPrivacyBadge = function(privacy) {
+        const icon = PostUtils.getPrivacyIconName(privacy);
+        const label = PostUtils.getPrivacyLabel(privacy);
+        // Reuse .privacy-selector style but remove interactive elements/cursor
+        // Added styling to make it look good in post header context (e.g. smaller, inline)
+        return `
+            <div class="privacy-selector" style="cursor: pointer; padding: 2px 0px; background: transparent; border: none; gap: 4px;" title="${label}">
+                <i data-lucide="${icon}" class="privacy-icon" style="width: 14px; height: 14px; color: var(--text-tertiary);"></i>
+            </div>
+        `;
     };
 
     /**
@@ -190,7 +248,7 @@
                 const timeEl = postEl.querySelector('.post-time');
                 // Only update if timeEl exists and PostUtils is available
                 if (timeEl && PostUtils.timeAgo) {
-                    timeEl.textContent = "• " + PostUtils.timeAgo(createdAt);
+                    timeEl.textContent = PostUtils.timeAgo(createdAt);
                     timeEl.title = PostUtils.formatFullDateTime(createdAt);
                 }
             }

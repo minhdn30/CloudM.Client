@@ -16,7 +16,7 @@ function createProfilePreview() {
 
 /* ===== Load data ===== */
 async function loadProfilePreview(accountId) {
-  const res = await apiFetch(`/Accounts/profile-preview/${accountId}`);
+  const res = await API.Accounts.getProfilePreview(accountId);
 
   if (!res.ok) return null;
   return await res.json();
@@ -299,7 +299,7 @@ function initProfilePreview() {
 window.initProfilePreview = initProfilePreview;
 
 /* ===== Follow/Unfollow ===== */
-function toggleFollow(userId) {
+async function toggleFollow(userId) {
   isFollowing = !isFollowing;
 
   const btn = document.getElementById("followBtn");
@@ -323,7 +323,18 @@ function toggleFollow(userId) {
     lucide.createIcons();
   }
 
-  // TODO: call follow / unfollow API
+  // Call actual API
+  try {
+    if (isFollowing) {
+        await API.Follows.follow(userId);
+    } else {
+        await API.Follows.unfollow(userId);
+    }
+  } catch (err) {
+    console.error(err);
+    if (window.toastError) toastError("Failed to update follow status");
+    // Revert UI if needed (complex for this simple implementation)
+  }
 }
 
 /* ===== Toggle follow menu (dropdown) ===== */
