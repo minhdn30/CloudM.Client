@@ -86,7 +86,7 @@
 /* Post Actions styles moved to shared/post-common.css */
 /* Post Likes also removed as it seems unused or dup */
 /* 🔥 RESET TOÀN BỘ ELEMENT BÊN TRONG CAPTION */
-.post-caption * {
+.post-caption *:not(.caption-toggle):not(.comment-toggle) {
   margin: 0;
   padding: 0;
   text-indent: 0;

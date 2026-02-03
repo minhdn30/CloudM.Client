@@ -133,6 +133,34 @@ function setupPostHubHandlers() {
     console.log(`❤️ Comment react update ${commentId}: ${newReactCount}`);
     updateCommentReactCount(commentId, newReactCount);
   });
+
+  // Listen for updated comments
+  postHubConnection.on("ReceiveUpdatedComment", (comment) => {
+    console.log(`📝 Comment updated:`, comment);
+    if (window.CommentModule) {
+      window.CommentModule.injectUpdatedComment(comment);
+    }
+  });
+
+  // Listen for deleted comments
+  postHubConnection.on("ReceiveDeletedComment", (commentId, parentCommentId, totalCommentCount, parentReplyCount, postId) => {
+      console.log(`🗑️ Comment deleted:`, commentId);
+
+      // 1. Update total post comment count
+      if (totalCommentCount !== undefined && totalCommentCount !== null) {
+         updatePostCommentCount(postId || currentPostGroup || window.currentPostId, totalCommentCount);
+      }
+
+      // 2. If it's a reply, update parent's reply count
+      if (parentCommentId && parentReplyCount !== undefined) {
+         updateCommentReplyCount(parentCommentId, parentReplyCount);
+      }
+
+      // 3. Remove from UI
+      if (window.CommentModule) {
+         window.CommentModule.handleDeletedComment(commentId, !!parentCommentId);
+      }
+  });
 }
 
 /* =========================
@@ -244,7 +272,8 @@ function updatePostCommentCount(postId, newCommentCount) {
  * @param {number} newReactCount - New react count
  */
 function updateCommentReactCount(commentId, newReactCount) {
-  const commentEl = document.querySelector(`.comment-item[data-comment-id="${commentId}"], .reply-item[data-comment-id="${commentId}"]`);
+  // Support both Main Comments (data-comment-id) and Replies (data-reply-id)
+  const commentEl = document.querySelector(`.comment-item[data-comment-id="${commentId}"], .reply-item[data-reply-id="${commentId}"]`);
   if (commentEl) {
     console.log(`✨ Updating react count for ${commentEl.classList.contains('reply-item') ? 'reply' : 'comment'}: ${commentId}`);
     const reactCountEl = commentEl.querySelector(".react-count");

@@ -122,8 +122,11 @@ function turnOffCommenting(postId) {
 }
 
 /* ===== Other post actions ===== */
-function reportPost(postId) {
+/* ===== Generic Report Logic ===== */
+function showReportReasons(targetId, type = 'post') {
+  // Close any existing overlays first
   closePostOptions();
+  document.querySelector(".post-options-overlay")?.remove();
 
   const overlay = document.createElement("div");
   overlay.className = "post-options-overlay";
@@ -131,17 +134,19 @@ function reportPost(postId) {
   const popup = document.createElement("div");
   popup.className = "post-options-popup";
 
+  const typeLabel = type === 'comment' ? 'comment' : 'post';
+
   popup.innerHTML = `
     <div class="post-options-header">
       <h3>Report</h3>
-      <p>Why are you reporting this post?</p>
+      <p>Why are you reporting this ${typeLabel}?</p>
     </div>
-    <button class="post-option" onclick="submitReport('${postId}', 'spam')">It's spam</button>
-    <button class="post-option" onclick="submitReport('${postId}', 'inappropriate')">Nudity or sexual activity</button>
-    <button class="post-option" onclick="submitReport('${postId}', 'hate')">Hate speech or symbols</button>
-    <button class="post-option" onclick="submitReport('${postId}', 'violence')">Violence or dangerous organizations</button>
-    <button class="post-option" onclick="submitReport('${postId}', 'false')">False information</button>
-    <button class="post-option" onclick="submitReport('${postId}', 'scam')">Scam or fraud</button>
+    <button class="post-option" onclick="submitReport('${targetId}', 'spam', '${type}')">It's spam</button>
+    <button class="post-option" onclick="submitReport('${targetId}', 'inappropriate', '${type}')">Nudity or sexual activity</button>
+    <button class="post-option" onclick="submitReport('${targetId}', 'hate', '${type}')">Hate speech or symbols</button>
+    <button class="post-option" onclick="submitReport('${targetId}', 'violence', '${type}')">Violence or dangerous organizations</button>
+    <button class="post-option" onclick="submitReport('${targetId}', 'false', '${type}')">False information</button>
+    <button class="post-option" onclick="submitReport('${targetId}', 'scam', '${type}')">Scam or fraud</button>
     <button class="post-option post-option-cancel" onclick="this.closest('.post-options-overlay').remove()">Cancel</button>
   `;
 
@@ -155,10 +160,20 @@ function reportPost(postId) {
   };
 }
 
-function submitReport(postId, reason) {
-  console.log("Report:", postId, reason);
+function submitReport(targetId, reason, type = 'post') {
+  console.log(`Report ${type}:`, targetId, reason);
   document.querySelector(".post-options-overlay")?.remove();
-  toastSuccess("Thanks for reporting. We'll review this post.");
+  const typeLabel = type === 'comment' ? 'comment' : 'post';
+  
+  if (window.toastSuccess) {
+      toastSuccess(`Thanks for reporting. We'll review this ${typeLabel}.`);
+  } else {
+      console.log(`Thanks for reporting. We'll review this ${typeLabel}.`);
+  }
+}
+
+function reportPost(postId) {
+    showReportReasons(postId, 'post');
 }
 
 function followFromPost(accountId) {
@@ -210,3 +225,5 @@ function aboutThisAccount(accountId) {
 /* ===== Export ===== */
 window.showPostOptions = showPostOptions;
 window.closePostOptions = closePostOptions;
+window.showReportReasons = showReportReasons;
+window.submitReport = submitReport;

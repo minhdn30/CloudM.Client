@@ -47,7 +47,7 @@ router();
    ========================= */
 async function logout() {
   try {
-    await apiFetch("/Auths/logout", { method: "POST" });
+    await API.Auth.logout();
   } catch (_) {
     // ignore
   } finally {
@@ -78,69 +78,8 @@ function clearSessionAndRedirect() {
   }
 })();
 
-/* =========================
-   REFRESH TOKEN (LOCK)
-   ========================= */
-async function refreshAccessToken() {
-  if (!refreshPromise) {
-    refreshPromise = fetch(`${APP_CONFIG.API_BASE}/Auths/refresh-token`, {
-      method: "POST",
-      credentials: "include",
-    })
-      .then((res) => {
-        if (res.status === 401 || res.status === 403) {
-          throw new Error("REFRESH_EXPIRED");
-        }
-        return res.json();
-      })
-      .then((data) => {
-        localStorage.setItem("accessToken", data.accessToken);
-        return data.accessToken;
-      })
-      .finally(() => {
-        refreshPromise = null;
-      });
-  }
-
-  return refreshPromise;
-}
-
-/* =========================
-   API FETCH
-   ========================= */
-async function apiFetch(url, options = {}) {
-  const accessToken = localStorage.getItem("accessToken");
-
-  const res = await fetch(`${APP_CONFIG.API_BASE}${url}`, {
-    ...options,
-    credentials: "include",
-    headers: {
-      ...options.headers,
-      Authorization: accessToken ? `Bearer ${accessToken}` : undefined,
-    },
-  });
-
-  // OK
-  if (res.status !== 401) return res;
-
-  // Try refresh
-  try {
-    const newToken = await refreshAccessToken();
-
-    return fetch(`${APP_CONFIG.API_BASE}${url}`, {
-      ...options,
-      credentials: "include",
-      headers: {
-        ...options.headers,
-        Authorization: `Bearer ${newToken}`,
-      },
-    });
-  } catch (err) {
-    // ❗ CHỈ logout khi refresh-token thật sự hết hạn
-    clearSessionAndRedirect();
-    throw err;
-  }
-}
+// Redundant API fetch logic removed - moved to configAPI.js
+// Export refreshAccessToken globally if needed (already handled in configAPI.js)
 
 /* =========================
    GLOBAL UPLOAD HELPERS
@@ -188,52 +127,6 @@ function hideGlobalLoader() {
   if (overlay) overlay.classList.remove("show");
 }
 
-// Upload FormData with XHR to track progress and include auth
-function uploadFormDataWithProgress(url, formData, onProgress) {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", APP_CONFIG.API_BASE + url);
-    xhr.withCredentials = true;
+// uploadFormDataWithProgress has been moved to configAPI.js
 
-    const accessToken = localStorage.getItem("accessToken");
-    if (accessToken) {
-      xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
-    }
 
-    xhr.upload.onprogress = function (e) {
-      if (e.lengthComputable && typeof onProgress === "function") {
-        const percent = (e.loaded / e.total) * 100;
-        onProgress(percent);
-      }
-    };
-
-    xhr.onreadystatechange = function () {
-      if (xhr.readyState === 4) {
-        const status = xhr.status;
-        const text = xhr.responseText;
-        const ok = status >= 200 && status < 300;
-        resolve({
-          status: status,
-          ok: ok,
-          text: () => Promise.resolve(text),
-          json: () => {
-            try {
-              return Promise.resolve(JSON.parse(text));
-            } catch (e) {
-              return Promise.resolve(null);
-            }
-          },
-        });
-      }
-    };
-
-    xhr.onerror = function (e) {
-      reject(e);
-    };
-
-    xhr.send(formData);
-  });
-}
-
-// Export refreshAccessToken globally for reuse (e.g., SignalR)
-window.refreshAccessToken = refreshAccessToken;

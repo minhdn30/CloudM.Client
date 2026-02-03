@@ -30,7 +30,7 @@ async function openPostDetail(postId) {
     if (mainLoader) mainLoader.style.display = "flex";
 
     try {
-        const res = await apiFetch(`/Posts/${postId}`);
+        const res = await API.Posts.getById(postId);
         if (!res.ok) throw new Error("Failed to load post");
         
         const data = await res.json();
@@ -41,7 +41,7 @@ async function openPostDetail(postId) {
         
         // Start loading comments via module
         if (window.CommentModule) {
-            CommentModule.loadComments(postId, 1);
+            CommentModule.loadComments(postId, 1, data.owner.accountId);
         }
 
         // Join SignalR post group for realtime updates (experimental feature)
@@ -270,10 +270,13 @@ function renderPostDetail(post) {
         PostUtils.setupCaption(captionText, post.content);
     }
     
-    // Update timeago in header
+    // Update timeago with privacy badge in header
     const timeEl = document.getElementById("detailTime");
     if (timeEl) {
-        timeEl.textContent = PostUtils.timeAgo(post.createdAt);
+        timeEl.style.display = "flex";
+        timeEl.style.alignItems = "center";
+        timeEl.style.gap = "6px";
+        timeEl.innerHTML = `${PostUtils.timeAgo(post.createdAt)} <span>•</span> ${PostUtils.renderPrivacyBadge(post.privacy)}`;
         timeEl.title = PostUtils.formatFullDateTime(post.createdAt);
     }
     
@@ -368,7 +371,7 @@ function renderPostDetail(post) {
             handleLikePost(post.postId, likeBtn, likeIcon, likeCount);
         } else if (clickedCount) {
             if (window.InteractionModule) {
-                InteractionModule.openReactList(post.postId);
+                InteractionModule.openReactList(post.postId, 'post', clickedCount.textContent);
             }
         }
     };
@@ -569,7 +572,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.EmojiUtils) {
         // Broaden selectors to cover both main post detail and inline replies
         window.EmojiUtils.setupClickOutsideHandler(
-            '.detail-emoji-picker, .reply-emoji-picker-container', 
+            '.detail-emoji-picker, .reply-emoji-picker-container, .edit-emoji-picker-container', 
             '.emoji-trigger'
         );
     }

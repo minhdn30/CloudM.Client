@@ -1,5 +1,9 @@
 # Project Rules for MiniSocialNetwork
 
+## Communication Style
+- **LANGUAGE REQUIREMENT**: ALWAYS communicate with the user in **Vietnamese** (Tiếng Việt).
+- This applies to all responses, explanations, and questions.
+
 ## Backend Modification Policy
 
 **CRITICAL:** Backend code requires explicit approval before ANY modifications.

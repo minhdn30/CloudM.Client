@@ -14,6 +14,19 @@ const InteractionModule = (function () {
     const MODAL_ID = "interactionModal";
 
     /**
+     * Private helper to fetch data from API
+     */
+    async function _fetchPage(id, page) {
+        const res = targetType === 'comment' 
+            ? await API.Comments.getReacts(id, page, PAGE_SIZE)
+            : await API.Posts.getReacts(id, page, PAGE_SIZE);
+
+        if (!res.ok) throw new Error("Failed to load reacts");
+
+        return await res.json();
+    }
+
+    /**
      * Open the react list modal
      * @param {string} id - PostId or CommentId
      * @param {string} type - 'post' or 'comment'
@@ -23,69 +36,85 @@ const InteractionModule = (function () {
         targetType = type;
         currentPage = 1;
 
-        // 1. Ensure modal exists
-        let modal = document.getElementById(MODAL_ID);
-        if (!modal) {
-            await loadModalHTML();
-            modal = document.getElementById(MODAL_ID);
-        }
+        try {
+            // 1. First fetch to verify and get initial data (Optimized: reuse this data)
+            const data = await _fetchPage(id, 1);
+            
+            if (!data.totalItems || data.totalItems === 0) {
+                if (window.toastInfo) toastInfo("No one has reacted yet");
+                return;
+            }
 
-        // 2. Show modal and reset list
-        modal.classList.add("show");
-        document.body.style.overflow = "hidden";
-        
-        const listContainer = document.getElementById("interactionList");
-        listContainer.innerHTML = "";
-        
-        // 3. Initial load
-        await loadReacts(targetId, 1);
+            // 2. Ensure modal exists
+            let modal = document.getElementById(MODAL_ID);
+            if (!modal) {
+                await loadModalHTML();
+                modal = document.getElementById(MODAL_ID);
+            }
+
+            // 3. Show modal and reset list
+            modal.classList.add("show");
+            document.body.style.overflow = "hidden";
+            
+            const listContainer = document.getElementById("interactionList");
+            const totalText = document.getElementById("interactionTotalCount");
+            
+            listContainer.innerHTML = "";
+            if (totalText) totalText.textContent = data.totalItems;
+
+            // 4. Handle rendering first page and state update
+            _handleDataResponse(data, listContainer);
+
+            // Sync back to UI in case FE count was out of sync
+            syncCountToUI();
+
+        } catch (error) {
+            console.error(error);
+            if (window.toastError) toastError("Could not load reaction list");
+        }
     }
 
     /**
-     * Load follows from API
+     * Load more reacts for infinite scroll
      */
     async function loadReacts(id, page = 1) {
         if (isLoading) return;
         
         const listContainer = document.getElementById("interactionList");
         const loader = document.getElementById("interactionLoader");
-        const totalText = document.getElementById("interactionTotalCount");
 
         isLoading = true;
         if (loader) loader.style.display = "flex";
 
         try {
-            const apiPath = targetType === 'comment' 
-                ? `/Comments/${id}/reacts` 
-                : `/Posts/${id}/reacts`;
-
-            const res = await apiFetch(`${apiPath}?page=${page}&pageSize=${PAGE_SIZE}`);
-            if (!res.ok) throw new Error("Failed to load reacts");
-
-            const data = await res.json();
-            
-            // Render total at the top
-            if (totalText) totalText.textContent = data.totalItems || 0;
-
-            renderReactList(data.items, listContainer);
-
-            currentPage = data.page;
-            hasNextPage = data.hasNextPage;
-
-            // Move loader to bottom of the list for next load or hide it
-            if (loader) listContainer.appendChild(loader);
-
-            // AUTO LOAD NEXT PAGE if container not full enough to scroll
-            if (hasNextPage) {
-                checkNeedsMoreReacts(id);
-            }
-
+            const data = await _fetchPage(id, page);
+            _handleDataResponse(data, listContainer);
         } catch (error) {
             console.error(error);
-            if (window.toastError) toastError("Could not load reaction list");
+            if (window.toastError) toastError("Could not load more reacts");
         } finally {
             isLoading = false;
-            if (loader && !hasNextPage) loader.style.display = "none";
+        }
+    }
+
+    /**
+     * Process data response, update state, and handle loader UI
+     */
+    function _handleDataResponse(data, container) {
+        renderReactList(data.items, container);
+
+        currentPage = data.page;
+        hasNextPage = data.hasNextPage;
+
+        const loader = document.getElementById("interactionLoader");
+        if (loader) {
+            // Keep loader at the bottom
+            container.appendChild(loader);
+            loader.style.display = hasNextPage ? "flex" : "none";
+        }
+
+        if (hasNextPage) {
+            checkNeedsMoreReacts(targetId);
         }
     }
 
@@ -96,11 +125,9 @@ const InteractionModule = (function () {
         const listContainer = document.getElementById("interactionList");
         if (!listContainer) return;
 
-        // Short timeout to let DOM render
         setTimeout(() => {
             if (!hasNextPage || isLoading) return;
             
-            // If the content is shorter than the scroll area, load more
             if (listContainer.scrollHeight <= listContainer.clientHeight + 20) {
                 loadReacts(id, currentPage + 1);
             }
@@ -118,10 +145,8 @@ const InteractionModule = (function () {
             const avatarUrl = item.avatarUrl || APP_CONFIG.DEFAULT_AVATAR;
             const fullName = item.fullName || item.username;
             
-            // Determine button state
             let actionBtnHtml = "";
             if (item.accountId === APP_CONFIG.CURRENT_USER_ID) {
-                // It's me!
                 actionBtnHtml = `<button class="follow-btn view-profile-btn" onclick="viewProfile('${item.accountId}')"><span>View Profile</span></button>`;
             } else {
                 if (item.isFollowing) {
@@ -146,7 +171,6 @@ const InteractionModule = (function () {
             container.appendChild(row);
         });
 
-        // Refresh icons and profile preview
         if (window.lucide) lucide.createIcons();
     }
 
@@ -184,12 +208,12 @@ const InteractionModule = (function () {
     }
 
     /**
-     * Show unfollow confirmation popup (same style as profile preview)
+     * Show unfollow confirmation popup
      */
     function showUnfollowConfirm(accountId, btn) {
         const overlay = document.createElement("div");
         overlay.className = "unfollow-overlay";
-        overlay.style.zIndex = "31000"; // Ensure top of everything
+        overlay.style.zIndex = "31000";
 
         const popup = document.createElement("div");
         popup.className = "unfollow-popup";
@@ -208,10 +232,8 @@ const InteractionModule = (function () {
         overlay.appendChild(popup);
         document.body.appendChild(overlay);
 
-        // Animation
         setTimeout(() => overlay.classList.add("show"), 10);
 
-        // Actions
         document.getElementById("confirmUnfollowBtn").onclick = () => {
             performFollowAction(accountId, btn, true);
             closeConfirmPopup(overlay);
@@ -232,7 +254,7 @@ const InteractionModule = (function () {
     }
 
     /**
-     * Perform the actual API call
+     * Perform the actual API call for follow/unfollow status
      */
     async function performFollowAction(accountId, btn, wasFollowing) {
         if (btn.disabled) return;
@@ -243,7 +265,6 @@ const InteractionModule = (function () {
             if (!res.ok) throw new Error("Action failed");
 
             const span = btn.querySelector("span");
-            // Toggle UI
             if (wasFollowing) {
                 btn.classList.remove("following");
                 if (span) span.textContent = "Follow";
@@ -269,20 +290,17 @@ const InteractionModule = (function () {
         const newCount = parseInt(countText) || 0;
         
         if (targetType === 'post') {
-            // 1. Update in post detail
             const detailLikeCount = document.getElementById("detailLikeCount");
             if (detailLikeCount && window.currentPostId === targetId) {
                 detailLikeCount.textContent = newCount;
             }
 
-            // 2. Update in newsfeed
             const feedPost = document.querySelector(`.post[data-post-id="${targetId}"]`);
             if (feedPost) {
                 const countEl = feedPost.querySelector(".react-btn .count");
                 if (countEl) countEl.textContent = newCount;
             }
         } else if (targetType === 'comment') {
-            // Update in comment list
             const commentItem = document.querySelector(`.comment-item[data-comment-id="${targetId}"], .reply-item[data-comment-id="${targetId}"]`);
             if (commentItem) {
                 const countEl = commentItem.querySelector(".react-count");
@@ -299,12 +317,11 @@ const InteractionModule = (function () {
     function closeReactList() {
         const modal = document.getElementById(MODAL_ID);
         if (modal) {
-            // SYNC before closing (to capture any updates that happened while open)
             syncCountToUI();
             
             modal.classList.remove("show");
             document.body.style.overflow = "";
-            targetId = null; // Reset
+            targetId = null;
         }
     }
 
@@ -323,7 +340,6 @@ const InteractionModule = (function () {
                         </button>
                     </div>
                     <div id="interactionList" class="interaction-list custom-scrollbar">
-                        <!-- Items injected here -->
                     </div>
                     <div id="interactionLoader" class="interaction-loader" style="display: none;">
                         <div class="loader-spinner"></div>
@@ -334,7 +350,6 @@ const InteractionModule = (function () {
         document.body.insertAdjacentHTML("beforeend", html);
         if (window.lucide) lucide.createIcons();
         
-        // Setup listener once HTML is injected
         setupScrollListener();
     }
 

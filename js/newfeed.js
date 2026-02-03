@@ -39,20 +39,10 @@ async function loadFeed() {
     LoadingUtils.toggle(loader, true);
   }
 
-  let url = `${API_BASE}/Posts/feed?limit=${LIMIT}`;
-
-  if (cursorCreatedAt && cursorPostId) {
-    url += `&cursorCreatedAt=${encodeURIComponent(cursorCreatedAt)}`;
-    url += `&cursorPostId=${cursorPostId}`;
-  }
 
   try {
-    const res = await apiFetch(
-      `/Posts/feed?limit=${LIMIT}` +
-        (cursorCreatedAt && cursorPostId
-          ? `&cursorCreatedAt=${encodeURIComponent(cursorCreatedAt)}&cursorPostId=${cursorPostId}`
-          : ""),
-    );
+    const res = await API.Posts.getFeed(LIMIT, cursorCreatedAt, cursorPostId);
+
 
     if (!res.ok) throw new Error("Load feed failed");
 
@@ -87,10 +77,16 @@ function renderFeed(posts) {
             <img class="post-avatar"
                  src="${post.author?.avatarUrl || APP_CONFIG.DEFAULT_AVATAR}"
                  alt="">
-            <span class="post-username">${PostUtils.truncateName(post.author?.fullName || "Unknown")}</span>
-            <span class="post-time" 
-                  title="${PostUtils.formatFullDateTime(post.createdAt)}" 
-                  onclick="openPostDetail('${post.postId}')">• ${PostUtils.timeAgo(post.createdAt)}</span>
+            <div class="user-meta">
+              <span class="post-username">${PostUtils.truncateName(post.author?.fullName || "Unknown")}</span>
+              <div class="post-meta">
+                <span class="post-time" 
+                      title="${PostUtils.formatFullDateTime(post.createdAt)}" 
+                      onclick="openPostDetail('${post.postId}')">${PostUtils.timeAgo(post.createdAt)}</span>
+                <span>•</span>
+                ${PostUtils.renderPrivacyBadge(post.privacy)}
+              </div>
+            </div>
           </div>
           <div class="post-actions">
           ${
@@ -120,7 +116,7 @@ function renderFeed(posts) {
      class="react-icon ${post.isReactedByCurrentUser ? "reacted" : ""} hover-scale-sm">
   </i>
 
-  <span class="count hover-scale-text" onclick="event.stopPropagation(); window.InteractionModule?.openReactList('${post.postId}')">${post.reactCount}</span>
+  <span class="count hover-scale-text" onclick="event.stopPropagation(); window.InteractionModule?.openReactList('${post.postId}', 'post', '${post.reactCount}')">${post.reactCount}</span>
 </div>
 
 
@@ -376,7 +372,11 @@ document.addEventListener("click", async (e) => {
   if (!clickedIcon && !clickedCount) return; // Ignore click on gap
 
   if (clickedCount) {
-    if (window.toastInfo) toastInfo("Feature coming soon: List of people who reacted");
+    const postId = reactBtn.dataset.postId;
+    const count = clickedCount.textContent;
+    if (window.InteractionModule) {
+      window.InteractionModule.openReactList(postId, 'post', count);
+    }
     return;
   }
 
@@ -406,9 +406,7 @@ document.addEventListener("click", async (e) => {
 
   try {
     // 2️⃣ Call API
-    const res = await apiFetch(`/Posts/${postId}/react`, {
-      method: "POST",
-    });
+    const res = await API.Posts.toggleReact(postId);
 
     if (!res.ok) throw new Error("React failed");
 
@@ -438,3 +436,38 @@ document.addEventListener("click", async (e) => {
 document.addEventListener("DOMContentLoaded", () => {
   initProfilePreview();
 });
+
+/* ===== Follow / Unfollow from feed ===== */
+async function followUser(accountId, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const res = await API.Follows.follow(accountId);
+    if (!res.ok) throw new Error("Follow failed");
+    
+    if (window.toastSuccess) toastSuccess("Following");
+    if (btn) btn.remove(); // Or change state
+  } catch (err) {
+    console.error(err);
+    if (window.toastError) toastError("Failed to follow user");
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function unfollowUser(accountId, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const res = await API.Follows.unfollow(accountId);
+    if (!res.ok) throw new Error("Unfollow failed");
+    
+    if (window.toastInfo) toastInfo("Unfollowed");
+    // Handle UI update
+  } catch (err) {
+    console.error(err);
+    if (window.toastError) toastError("Failed to unfollow user");
+    if (btn) btn.disabled = false;
+  }
+}
+
+// Export for global access
+window.followUser = followUser;
+window.unfollowUser = unfollowUser;
