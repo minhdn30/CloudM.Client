@@ -1,6 +1,6 @@
 let toastTimeout;
 
-function showToast(message, type = "info", duration = 3000) {
+function showToast(message, type = "info", duration = 3000, isHtml = false) {
   let toast = document.querySelector(".toast-notification");
 
   if (!toast) {
@@ -12,17 +12,28 @@ function showToast(message, type = "info", duration = 3000) {
   toast.className = "toast-notification";
   toast.classList.add(type);
 
-  toast.textContent = message;
+  if (isHtml) {
+    toast.innerHTML = message;
+  } else {
+    toast.textContent = message;
+  }
 
   toast.offsetHeight;
 
   toast.classList.add("show");
 
   clearTimeout(toastTimeout);
-  toastTimeout = setTimeout(() => {
-    toast.classList.remove("show");
-  }, duration);
+  if (duration > 0) {
+    toastTimeout = setTimeout(() => {
+      toast.classList.remove("show");
+    }, duration);
+  }
 }
+
+window.closeToast = () => {
+    const toast = document.querySelector(".toast-notification");
+    if (toast) toast.classList.remove("show");
+};
 
 window.toastSuccess = (msg) => showToast(msg, "success");
 window.toastError = (msg) => showToast(msg, "error");

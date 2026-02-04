@@ -88,6 +88,26 @@
                  }
              }
         }
+
+        // 3. Update Interaction Modal if open
+        const interactionModal = document.getElementById("interactionModal");
+        if (interactionModal && interactionModal.classList.contains("show")) {
+            const row = interactionModal.querySelector(`.user-info[data-account-id="${accountId}"]`);
+            if (row) {
+                const actionBox = row.nextElementSibling; // .action-box
+                const btn = actionBox?.querySelector(".follow-btn");
+                if (btn && !btn.classList.contains("view-profile-btn")) {
+                    const span = btn.querySelector("span");
+                    if (isFollowing) {
+                        btn.classList.add("following");
+                        if (span) span.textContent = "Following";
+                    } else {
+                        btn.classList.remove("following");
+                        if (span) span.textContent = "Follow";
+                    }
+                }
+            }
+        }
     };
 
     /**
