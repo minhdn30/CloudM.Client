@@ -52,16 +52,30 @@
     const accessToken = localStorage.getItem("accessToken");
     const baseUrl = window.APP_CONFIG?.API_BASE || "http://localhost:5000/api";
 
+    const headers = { ...options.headers };
+    if (accessToken && !options.skipAuth) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
+
     const res = await fetch(`${baseUrl}${url}`, {
       ...options,
       credentials: "include",
-      headers: {
-        ...options.headers,
-        Authorization: accessToken ? `Bearer ${accessToken}` : undefined,
-      },
+      headers: headers,
     });
 
-    if (res.status !== 401) return res;
+    if (res.status === 403) {
+        const clonedRes = res.clone();
+        try {
+            const data = await clonedRes.json();
+            if (data.message && data.message.toLowerCase().includes("reactivate")) {
+                handleGlobalReactivation(data.message);
+            }
+        } catch (e) {
+            // Not JSON or no message
+        }
+    }
+
+    if (res.status !== 401 || options.skipAuth) return res;
 
     // Unauthorized - try refresh
     try {
@@ -109,6 +123,16 @@
           const status = xhr.status;
           const text = xhr.responseText;
           const ok = status >= 200 && status < 300;
+
+          if (status === 403) {
+             try {
+                 const data = JSON.parse(text);
+                 if (data.message && data.message.toLowerCase().includes("reactivate")) {
+                     handleGlobalReactivation(data.message);
+                 }
+             } catch(e) {}
+          }
+
           resolve({
             status: status,
             ok: ok,
@@ -144,24 +168,28 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password }),
+          skipAuth: true,
         }),
       register: (data) =>
         apiFetch("/Auths/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
+          skipAuth: true,
         }),
       sendEmail: (email) =>
         apiFetch("/Auths/send-email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(email),
+          skipAuth: true,
         }),
       verifyCode: (email, code) =>
         apiFetch("/Auths/verify-code", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, code }),
+          skipAuth: true,
         }),
       logout: () => apiFetch("/Auths/logout", { method: "POST" }),
       refresh: () => refreshAccessToken(),
@@ -225,6 +253,8 @@
     Accounts: {
       getProfilePreview: (accountId) =>
         apiFetch(`/Accounts/profile-preview/${accountId}`),
+      reactivate: () =>
+        apiFetch(`/Accounts/reactivate`, { method: "POST" }),
     },
 
     Follows: {
@@ -233,6 +263,47 @@
       unfollow: (targetId) =>
         apiFetch(`/Follows/${targetId}`, { method: "DELETE" }),
     },
+  };
+
+  // Global Reactivation Handler
+  async function handleGlobalReactivation(message) {
+      if (typeof showToast !== 'function') return;
+
+      showToast(
+          `<div>
+            <p style="margin-bottom: 8px;">${message}</p>
+            <div class="toast-actions">
+              <button class="toast-btn" onclick="window.reactivateAccountAction()">Reactivate Now</button>
+              <button class="toast-btn secondary" onclick="window.closeToast()">Later</button>
+            </div>
+          </div>`,
+          "error",
+          0,
+          true
+      );
+  }
+
+  window.reactivateAccountAction = async () => {
+      try {
+          const res = await window.API.Accounts.reactivate();
+          if (res.ok) {
+              if (typeof toastSuccess === 'function') toastSuccess("Account reactivated successfully!");
+              setTimeout(() => {
+                  window.closeToast();
+                  if (window.location.pathname.includes("auth.html")) {
+                      window.location.href = "index.html";
+                  } else {
+                      location.reload();
+                  }
+              }, 1000);
+          } else {
+              const data = await res.json();
+              if (typeof toastError === 'function') toastError(data.message || "Reactivation failed");
+          }
+      } catch (err) {
+          console.error(err);
+          if (typeof toastError === 'function') toastError("Error during reactivation");
+      }
   };
 
   // Export internal helpers for SignalR or other modules if they rely on window naming

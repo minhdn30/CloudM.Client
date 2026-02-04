@@ -58,12 +58,30 @@ loginForm.addEventListener("submit", async (e) => {
       showToast(data.message || "Login failed", "error");
       return;
     }
+
     localStorage.removeItem("accessToken");
     // Lưu token + thông tin
     localStorage.setItem("accessToken", data.accessToken);
     localStorage.setItem("fullname", data.fullname || "");
     localStorage.setItem("avatarUrl", data.avatarUrl || "");
     localStorage.setItem("accountId", data.accountId || "");
+
+    // Check Account Status
+    if (data.status === 1) { // Inactive
+      showToast(
+        `<div>
+          <p style="margin-bottom: 8px;">Your account is currently Inactive. Please reactivate to continue.</p>
+          <div class="toast-actions">
+            <button class="toast-btn" onclick="window.reactivateAccountAction()">Reactivate Now</button>
+            <button class="toast-btn secondary" onclick="window.location.href='auth.html'">Later</button>
+          </div>
+        </div>`,
+        "error",
+        0, // Persistent
+        true // HTML
+      );
+      return; // Stop here, don't redirect to index yet
+    } 
 
     showToast("Login successful!", "success");
     setTimeout(() => {

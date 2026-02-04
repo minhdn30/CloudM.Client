@@ -54,20 +54,44 @@ function renderProfilePreview(data) {
         </button>
       `;
 
+    // Disable buttons if account is not active
+    const isTargetActive = data.account.status === 0; // Active = 0
+    const disabledAttr = isTargetActive ? "" : "disabled";
+    const statusClass = isTargetActive ? "" : "disabled-action";
+
     actionsHTML = `
-      <button class="btn btn-message" onclick="openChat('${currentUserId}')">
+      <button class="btn btn-message ${statusClass}" ${disabledAttr} onclick="openChat('${currentUserId}')">
         <i data-lucide="send"></i>
         <span>Message</span>
       </button>
-      ${followBtnHTML}
+      ${followBtnHTML.replace('class="btn', `class="btn ${statusClass}`).replace('onclick=', isTargetActive ? 'onclick=' : 'data-onclick=')}
     `;
+  }
+
+  // Status Badge HTML
+  let statusBadge = "";
+  if (data.account.status !== 0) {
+      let statusText = "Unavailable";
+      let statusClass = "status-unavailable";
+      
+      if (data.account.status === 1) {
+          statusText = "Inactive";
+          statusClass = "status-inactive";
+      }
+
+      statusBadge = `<span class="user-status-badge ${statusClass}">${statusText}</span>`;
   }
 
   previewEl.innerHTML = `
     <div class="preview-header">
       <img src="${data.account.avatarUrl || APP_CONFIG.DEFAULT_AVATAR}" alt="avatar" />
       <div>
-        <div class="name">${PostUtils.truncateName(data.account.fullName)}</div>
+        <div class="name-container">
+            <div class="name">${PostUtils.truncateName(data.account.fullName)}</div>
+            ${statusBadge}
+        </div>
+        ${data.account.status === 1 && data.isCurrentUser ? 
+            `<button class="btn-reactivate-link" onclick="reactivateFromPreview()">Reactivate account</button>` : ''}
       </div>
     </div>
 
@@ -410,3 +434,9 @@ function openChat(userId) {
 
 // Expose currentAccountId for external checks (e.g. from follow.js)
 window.getProfilePreviewAccountId = () => currentAccountId;
+
+async function reactivateFromPreview() {
+    await window.reactivateAccountAction();
+    hidePreview();
+}
+window.reactivateFromPreview = reactivateFromPreview;

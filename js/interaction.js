@@ -266,8 +266,15 @@ const InteractionModule = (function () {
         btn.disabled = true;
 
         try {
-            const res = await apiFetch(`/Accounts/follow/${accountId}`, { method: 'POST' });
-            if (!res.ok) throw new Error("Action failed");
+            const res = wasFollowing 
+                ? await API.Follows.unfollow(accountId)
+                : await API.Follows.follow(accountId);
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                console.error(`❌ Follow action failed. Status: ${res.status}`, data);
+                throw new Error(data.message || "Action failed");
+            }
 
             const span = btn.querySelector("span");
             if (wasFollowing) {
@@ -277,9 +284,15 @@ const InteractionModule = (function () {
                 btn.classList.add("following");
                 if (span) span.textContent = "Following";
             }
+            
+            // Sync with FollowModule if available
+            if (window.FollowModule && typeof window.FollowModule.syncFollowStatus === 'function') {
+                window.FollowModule.syncFollowStatus(accountId, !wasFollowing);
+            }
         } catch (error) {
-            console.error(error);
-            if (window.toastError) toastError("Failed to update follow status");
+            console.error("❌ Catch error in performFollowAction:", error);
+            const msg = error.message === "Action failed" ? "Failed to update follow status" : error.message;
+            if (window.toastError) toastError(msg);
         } finally {
             btn.disabled = false;
         }
