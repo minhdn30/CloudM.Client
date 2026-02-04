@@ -106,7 +106,13 @@ function deletePost(postId) {
 function editPost(postId) {
   closePostOptions();
   console.log("Edit post:", postId);
-  toastInfo("Edit post (todo)");
+  
+  // If PostEdit module exists, start editing
+  if (window.PostEdit) {
+      window.PostEdit.startEditPost(postId);
+  } else {
+      toastInfo("Edit post module not loaded");
+  }
 }
 
 function hidePostLikes(postId) {

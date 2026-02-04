@@ -183,6 +183,12 @@
         apiFetch(`/Posts/${postId}/react`, { method: "POST" }),
       getReacts: (postId, page, pageSize) =>
         apiFetch(`/Posts/${postId}/reacts?page=${page}&pageSize=${pageSize}`),
+      updateContent: (postId, data) =>
+        apiFetch(`/Posts/${postId}/content`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        }),
     },
 
     Comments: {
