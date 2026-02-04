@@ -218,21 +218,18 @@
      * @param {number|string} reactCount 
      * @param {boolean} isReacted 
      * @param {number|string} commentCount 
-     * @param {string} [createdAt] - Optional, to update timeago
-     */
-    /**
-     * Sync post data from detail view back to feed/list view
-     * @param {string} postId 
-     * @param {number|string} [reactCount]
-     * @param {boolean} [isReacted] 
-     * @param {number|string} [commentCount] 
-     * @param {string} [createdAt] - Optional, to update timeago
      * @param {string} [content] - Optional, to update caption
      * @param {number} [privacy] - Optional, to update privacy badge
      */
     PostUtils.syncPostFromDetail = function(postId, reactCount, isReacted, commentCount, createdAt, content, privacy) {
         const postEl = document.querySelector(`.post[data-post-id="${postId}"]`);
         if (!postEl) return;
+
+        // Special case: If explicitly passed 'remove' or triggered by forbidden action
+        if (reactCount === 'remove') {
+            PostUtils.hidePost(postId);
+            return;
+        }
 
         // 1. Update React Button
         if (reactCount !== undefined && isReacted !== undefined) {
@@ -283,14 +280,55 @@
         if (privacy !== undefined) {
             const metaContainer = postEl.querySelector(".post-meta");
             if (metaContainer) {
-                // Find or target the privacy badge part
-                // To keep it simple and preserve time, we find the existing time element
                 const timeStr = postEl.querySelector('.post-time')?.outerHTML || "";
                 const dot = `<span>•</span>`;
                 const privacyBadge = PostUtils.renderPrivacyBadge(privacy);
                 metaContainer.innerHTML = `${timeStr} ${dot} ${privacyBadge}`;
                 if (window.lucide) lucide.createIcons();
             }
+        }
+    };
+
+    /**
+     * Hide/Remove a post from the newsfeed or list
+     * @param {string} postId 
+     */
+    PostUtils.hidePost = function(postId) {
+        // 1. Close modal if this post is currently open
+        if (window.currentPostId === postId) {
+            // Close modal without confirmation (forced close due to privacy)
+            if (typeof window.forceClosePostDetail === 'function') {
+                window.forceClosePostDetail();
+            } else {
+                const modal = document.getElementById("postDetailModal");
+                if (modal) {
+                    modal.classList.remove("show");
+                    document.body.style.overflow = "";
+                }
+            }
+            if (window.toastInfo) window.toastInfo("This post is no longer available.");
+            
+            // Close interaction modal if open
+            if (window.InteractionModule && typeof window.InteractionModule.closeReactList === 'function') {
+                const interactModal = document.getElementById("interactionModal");
+                if (interactModal && interactModal.classList.contains("show")) {
+                    window.InteractionModule.closeReactList();
+                }
+            }
+        }
+
+        // 2. Remove from Feed/List
+        const postEl = document.querySelector(`.post[data-post-id="${postId}"]`);
+        if (postEl) {
+            // Soft removal with animation
+            postEl.style.transition = "all 0.4s ease";
+            postEl.style.opacity = "0";
+            postEl.style.transform = "scale(0.95)";
+            postEl.style.maxHeight = "0";
+            postEl.style.margin = "0";
+            postEl.style.padding = "0";
+            postEl.style.pointerEvents = "none";
+            setTimeout(() => postEl.remove(), 450);
         }
     };
 

@@ -21,6 +21,11 @@ const InteractionModule = (function () {
             ? await API.Comments.getReacts(id, page, PAGE_SIZE)
             : await API.Posts.getReacts(id, page, PAGE_SIZE);
 
+        if (res.status === 403) {
+            PostUtils.hidePost(window.currentPostId || id);
+            throw new Error("FORBIDDEN");
+        }
+
         if (!res.ok) throw new Error("Failed to load reacts");
 
         return await res.json();

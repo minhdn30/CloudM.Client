@@ -32,3 +32,8 @@ Step 3: Only then make changes
 ### Frontend:
 - ✅ Free to modify (proactive fixes allowed)
 - ⚠️ Unless user explicitly says otherwise
+
+## Realtime & SignalR Policy
+- **FOLDER REQUIREMENT**: All code related to SignalR/Realtime functionality MUST be located in `js/realtime/`.
+- **ISOLATION REQUIREMENT**: SignalR features must be implemented as "Experimental" or "Optional". The application MUST remain fully functional even if the entire `js/realtime/` folder is deleted or if the SignalR scripts are removed from `index.html`.
+- **IMPLEMENTATION GUIDELINE**: Always use defensive checks (e.g., `if (window.PostHub)`) before calling any realtime functions from other parts of the application.

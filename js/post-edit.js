@@ -234,9 +234,25 @@
         // 1. Update Post Detail Header (Privacy only, keep existing time)
         const timeEl = document.getElementById("detailTime");
         if (timeEl && window.PostUtils) {
-            // Get original time
-            const timePart = timeEl.querySelector(".post-time")?.outerHTML || timeEl.firstChild.textContent.split('•')[0].trim();
-            timeEl.innerHTML = `${timePart} <span>•</span> ${PostUtils.renderPrivacyBadge(privacy)}`;
+            // Get original time from post object or dataset
+            const createdAt = post.createdAt || timeEl.dataset.createdAt;
+            const privacy = post.privacy;
+            
+            // Re-render time line
+            let timeHTML = "";
+            if (createdAt) {
+                timeHTML += `${PostUtils.timeAgo(createdAt)} <span>•</span> `;
+            }
+            
+            timeHTML += PostUtils.renderPrivacyBadge(privacy);
+
+            // Add Edited indicator
+            if (post.updatedAt) {
+                 const editedTime = PostUtils.formatFullDateTime(post.updatedAt);
+                 timeHTML += ` <span>•</span> <span class="post-edited-indicator" title="Edited: ${editedTime}">edited</span>`;
+            }
+
+            timeEl.innerHTML = timeHTML;
             if (window.lucide) lucide.createIcons();
         }
 

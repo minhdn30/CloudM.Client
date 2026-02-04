@@ -161,6 +161,96 @@ function setupPostHubHandlers() {
          window.CommentModule.handleDeletedComment(commentId, !!parentCommentId);
       }
   });
+
+  // Listen for post content updates (Caption & Privacy)
+  postHubConnection.on("ReceiveUpdatedPostContent", (updatedPost) => {
+      console.log("📝 Post Content Updated:", updatedPost);
+      handlePostUpdate(updatedPost);
+  });
+
+  // Listen for full post updates
+  postHubConnection.on("ReceiveUpdatedPost", (updatedPost) => {
+      console.log("📝 Post Updated:", updatedPost);
+      handlePostUpdate(updatedPost);
+  });
+}
+
+/**
+ * Handle Post Update (Common logic)
+ */
+function handlePostUpdate(updatedPost) {
+    if (window.currentPostId !== updatedPost.postId) return;
+
+    // 1. Check Privacy First
+    if (!checkPrivacyAccess(updatedPost.privacy)) {
+        console.warn("🚫 Access lost due to privacy change");
+        // PostUtils.hidePost handles closing modal, hiding from feed, and showing toast
+        PostUtils.hidePost(updatedPost.postId);
+        return;
+    }
+
+    // 2. Update UI
+    
+    // Caption
+    const captionText = document.getElementById("detailCaptionText");
+    const captionItem = document.getElementById("detailCaptionItem");
+    
+    if (updatedPost.content) {
+        if (captionItem) captionItem.style.display = "block";
+        if (captionText) {
+             // Use PostUtils to setup caption (handles see more etc)
+             PostUtils.setupCaption(captionText, updatedPost.content);
+        }
+    } else {
+        // If content became empty (rare for updateContent but possible)
+        if (captionText) captionText.textContent = "";
+        if (captionItem) captionItem.style.display = "none";
+    }
+
+    // 3. Update Header (Time + Privacy + Edited)
+    const timeEl = document.getElementById("detailTime");
+    if (timeEl && window.PostUtils) {
+         const createdAt = timeEl.dataset.createdAt;
+         
+         if (createdAt) {
+             let timeHTML = `${PostUtils.timeAgo(createdAt)} <span>•</span> ${PostUtils.renderPrivacyBadge(updatedPost.privacy)}`;
+             
+             if (updatedPost.updatedAt) {
+                 const editedTime = PostUtils.formatFullDateTime(updatedPost.updatedAt);
+                 timeHTML += ` <span>•</span> <span class="post-edited-indicator" title="Edited: ${editedTime}">edited</span>`;
+             }
+             
+             timeEl.innerHTML = timeHTML;
+             if (window.lucide) window.lucide.createIcons();
+         }
+    }
+}
+
+/**
+ * Check if current user still has access based on new privacy
+ */
+function checkPrivacyAccess(newPrivacy) {
+    // 0 = Public, 1 = FollowOnly, 2 = Private
+    if (newPrivacy === 0) return true; // Public is always ok
+
+    const ownerId = window.currentPostOwnerId;
+    const isFollowed = window.currentIsFollowed === true; // Ensure boolean
+    const currentUserId = window.APP_CONFIG.CURRENT_USER_ID;
+
+    // Owner always has access (Case insensitive check)
+    if (String(currentUserId).toLowerCase() === String(ownerId).toLowerCase()) return true;
+
+    if (newPrivacy === 2) { // Private
+        // Only owner allowed (handled above)
+        return false; 
+    }
+
+    if (newPrivacy === 1) { // FollowOnly
+        // Must be following
+        return isFollowed;
+    }
+
+    return true;
 }
 
 /* =========================
