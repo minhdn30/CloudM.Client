@@ -20,69 +20,205 @@
             </div>
 
             <!-- Right: Info & Interaction -->
-            <div class="detail-info-container">
-                <!-- Header: Author Info -->
-                <div class="detail-header">
-                    <div class="user-info">
-                        <img id="detailAvatar" src="" alt="" class="user-avatar">
-                        <div class="user-meta">
-                            <div class="user-name-row">
-                                <span id="detailUsername" class="username"></span>
-                            </div>
-                            <span id="detailTime" class="post-time"></span>
-                            <span id="detailLocation" class="location"></span>
-                        </div>
-                    </div>
-                    <button class="more-options-btn">
-                        <i data-lucide="more-horizontal"></i>
-                    </button>
-                </div>
-
-                <!-- Body: Caption & Comments -->
-                <div class="detail-body custom-scrollbar" id="detailBody">
-                    <!-- Caption Section -->
-                    <div class="caption-section" id="detailCaptionItem">
-                        <div id="detailCaptionText" class="caption-text"></div>
-                    </div>
-
-                    <!-- Comments Section (Loaded from comment.html) -->
-                    <div id="commentSectionContainer"></div>
-                </div>
-
-                <!-- Footer: Actions & Input -->
-                <div class="detail-footer">
-                    <div class="post-actions">
-                        <div class="left">
-                            <div class="action-item" id="detailLikeBtn">
-                                <i data-lucide="heart" id="detailLikeIcon" class="react-icon hover-scale-sm"></i>
-                                <span class="count hover-scale-text" id="detailLikeCount">0</span>
-                            </div>
-                            <div class="action-item" id="detailCommentBtn" onclick="focusCommentInput()">
-                                <i data-lucide="message-circle" class="hover-scale-sm"></i>
-                                <span class="count hover-scale-text" id="detailCommentCount">0</span>
-                            </div>
-                            <div class="action-item">
-                                <i data-lucide="send" class="hover-scale-sm"></i>
+            <div class="detail-info-container" id="detailInfoContainer">
+                <!-- VIEW MODE PANEL -->
+                <div id="detailViewPanel" class="detail-mode-panel">
+                    <!-- Header: Author Info -->
+                    <div class="detail-header">
+                        <div class="user-info">
+                            <img id="detailAvatar" src="" alt="" class="user-avatar">
+                            <div class="user-meta">
+                                <div class="user-name-row">
+                                    <span id="detailUsername" class="username"></span>
+                                </div>
+                                <span id="detailTime" class="post-time"></span>
+                                <span id="detailLocation" class="location"></span>
                             </div>
                         </div>
-                        <div class="action-item bookmark-btn">
-                            <i data-lucide="bookmark" class="hover-scale-sm"></i>
-                        </div>
-
-                    </div>
-                    
-                    <!-- Add Comment Input -->
-                    <div class="detail-comment-input-wrapper">
-                        <div class="emoji-trigger" onclick="toggleDetailEmojiPicker(event)">
-                            <i data-lucide="smile"></i>
-                        </div>
-                        <textarea id="detailCommentInput" placeholder="Add a comment..." autocomplete="off" rows="1"></textarea>
-                        <button id="postCommentBtn" class="post-btn" disabled>
-                            <i data-lucide="arrow-up-circle"></i>
+                        <button class="more-options-btn">
+                            <i data-lucide="more-horizontal"></i>
                         </button>
+                    </div>
+
+                    <!-- Body: Caption & Comments -->
+                    <div class="detail-body custom-scrollbar" id="detailBody">
+                        <!-- Caption Section -->
+                        <div class="caption-section" id="detailCaptionItem">
+                            <div id="detailCaptionText" class="caption-text"></div>
+                        </div>
+
+                        <!-- Comments Section (Loaded from comment.html) -->
+                        <div id="commentSectionContainer"></div>
+                    </div>
+
+                    <!-- Footer: Actions & Input -->
+                    <div class="detail-footer">
+                        <div class="post-actions">
+                            <div class="left">
+                                <div class="action-item" id="detailLikeBtn">
+                                    <i data-lucide="heart" id="detailLikeIcon" class="react-icon hover-scale-sm"></i>
+                                    <span class="count hover-scale-text" id="detailLikeCount">0</span>
+                                </div>
+                                <div class="action-item" id="detailCommentBtn" onclick="focusCommentInput()">
+                                    <i data-lucide="message-circle" class="hover-scale-sm"></i>
+                                    <span class="count hover-scale-text" id="detailCommentCount">0</span>
+                                </div>
+                                <div class="action-item">
+                                    <i data-lucide="send" class="hover-scale-sm"></i>
+                                </div>
+                            </div>
+                            <div class="action-item bookmark-btn">
+                                <i data-lucide="bookmark" class="hover-scale-sm"></i>
+                            </div>
+
+                        </div>
                         
-                         <!-- Emoji Picker Container (Absolute positioning) -->
-                         <div id="detailEmojiPicker" class="detail-emoji-picker"></div>
+                        <!-- Add Comment Input -->
+                        <div class="detail-comment-input-wrapper">
+                            <div class="emoji-trigger" onclick="toggleDetailEmojiPicker(event)">
+                                <i data-lucide="smile"></i>
+                            </div>
+                            <textarea id="detailCommentInput" placeholder="Add a comment..." autocomplete="off" rows="1"></textarea>
+                            <button id="postCommentBtn" class="post-btn" disabled>
+                                <i data-lucide="arrow-up-circle"></i>
+                            </button>
+                            
+                             <!-- Emoji Picker Container (Absolute positioning) -->
+                             <div id="detailEmojiPicker" class="detail-emoji-picker"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EDIT MODE PANEL (Copied from create-post-modal) -->
+                <div id="detailEditPanel" class="detail-mode-panel post-details-panel" style="display: none;">
+                    <div class="edit-modal-header">
+                        <button class="modal-back-btn" onclick="cancelEditPost()">
+                            <i data-lucide="arrow-left"></i>
+                        </button>
+                        <h2 class="modal-title">Edit Post</h2>
+                        <button class="modal-next-btn" id="saveEditPostBtn" onclick="saveEditPost()">Done</button>
+                    </div>
+
+                    <div class="edit-panel-body custom-scrollbar">
+                        <div class="create-post-user-info">
+                            <img id="edit-user-avatar" src="" alt="avatar" class="user-avatar" />
+                            <div class="user-info-details">
+                                <span id="edit-user-name" class="user-name">User</span>
+                                <div class="privacy-selector edit-privacy-selector-trigger" onclick="toggleEditPrivacyDropdown(event)">
+                                    <i data-lucide="globe" class="privacy-icon" id="editPrivacyIcon"></i>
+                                    <span class="privacy-text" id="editPrivacyText">Public</span>
+                                    <i data-lucide="chevron-right" class="privacy-chevron"></i>
+                                </div>
+                            </div>
+    
+                            <!-- Privacy Dropdown -->
+                            <div class="privacy-dropdown" id="editPrivacyDropdown">
+                                <div class="privacy-option active" data-privacy="0" onclick="selectEditPrivacy(0)">
+                                    <div class="privacy-option-left">
+                                        <i data-lucide="globe"></i>
+                                        <div>
+                                            <span class="privacy-option-title">Public</span>
+                                            <span class="privacy-option-desc">Anyone can see this post</span>
+                                        </div>
+                                    </div>
+                                    <i data-lucide="check" class="privacy-check"></i>
+                                </div>
+                                <div class="privacy-option" data-privacy="1" onclick="selectEditPrivacy(1)">
+                                    <div class="privacy-option-left">
+                                        <i data-lucide="users"></i>
+                                        <div>
+                                            <span class="privacy-option-title">Followers Only</span>
+                                            <span class="privacy-option-desc">Only your followers can see</span>
+                                        </div>
+                                    </div>
+                                    <i data-lucide="check" class="privacy-check"></i>
+                                </div>
+                                <div class="privacy-option" data-privacy="2" onclick="selectEditPrivacy(2)">
+                                    <div class="privacy-option-left">
+                                        <i data-lucide="lock"></i>
+                                        <div>
+                                            <span class="privacy-option-title">Private</span>
+                                            <span class="privacy-option-desc">Only you can see this post</span>
+                                        </div>
+                                    </div>
+                                    <i data-lucide="check" class="privacy-check"></i>
+                                </div>
+                            </div>
+                        </div>
+    
+                        <!-- Caption Input -->
+                        <div class="post-caption-container">
+                            <textarea id="editPostTextarea" class="post-caption-input" placeholder="Write a caption..." maxlength="3000"></textarea>
+                            <div class="char-count"><span id="editCharCount">0</span>/<span id="editMaxCharCount">3000</span></div>
+                        </div>
+    
+                        <!-- Emoji Section -->
+                        <div class="post-section">
+                            <div class="section-header" id="editEmojiHeader" onclick="toggleEditPostEmojiPicker(event)">
+                                <div class="section-left">
+                                    <i data-lucide="smile" class="section-icon"></i>
+                                    <span class="section-title">Add emoji</span>
+                                </div>
+                                <i data-lucide="chevron-right" class="chevron-icon" id="editEmojiChevron"></i>
+                            </div>
+                            <div id="editEmojiPickerContainer" class="edit-emoji-picker-container"></div>
+                        </div>
+    
+                        <!-- Location Section -->
+                        <div class="post-section">
+                            <div class="section-header" id="editLocationHeader" onclick="toggleEditSection('location')">
+                                <div class="section-left">
+                                    <i data-lucide="map-pin" class="section-icon"></i>
+                                    <span class="section-title">Add Location</span>
+                                </div>
+                                <i data-lucide="chevron-right" class="chevron-icon" id="editLocationChevron"></i>
+                            </div>
+                            <div class="section-content" id="editLocationContent">
+                                <div class="location-placeholder">Add location feature coming soon...</div>
+                            </div>
+                        </div>
+    
+                        <!-- Tag People Section -->
+                        <div class="post-section">
+                            <div class="section-header" id="editPeopleHeader" onclick="toggleEditSection('people')">
+                                <div class="section-left">
+                                    <i data-lucide="users" class="section-icon"></i>
+                                    <span class="section-title">Tag People / Collaborators</span>
+                                </div>
+                                <i data-lucide="chevron-right" class="chevron-icon" id="editPeopleChevron"></i>
+                            </div>
+                            <div class="section-content" id="editPeopleContent">
+                                <div class="tag-people-placeholder">Tag people feature coming soon...</div>
+                            </div>
+                        </div>
+    
+                        <!-- Accessibility Section -->
+                        <div class="post-section">
+                            <div class="section-header" id="editAccessibilityHeader" onclick="toggleEditSection('accessibility')">
+                                <div class="section-left">
+                                    <i data-lucide="accessibility" class="section-icon"></i>
+                                    <span class="section-title">Accessibility</span>
+                                </div>
+                                <i data-lucide="chevron-right" class="chevron-icon" id="editAccessibilityChevron"></i>
+                            </div>
+                            <div class="section-content" id="editAccessibilityContent">
+                                 <div class="accessibility-placeholder">Accessibility settings coming soon...</div>
+                            </div>
+                        </div>
+    
+                        <!-- Advanced Settings Section -->
+                        <div class="post-section">
+                            <div class="section-header" id="editAdvancedHeader" onclick="toggleEditSection('advanced')">
+                                <div class="section-left">
+                                    <i data-lucide="settings-2" class="section-icon"></i>
+                                    <span class="section-title">Advanced Settings</span>
+                                </div>
+                                <i data-lucide="chevron-right" class="chevron-icon" id="editAdvancedChevron"></i>
+                            </div>
+                            <div class="section-content" id="editAdvancedContent">
+                                 <div class="advanced-settings-placeholder">Advanced settings coming soon...</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

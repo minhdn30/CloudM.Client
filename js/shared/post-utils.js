@@ -220,37 +220,76 @@
      * @param {number|string} commentCount 
      * @param {string} [createdAt] - Optional, to update timeago
      */
-    PostUtils.syncPostFromDetail = function(postId, reactCount, isReacted, commentCount, createdAt) {
+    /**
+     * Sync post data from detail view back to feed/list view
+     * @param {string} postId 
+     * @param {number|string} [reactCount]
+     * @param {boolean} [isReacted] 
+     * @param {number|string} [commentCount] 
+     * @param {string} [createdAt] - Optional, to update timeago
+     * @param {string} [content] - Optional, to update caption
+     * @param {number} [privacy] - Optional, to update privacy badge
+     */
+    PostUtils.syncPostFromDetail = function(postId, reactCount, isReacted, commentCount, createdAt, content, privacy) {
+        const postEl = document.querySelector(`.post[data-post-id="${postId}"]`);
+        if (!postEl) return;
+
         // 1. Update React Button
-        const reactBtn = document.querySelector(`.react-btn[data-post-id="${postId}"]`);
-        if (reactBtn) {
-            reactBtn.dataset.reacted = isReacted.toString();
-            const icon = reactBtn.querySelector(".react-icon");
-            const countEl = reactBtn.querySelector(".count");
-            
-            if (icon) icon.classList.toggle("reacted", isReacted);
-            if (countEl) countEl.textContent = reactCount;
+        if (reactCount !== undefined && isReacted !== undefined) {
+            const reactBtn = postEl.querySelector(`.react-btn`);
+            if (reactBtn) {
+                reactBtn.dataset.reacted = isReacted.toString();
+                const icon = reactBtn.querySelector(".react-icon");
+                const countEl = reactBtn.querySelector(".count");
+                if (icon) icon.classList.toggle("reacted", isReacted);
+                if (countEl) countEl.textContent = reactCount;
+            }
         }
     
         // 2. Update Comment Button
-        // Find the element that opens the detail modal for this specific post
-        const commentBtn = document.querySelector(`div.action-item[onclick*="openPostDetail('${postId}')"]`);
-        if (commentBtn) {
-            const countEl = commentBtn.querySelector(".count");
-            if (countEl) countEl.textContent = commentCount;
+        if (commentCount !== undefined) {
+            const commentBtn = postEl.querySelector(`div.action-item[onclick*="openPostDetail('${postId}')"]`);
+            if (commentBtn) {
+                const countEl = commentBtn.querySelector(".count");
+                if (countEl) countEl.textContent = commentCount;
+            }
         }
         
-        // 3. Update Time Ago
-        if (createdAt && reactBtn) {
-            // Find the post element (parent of react button)
-            const postEl = reactBtn.closest('.post');
-            if (postEl) {
-                const timeEl = postEl.querySelector('.post-time');
-                // Only update if timeEl exists and PostUtils is available
-                if (timeEl && PostUtils.timeAgo) {
-                    timeEl.textContent = PostUtils.timeAgo(createdAt);
-                    timeEl.title = PostUtils.formatFullDateTime(createdAt);
+        // 3. Update Time Ago (Only if provided)
+        if (createdAt) {
+            const timeEl = postEl.querySelector('.post-time');
+            if (timeEl) {
+                timeEl.textContent = PostUtils.timeAgo(createdAt);
+                timeEl.title = PostUtils.formatFullDateTime(createdAt);
+            }
+        }
+
+        // 4. Update Content/Caption
+        if (content !== undefined) {
+            const captionEl = postEl.querySelector(".post-caption");
+            if (captionEl) {
+                if (!content || content.trim().length === 0) {
+                    captionEl.style.display = "none";
+                    captionEl.textContent = "";
+                    delete captionEl.dataset.fullContent;
+                } else {
+                    captionEl.style.display = "block";
+                    PostUtils.setupCaption(captionEl, content);
                 }
+            }
+        }
+
+        // 5. Update Privacy Badge
+        if (privacy !== undefined) {
+            const metaContainer = postEl.querySelector(".post-meta");
+            if (metaContainer) {
+                // Find or target the privacy badge part
+                // To keep it simple and preserve time, we find the existing time element
+                const timeStr = postEl.querySelector('.post-time')?.outerHTML || "";
+                const dot = `<span>•</span>`;
+                const privacyBadge = PostUtils.renderPrivacyBadge(privacy);
+                metaContainer.innerHTML = `${timeStr} ${dot} ${privacyBadge}`;
+                if (window.lucide) lucide.createIcons();
             }
         }
     };

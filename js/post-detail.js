@@ -6,6 +6,13 @@ let currentPostCreatedAt = null;
 
 /* formatFullDateTime moved to shared/post-utils.js */
 
+// Load PostEdit module dynamically
+if (!window.PostEdit) {
+    const script = document.createElement('script');
+    script.src = 'js/post-edit.js';
+    document.head.appendChild(script);
+}
+
 // Open Modal
 async function openPostDetail(postId) {
     currentPostId = postId;
@@ -86,6 +93,12 @@ function closePostDetailModal() {
         showDiscardCommentConfirmation();
         return;
     }
+
+    // Check if editing and has changes
+    if (window.PostEdit && window.PostEdit.currentEditingPostId && window.PostEdit.hasChanges()) {
+        showDiscardEditConfirmation();
+        return;
+    }
     
     // Actually close the modal
     performClosePostDetail();
@@ -133,6 +146,58 @@ function confirmDiscardComment() {
     performClosePostDetail();
 }
 
+// Show discard edit confirmation
+function showDiscardEditConfirmation() {
+    const overlay = document.createElement("div");
+    overlay.className = "post-options-overlay";
+    overlay.id = "discardEditOverlay";
+
+    const popup = document.createElement("div");
+    popup.className = "post-options-popup";
+
+    popup.innerHTML = `
+        <div class="post-options-header">
+            <h3>Discard changes?</h3>
+            <p>If you leave, your changes won't be saved.</p>
+        </div>
+        <button class="post-option post-option-danger" onclick="confirmDiscardEdit()">
+            Discard
+        </button>
+        <button class="post-option post-option-cancel" onclick="cancelDiscardEdit()">
+            Cancel
+        </button>
+    `;
+
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+
+    if (window.lucide) lucide.createIcons();
+    requestAnimationFrame(() => overlay.classList.add("show"));
+
+    overlay.onclick = (e) => {
+        if (e.target === overlay) cancelDiscardEdit();
+    };
+}
+
+// Confirm discard edit
+function confirmDiscardEdit() {
+    const overlay = document.getElementById("discardEditOverlay");
+    if (overlay) overlay.remove();
+    
+    // Reset edit state then close
+    if (window.PostEdit) window.PostEdit.currentEditingPostId = null;
+    performClosePostDetail();
+}
+
+// Cancel discard edit
+function cancelDiscardEdit() {
+    const overlay = document.getElementById("discardEditOverlay");
+    if (overlay) {
+        overlay.classList.remove("show");
+        setTimeout(() => overlay.remove(), 200);
+    }
+}
+
 // Cancel discard comment
 function cancelDiscardComment() {
     const overlay = document.getElementById("discardCommentOverlay");
@@ -149,19 +214,35 @@ function performClosePostDetail() {
         const likeIcon = document.getElementById("detailLikeIcon");
         const likeCount = document.getElementById("detailLikeCount");
         const commentCount = document.getElementById("detailCommentCount");
+        const captionText = document.getElementById("detailCaptionText");
         
         if (likeIcon && likeCount && commentCount) {
              const isReacted = likeIcon.classList.contains("reacted");
              const rCount = likeCount.textContent;
              const cCount = commentCount.textContent;
              
-             window.PostUtils.syncPostFromDetail(currentPostId, rCount, isReacted, cCount, currentPostCreatedAt);
+             // Get content and privacy from DOM
+             const fullContent = captionText?.dataset.fullContent || captionText?.textContent;
+             const privacyBadge = document.querySelector("#detailTime .privacy-selector");
+             let privacyVal = undefined;
+             if (privacyBadge) {
+                 const title = privacyBadge.getAttribute("title");
+                 if (title === "Public") privacyVal = 0;
+                 else if (title.includes("Follower")) privacyVal = 1; // "Followers Only" or "Followers"
+                 else if (title === "Private") privacyVal = 2;
+             }
+             
+             window.PostUtils.syncPostFromDetail(currentPostId, rCount, isReacted, cCount, currentPostCreatedAt, fullContent, privacyVal);
         }
     }
 
+    const postIdToClean = currentPostId;
+    currentPostId = null;
+    window.currentPostId = null;
+
     // Leave SignalR post group (experimental feature)
-    if (currentPostId && window.PostHub) {
-        window.PostHub.leavePostGroup(currentPostId);
+    if (postIdToClean && window.PostHub) {
+        window.PostHub.leavePostGroup(postIdToClean);
     }
 
     const modal = document.getElementById(POST_DETAIL_MODAL_ID);
@@ -201,7 +282,10 @@ function resetPostDetailView() {
     
     // Clear Caption
     const captionText = document.getElementById("detailCaptionText");
-    captionText.textContent = "";
+    if (captionText) {
+        captionText.textContent = "";
+        delete captionText.dataset.fullContent;
+    }
     
     // Remove existing toggle button if any
     const captionItem = document.getElementById("detailCaptionItem");
@@ -209,6 +293,10 @@ function resetPostDetailView() {
     if (existingToggle) existingToggle.remove();
 
 
+    // Clear time and privacy
+    const timeEl = document.getElementById("detailTime");
+    if (timeEl) timeEl.innerHTML = "";
+    
     // Reset comment module state
     if (window.CommentModule) {
         CommentModule.resetState();
@@ -216,6 +304,12 @@ function resetPostDetailView() {
     
     // Hide media container initially
     document.getElementById("detailMediaContainer").style.display = "flex"; 
+
+    // Reset to View Mode Panel
+    const viewPanel = document.getElementById("detailViewPanel");
+    const editPanel = document.getElementById("detailEditPanel");
+    if (viewPanel) viewPanel.style.display = "flex";
+    if (editPanel) editPanel.style.display = "none";
 }
 
 
@@ -263,10 +357,12 @@ function renderPostDetail(post) {
 
     if (!post.content) {
         captionItem.style.display = "none";
+        if (captionText) {
+            captionText.textContent = "";
+            delete captionText.dataset.fullContent;
+        }
     } else {
         captionItem.style.display = "block";
-        
-        const captionText = document.getElementById("detailCaptionText");
         PostUtils.setupCaption(captionText, post.content);
     }
     
@@ -564,8 +660,9 @@ window.openPostDetail = openPostDetail;
 window.closePostDetailModal = closePostDetailModal;
 window.toggleDetailEmojiPicker = toggleDetailEmojiPicker;
 window.focusCommentInput = focusCommentInput;
-window.confirmDiscardComment = confirmDiscardComment;
 window.cancelDiscardComment = cancelDiscardComment;
+window.confirmDiscardEdit = confirmDiscardEdit;
+window.cancelDiscardEdit = cancelDiscardEdit;
 
 // Initialize click-outside handler when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
