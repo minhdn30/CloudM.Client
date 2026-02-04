@@ -38,6 +38,10 @@ async function openPostDetail(postId) {
 
     try {
         const res = await API.Posts.getById(postId);
+        if (res.status === 403) {
+            PostUtils.hidePost(postId);
+            return;
+        }
         if (!res.ok) throw new Error("Failed to load post");
         
         const data = await res.json();
@@ -59,8 +63,16 @@ async function openPostDetail(postId) {
         if (mainLoader) mainLoader.style.display = "none";
         console.error(err);
 
-        if(window.toastError) toastError("Could not load post details");
-        closePostDetailModal();
+        // If 403 (Privacy) or 400 (Deleted/NotFound), hide post
+        // Special case handling since we are using getById
+        // If it's a fetch response we can check status
+        // Error object might contain status if we enhanced it, but let's check common patterns
+        if (err.message === "Failed to load post" || err.status === 403) {
+            PostUtils.hidePost(postId);
+        } else {
+            if(window.toastError) toastError("Could not load post details");
+            closePostDetailModal();
+        }
     }
 }
 
@@ -248,7 +260,7 @@ function performClosePostDetail() {
     const modal = document.getElementById(POST_DETAIL_MODAL_ID);
     if (modal) {
         modal.classList.remove("show");
-        document.body.style.overflow = "";
+        document.body.style.overflow = ""; // Restore scroll
         
         // Close emoji picker if open
         const emojiContainer = document.querySelector('.detail-emoji-picker');
@@ -270,6 +282,18 @@ function performClosePostDetail() {
         if (postBtn) postBtn.disabled = true;
     }
 }
+
+// Forced close (Privacy violation) - Bypass confirmations
+function forceClosePostDetail() {
+    // If discard overlays exist, remove them
+    document.getElementById("discardCommentOverlay")?.remove();
+    document.getElementById("discardEditOverlay")?.remove();
+    
+    performClosePostDetail();
+}
+
+// Export for global access (needed by PostUtils)
+window.forceClosePostDetail = forceClosePostDetail;
 
 // Reset View
 function resetPostDetailView() {
@@ -373,11 +397,23 @@ function renderPostDetail(post) {
         timeEl.style.alignItems = "center";
         timeEl.style.gap = "6px";
         timeEl.innerHTML = `${PostUtils.timeAgo(post.createdAt)} <span>•</span> ${PostUtils.renderPrivacyBadge(post.privacy)}`;
-        timeEl.title = PostUtils.formatFullDateTime(post.createdAt);
+        
+        // Edited Indicator
+        if (post.updatedAt) {
+            const editedTime = PostUtils.formatFullDateTime(post.updatedAt);
+            timeEl.innerHTML += ` <span>•</span> <span class="post-edited-indicator" title="Edited: ${editedTime}">edited</span>`;
+        }
+
+        timeEl.title = `Posted: ${PostUtils.formatFullDateTime(post.createdAt)}`;
+        timeEl.dataset.createdAt = post.createdAt;
     }
     
     // Store createdAt for sync
     currentPostCreatedAt = post.createdAt;
+    
+    // Store privacy info for realtime checks
+    window.currentPostOwnerId = post.owner.accountId;
+    window.currentIsFollowed = post.isFollowedByCurrentUser;
 
 
     // 3. Media Layout
@@ -556,6 +592,10 @@ async function handleLikePost(postId, btn, iconRef, countEl) {
 
     try {
         const res = await apiFetch(`/Posts/${postId}/react`, { method: "POST" });
+        if (res.status === 403) {
+            PostUtils.hidePost(postId);
+            return;
+        }
         if (!res.ok) throw new Error("React failed");
         // Update with real data if needed
     } catch (err) {

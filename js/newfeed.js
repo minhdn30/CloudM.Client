@@ -408,6 +408,11 @@ document.addEventListener("click", async (e) => {
     // 2️⃣ Call API
     const res = await API.Posts.toggleReact(postId);
 
+    if (res.status === 403) {
+      PostUtils.hidePost(postId);
+      return;
+    }
+
     if (!res.ok) throw new Error("React failed");
 
     const data = await res.json();

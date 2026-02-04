@@ -185,7 +185,7 @@
         apiFetch(`/Posts/${postId}/reacts?page=${page}&pageSize=${pageSize}`),
       updateContent: (postId, data) =>
         apiFetch(`/Posts/${postId}/content`, {
-          method: "PUT",
+          method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         }),

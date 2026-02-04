@@ -76,6 +76,10 @@ const CommentModule = (function () {
 
     try {
       const res = await API.Comments.getByPostId(postId, page, commentPageSize);
+      if (res.status === 403) {
+        PostUtils.hidePost(postId);
+        return;
+      }
       if (!res.ok) throw new Error("Failed to load comments");
 
       const data = await res.json();
@@ -259,6 +263,10 @@ const CommentModule = (function () {
 
     try {
       const res = await API.Comments.toggleReact(commentId);
+      if (res.status === 403) {
+          PostUtils.hidePost(window.currentPostId);
+          return;
+      }
       if (!res.ok) throw new Error("Failed to react to comment");
     } catch (err) {
       // Revert
@@ -420,6 +428,11 @@ const CommentModule = (function () {
         parentCommentId: parentCommentId
       });
 
+      if (response.status === 403) {
+        PostUtils.hidePost(postId);
+        return;
+      }
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Failed to post reply");
@@ -510,6 +523,10 @@ const CommentModule = (function () {
 
     try {
         const res = await API.Comments.getReplies(commentId, page, pageSize);
+        if (res.status === 403) {
+            PostUtils.hidePost(window.currentPostId);
+            return;
+        }
         if (!res.ok) throw new Error("Failed to load replies");
 
         const data = await res.json();
@@ -652,6 +669,11 @@ const CommentModule = (function () {
         content: content,
         parentCommentId: null
       });
+
+      if (response.status === 403) {
+        PostUtils.hidePost(postId);
+        return false;
+      }
       
       if (!response.ok) {
         const error = await response.json();
@@ -878,6 +900,11 @@ const CommentModule = (function () {
 
           try {
               const res = await API.Comments.delete(commentId);
+              if (res.status === 403) {
+                  PostUtils.hidePost(window.currentPostId);
+                  closePopup();
+                  return;
+              }
               if (!res.ok) throw new Error("Failed to delete comment");
 
               // Success feedback
@@ -1026,6 +1053,10 @@ const CommentModule = (function () {
 
       try {
         const res = await API.Comments.update(commentId, { content: newContent });
+        if (res.status === 403) {
+            PostUtils.hidePost(window.currentPostId);
+            return;
+        }
         if (!res.ok) throw new Error("Failed to update comment");
         
         const updatedComment = await res.json();
