@@ -45,6 +45,7 @@ All commit messages must follow this format:
 - **Type**: Must be one of `feat`, `fix`, `refactor`, `docs`, `style`, `test`, `chore`.
 - **Scope**: The name of the feature or module affected (e.g., `post-detail`, `comments`, `auth`).
 - **Description**: A concise summary of changes since the last commit. Not too long, not too short.
+- **NO BE/FE PREFIX**: Do NOT include tags like `backend` or `frontend` (e.g., `feat(backend): ...`) in the commit message. Since the repositories for Backend and Frontend are already separate, this distinction is redundant.
 
 **Examples:**
 - `feat(post-detail): add edited status indicator to post detail view`
