@@ -61,6 +61,13 @@ function router() {
   const hash = window.location.hash || "#/";
   const path = hash.slice(1).split("?")[0];
   
+  // Track Safe History (Non-Modal Pages)
+  // Only update if it's NOT a post URL. 
+  // If we are navigating TO a post, we want to keep the OLD hash as the safe one.
+  if (!path.startsWith("/p/")) {
+      window._lastSafeHash = hash;
+  }
+  
   const prevKey = getCacheKey(lastHash);
   const nextKey = getCacheKey(hash);
 

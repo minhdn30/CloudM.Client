@@ -1099,62 +1099,15 @@ async function submitPost() {
 
   setLoadingState(true);
   try {
-    // Prepare MediaCrops array
-    const mediaCrops = [];
-
     for (let i = 0; i < mediaFiles.length; i++) {
       const m = mediaFiles[i];
 
-      // Ensure crop data exists and normalize to 0-1
-      if (m.cropData) {
-        // Save crop data if current media
-        if (i === currentMediaIndex) {
-          saveCropData();
-        }
-
-        const cropData = m.cropData;
-
-        // Normalize crop values to 0-1 range
-        const cropX_norm = Math.max(
-          0,
-          (cropData.cropX_px || cropData.cropX || 0) /
-            (cropData.imageNaturalWidth || 1),
-        );
-        const cropY_norm = Math.max(
-          0,
-          (cropData.cropY_px || cropData.cropY || 0) /
-            (cropData.imageNaturalHeight || 1),
-        );
-        const cropWidth_norm = Math.min(
-          1,
-          (cropData.cropWidth_px || cropData.cropWidth || 1) /
-            (cropData.imageNaturalWidth || 1),
-        );
-        const cropHeight_norm = Math.min(
-          1,
-          (cropData.cropHeight_px || cropData.cropHeight || 1) /
-            (cropData.imageNaturalHeight || 1),
-        );
-
-        mediaCrops.push({
-          index: i,
-          cropX: cropX_norm,
-          cropY: cropY_norm,
-          cropWidth: cropWidth_norm,
-          cropHeight: cropHeight_norm,
-        });
-      } else {
-        // No crop data
-        mediaCrops.push({
-          index: i,
-          cropX: 0,
-          cropY: 0,
-          cropWidth: 1,
-          cropHeight: 1,
-        });
+      // Ensure crop data is saved for current media
+      if (m.cropData && i === currentMediaIndex) {
+        saveCropData();
       }
 
-      // Convert image to Blob and append
+      // Convert image to Blob and append (apply crop if exists)
       let imageDataUrl = m.data;
       if (m.cropData) {
         try {
@@ -1170,10 +1123,6 @@ async function submitPost() {
       formData.append("MediaFiles", blob, filename);
     }
 
-    // Append MediaCrops as JSON string
-    const mediaCropsString = JSON.stringify(mediaCrops);
-    formData.append("MediaCrops", mediaCropsString);
-
     // Debug log: show what we're sending
     const serverPreview = {
       Content: caption,
@@ -1182,7 +1131,6 @@ async function submitPost() {
       FeedAspectRatio: aspectMap.hasOwnProperty(globalCropRatio)
         ? Number(aspectMap[globalCropRatio])
         : null,
-      MediaCrops: mediaCropsString,
       MediaFilesCount: mediaFiles.length,
     };
     console.log("submitPost FormData preview:", serverPreview);

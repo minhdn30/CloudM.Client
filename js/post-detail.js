@@ -16,6 +16,12 @@ if (!window.PostEdit) {
 // Open Modal
 // Open Modal
 async function openPostDetail(postId, postCode = null) {
+    // Capture the current safe hash before we mess with the URL
+    // This allows us to restore exactly where the user was (Profile, Home, etc.)
+    if (!window.location.hash.includes("/p/")) {
+        window._returnToHash = window.location.hash || "#/home";
+    }
+
     // If postCode is provided (from UI), push URL immediately for better UX
     if (postCode && !window.location.hash.includes("/p/")) {
         history.pushState({ postCode: postCode }, "", `#/p/${postCode}`);
@@ -293,6 +299,15 @@ function performClosePostDetail() {
     if (modal) {
         modal.classList.remove("show");
         document.body.style.overflow = ""; // Restore scroll
+
+        // Reset URL if it's currently on a post
+        if (window.location.hash.startsWith("#/p/")) {
+             // Use replaceState to change URL WITHOUT triggering router/reload
+             // This keeps the current view (Home/Profile) intact while fixing the URL bar
+             // Prefer the explicitly captured return hash, fallback to safeHash, then home
+             const targetHash = window._returnToHash || window._lastSafeHash || "#/home";
+             history.replaceState(null, "", targetHash);
+        }
         
         // Close emoji picker if open
         const emojiContainer = document.querySelector('.detail-emoji-picker');

@@ -245,7 +245,8 @@
         
             // Update Comment Button
             if (commentCount !== undefined) {
-                const commentBtn = postEl.querySelector(`div.action-item[onclick*="openPostDetail('${postId}')"]`);
+                // Relaxed selector to match openPostDetail('ID') OR openPostDetail('ID', 'CODE')
+                const commentBtn = postEl.querySelector(`div.action-item[onclick*="openPostDetail('${postId}'"]`);
                 if (commentBtn) {
                     const countEl = commentBtn.querySelector(".count");
                     if (countEl) countEl.textContent = commentCount;

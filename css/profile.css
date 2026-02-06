@@ -355,81 +355,541 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.75);
     z-index: 1000;
     display: none;
     align-items: center;
     justify-content: center;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(6px);
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .profile-modal-content {
     background: var(--bg-primary);
     width: 100%;
-    max-width: 500px;
-    border-radius: 12px;
-    border: 1px solid var(--glass-border);
+    max-width: 850px;
+    border-radius: 16px;
+    border: 1px solid var(--border-primary);
     display: flex;
     flex-direction: column;
-    max-height: 90vh;
+    max-height: 85vh;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Grid Layout for Edit Profile */
+.edit-profile-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 40px;
+    align-items: start;
+}
+
+@media (max-width: 768px) {
+    .profile-modal-content {
+        max-width: 95%;
+        max-height: 95vh;
+    }
+    
+    .edit-profile-grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+    
+    .edit-profile-left, .edit-profile-right {
+        gap: 15px;
+    }
+}
+
+.edit-profile-left, .edit-profile-right {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Avatar & Cover Section Specific Styles */
+.edit-avatar-section, .edit-cover-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 0;
+    margin-bottom: 10px;
+    gap: 12px;
+}
+
+.edit-avatar-section > label, .edit-cover-section > label {
+    align-self: flex-start;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0 0 8px 0;
+}
+
+/* Cover Styling */
+.edit-cover-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 15 / 5;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+}
+
+.edit-cover-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.edit-cover-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    opacity: 0;
+    transition: all 0.3s ease;
+    border-radius: inherit;
+}
+
+.edit-cover-container:hover .edit-cover-overlay {
+    opacity: 1;
+}
+
+/* Avatar Styling */
+.edit-avatar-container {
+    position: relative;
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    padding: 3px;
+    background: linear-gradient(45deg, var(--accent-primary), var(--accent-secondary));
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.edit-avatar-container img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--bg-primary);
+    background: var(--bg-secondary);
+}
+
+.edit-avatar-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+.edit-avatar-container:hover .edit-avatar-overlay {
+    opacity: 1;
+}
+
+/* Gender Radio Styles */
+.gender-radio-group {
+    display: flex;
+    gap: 40px;
+    margin-top: 5px;
+}
+
+.gender-radio-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.gender-radio-item input {
+    display: none;
+}
+
+.radio-custom {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border-primary);
+    border-radius: 50%;
+    position: relative;
+    transition: all 0.2s ease;
+    background: var(--bg-primary);
+}
+
+.gender-radio-item input:checked + .radio-custom {
+    border-color: var(--accent-primary);
+}
+
+.gender-radio-item input:checked + .radio-custom::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 10px;
+    height: 10px;
+    background: var(--accent-primary);
+    border-radius: 50%;
+}
+
+/* Common Action Buttons */
+.avatar-action-btn, .cover-action-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #ff4d4d;
+    color: white;
+    padding: 0;
+    margin: 0;
+}
+
+.avatar-action-btn i, .avatar-action-btn svg,
+.cover-action-btn i, .cover-action-btn svg {
+    width: 20px !important;
+    height: 20px !important;
+    color: white !important;
+    display: block;
+}
+
+.avatar-action-btn:hover, .cover-action-btn:hover {
+    transform: scale(1.1);
+    filter: brightness(1.15);
+}
+
+.edit-avatar-hint {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    text-align: center;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .profile-modal-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--glass-border);
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-primary);
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
+    flex-shrink: 0;
+    position: relative;
 }
 
 .profile-modal-header h3 {
     margin: 0;
-    font-size: 18px;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
 }
 
 .profile-modal-close {
-    background: none;
+    position: absolute;
+    right: 20px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     border: none;
     color: var(--text-primary);
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.bio-char-count {
+    display: flex;
+    justify-content: flex-end;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: 5px;
+    font-weight: 500;
+}
+
+#bioCharCount.at-max-length {
+    color: #ff4d4d;
+    font-weight: 700;
+}
+
+.profile-modal-close:hover {
+    transform: scale(1.1);
+}
+
+.profile-modal-close:active {
+    transform: scale(1);
+}
+
+.profile-modal-close i,
+.profile-modal-close svg {
+    width: 20px;
+    height: 20px;
 }
 
 .profile-modal-body {
-    padding: 20px;
+    padding: 24px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
+    flex: 1;
+}
+
+/* Custom Scrollbar for Modal Body */
+.profile-modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.profile-modal-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.profile-modal-body::-webkit-scrollbar-thumb {
+    background: var(--text-tertiary);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.profile-modal-body::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-primary);
+    box-shadow: 0 0 6px rgba(255, 65, 108, 0.3);
+}
+
+.profile-modal-body::-webkit-scrollbar-thumb:active {
+    background: var(--accent-primary);
+    box-shadow: 0 0 8px rgba(255, 65, 108, 0.5);
 }
 
 .profile-form-group {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
 }
 
 .profile-form-group label {
     font-size: 14px;
     font-weight: 600;
-    color: var(--text-secondary);
+    color: var(--text-primary);
+    letter-spacing: -0.2px;
 }
 
 .profile-form-group input,
 .profile-form-group textarea,
 .profile-form-group select {
-    background: var(--bg-secondary);
-    border: 1px solid var(--glass-border);
-    padding: 10px;
-    border-radius: 6px;
-    color: white;
+    background: var(--bg-primary);
+    border: 2px solid var(--border-primary);
+    padding: 12px 14px;
+    border-radius: 10px;
+    color: var(--text-primary);
     font-family: inherit;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.profile-form-group select {
+    padding-right: 36px; /* More space for arrow */
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+}
+
+.profile-form-group input:focus,
+.profile-form-group textarea:focus,
+.profile-form-group select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    background: var(--bg-primary);
+    box-shadow: 0 0 0 3px rgba(0, 149, 246, 0.1);
+}
+
+.profile-form-group input::placeholder,
+.profile-form-group textarea::placeholder {
+    color: var(--text-tertiary);
 }
 
 .profile-form-group textarea {
-    resize: vertical;
-    min-height: 80px;
+    resize: none;
+    min-height: 60px;
+    max-height: 200px;
+    line-height: 1.5;
+    overflow-y: hidden;
+    word-wrap: break-word;
+    white-space: pre-wrap;
 }
 
+/* Bio Input Wrapper with Emoji Button */
+.bio-input-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.bio-input-wrapper textarea {
+    flex: 1;
+}
+
+.bio-emoji-btn {
+    background: var(--bg-secondary);
+    border: 1.5px solid var(--border-primary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.bio-emoji-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+    transform: translateY(-1px);
+}
+
+.bio-emoji-btn:active {
+    transform: translateY(0);
+}
+
+.bio-emoji-btn i,
+.bio-emoji-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Character Counter - Always primary color */
+.bio-char-count {
+    text-align: right;
+    font-size: 12px;
+    color: var(--text-primary);
+    margin-top: -6px;
+}
+
+/* Emoji Picker Container */
+.bio-emoji-picker-container {
+    display: none;
+    margin-top: 8px;
+    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: top;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.bio-emoji-picker-container.show {
+    display: block;
+    opacity: 1;
+    transform: scaleY(1);
+}
+
+.bio-emoji-picker-container emoji-picker {
+    width: 100%;
+    max-width: 100%;
+    height: 280px;
+    border: 1.5px solid var(--border-primary);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.profile-modal-footer {
+    padding: 20px 24px;
+    border-top: 1px solid var(--border-primary);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+/* Modal Footer Buttons - Scoped to avoid conflicts */
+.profile-modal-footer .profile-btn-secondary,
+.profile-modal-footer .profile-btn-primary {
+    padding: 10px 22px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.profile-modal-footer .profile-btn-primary i,
+.profile-modal-footer .profile-btn-primary svg {
+    width: 18px;
+    height: 18px;
+    color: white;
+}
+
+.profile-modal-footer .profile-btn-secondary {
+    background: var(--bg-secondary);
+    border: 1.5px solid var(--border-primary);
+    color: var(--text-primary);
+}
+
+.profile-modal-footer .profile-btn-secondary:hover {
+    background: var(--bg-hover);
+    border-color: var(--text-secondary);
+}
+
+.profile-modal-footer .profile-btn-primary {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.profile-modal-footer .profile-btn-primary:hover {
+    background: var(--accent-hover);
+    box-shadow: 0 4px 12px rgba(0, 149, 246, 0.3);
+}
+
+.profile-modal-footer .profile-btn-primary:active,
+.profile-modal-footer .profile-btn-secondary:active {
+    transform: scale(0.96);
+}
+
+.profile-modal-footer .profile-btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Photo Upload Sections (Hidden but kept for potential future use) */
 .profile-photo-upload {
     display: flex;
     gap: 20px;
@@ -442,7 +902,7 @@
     border-radius: 50%;
     object-fit: cover;
     background: var(--bg-secondary);
-    border: 1px solid var(--glass-border);
+    border: 1px solid var(--border-primary);
 }
 
 .profile-cover-preview {
@@ -451,33 +911,7 @@
     object-fit: cover;
     border-radius: 6px;
     background: var(--bg-secondary);
-    border: 1px solid var(--glass-border);
-}
-
-.profile-modal-footer {
-    padding: 16px 20px;
-    border-top: 1px solid var(--glass-border);
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-}
-
-.profile-btn-secondary {
-    background: transparent;
-    border: 1px solid var(--glass-border);
-    color: var(--text-primary);
-    padding: 8px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-.profile-btn-primary {
-    background: var(--accent-primary);
-    border: none;
-    color: white;
-    padding: 8px 16px;
-    border-radius: 6px;
-    cursor: pointer;
+    border: 1px solid var(--border-primary);
 }
 
 /* ===== Highlights Placeholder ===== */
@@ -726,6 +1160,22 @@
         max-height: 100vh;
         border-radius: 0;
         border: none;
+    }
+
+    .profile-modal-header {
+        padding: 16px 20px;
+    }
+
+    .profile-modal-body {
+        padding: 20px;
+    }
+
+    .profile-modal-footer {
+        padding: 16px 20px;
+    }
+
+    .bio-emoji-picker-container emoji-picker {
+        height: 280px;
     }
 
     .profile-photo-upload {

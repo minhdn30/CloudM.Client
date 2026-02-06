@@ -52,7 +52,8 @@ All commit messages must follow this format:
 - `fix(comments): fix input reset issue on modal close`
 
 ## Git Workflow Policy
-- **WAIT FOR APPROVAL**: Do NOT automatically create commits. Use the `git commit` command ONLY when explicitly requested by the user.
+- **STRICT NO AUTO-COMMIT**: Do NOT automatically run `git commit` commands under ANY circumstances.
+- **WAIT FOR APPROVAL**: Use the `git commit` command ONLY when explicitly requested by the user.
 - **SUGGESTION**: You may suggest that a commit is ready and provide the proposed commit message, but wait for user confirmation before executing it.
 
 ## Code Inheritance and Safety
