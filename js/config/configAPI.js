@@ -223,6 +223,7 @@
         return apiFetch(url);
       },
       getById: (postId) => apiFetch(`/Posts/${postId}`),
+      getByPostCode: (postCode) => apiFetch(`/Posts/p/${postCode}`),
       create: (formData, onProgress) =>
         uploadFormDataWithProgress("/Posts", formData, onProgress),
       delete: (postId) => apiFetch(`/Posts/${postId}`, { method: "DELETE" }),

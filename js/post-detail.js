@@ -15,70 +15,93 @@ if (!window.PostEdit) {
 
 // Open Modal
 async function openPostDetail(postId) {
-    currentPostId = postId;
-    window.currentPostId = postId; // Ensure global access for CommentModule replies
+    // Check if we have data with PostCode available. If not, we still use ID
+    // but the API will return PostCode for history push.
     
-    // 1. Check if modal exists, if not load it
+    // 1. Check if modal exists
     let modal = document.getElementById(POST_DETAIL_MODAL_ID);
     if (!modal) {
         await loadPostDetailHTML();
         modal = document.getElementById(POST_DETAIL_MODAL_ID);
-        if (!modal) {
-            console.error("Failed to inject modal");
-            return;
-        }
     }
 
     resetPostDetailView();
     modal.classList.add("show");
-    document.body.style.overflow = "hidden"; // Prevent background scroll
+    document.body.style.overflow = "hidden";
 
     const mainLoader = document.getElementById("detailMainLoader");
     if (mainLoader) mainLoader.style.display = "flex";
 
     try {
-        console.log(`[PostDetail] Opening post: ${postId}`);
         const res = await API.Posts.getById(postId);
-        
-        if (res.status === 403) {
-            console.warn("[PostDetail] Access denied (403)");
-            PostUtils.hidePost(postId);
-            return;
-        }
-        
-        if (!res.ok) {
-            const errorText = await res.text();
-            throw new Error(`Failed to load post (Status: ${res.status}): ${errorText}`);
-        }
+        if (!res.ok) throw new Error("Failed to load post");
         
         const data = await res.json();
-        renderPostDetail(data);        
         
+        // Update current ID
+        currentPostId = data.postId;
+        window.currentPostId = data.postId;
+
+        // Push History with PostCode
+        if (!window.location.hash.includes("/p/")) {
+            history.pushState({ postCode: data.postCode }, "", `#/p/${data.postCode}`);
+        }
+
+        renderPostDetail(data);        
         if (mainLoader) mainLoader.style.display = "none";
 
-        // Start loading comments via module
         if (window.CommentModule) {
-            CommentModule.loadComments(postId, 1, data.owner.accountId);
+            CommentModule.loadComments(data.postId, 1, data.owner.accountId);
         }
 
-        // Join SignalR post group for realtime updates
-        if (window.PostHub) {
-            await window.PostHub.joinPostGroup(postId);
-        }
+        if (window.PostHub) await window.PostHub.joinPostGroup(data.postId);
+
     } catch (err) {
         if (mainLoader) mainLoader.style.display = "none";
-        console.error("[PostDetail] Failed to load post:", err);
-
-        // If Privacy or Deleted/NotFound, hide post
-        if (err.message.includes("403") || err.message.includes("404") || err.status === 403) {
-            PostUtils.hidePost(postId);
-        } else {
-            if(window.toastError) toastError("Could not load post details");
-            closePostDetailModal();
-        }
+        console.error(err);
+        closePostDetailModal();
     }
 }
 
+async function openPostDetailByCode(postCode) {
+    let modal = document.getElementById(POST_DETAIL_MODAL_ID);
+    if (!modal) {
+        await loadPostDetailHTML();
+        modal = document.getElementById(POST_DETAIL_MODAL_ID);
+    }
+
+    resetPostDetailView();
+    modal.classList.add("show");
+    document.body.style.overflow = "hidden";
+
+    const mainLoader = document.getElementById("detailMainLoader");
+    if (mainLoader) mainLoader.style.display = "flex";
+
+    try {
+        const res = await API.Posts.getByPostCode(postCode);
+        if (!res.ok) throw new Error("Post not found");
+        
+        const data = await res.json();
+        currentPostId = data.postId;
+        window.currentPostId = data.postId;
+
+        renderPostDetail(data);        
+        if (mainLoader) mainLoader.style.display = "none";
+
+        if (window.CommentModule) {
+            CommentModule.loadComments(data.postId, 1, data.owner.accountId);
+        }
+
+        if (window.PostHub) await window.PostHub.joinPostGroup(data.postId);
+    } catch (err) {
+        if (mainLoader) mainLoader.style.display = "none";
+        console.error(err);
+        if (window.location.hash.startsWith("#/p/")) {
+             window.location.hash = "#/home";
+        }
+        closePostDetailModal();
+    }
+}
 // Dynamic HTML Loader
 async function loadPostDetailHTML() {
     try {
@@ -707,6 +730,7 @@ function setupCommentInput() {
 
 // Global Exports
 window.openPostDetail = openPostDetail;
+window.openPostDetailByCode = openPostDetailByCode;
 window.closePostDetailModal = closePostDetailModal;
 window.toggleDetailEmojiPicker = toggleDetailEmojiPicker;
 window.focusCommentInput = focusCommentInput;

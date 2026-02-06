@@ -145,6 +145,19 @@ function router() {
       return; 
   }
 
+  if (path.startsWith("/p/")) {
+      const postCode = path.split("/p/")[1];
+      if (postCode) {
+          // Open Home background if coming from direct link
+          loadHome().then(() => {
+              if (window.openPostDetailByCode) {
+                  window.openPostDetailByCode(postCode);
+              }
+          });
+          return;
+      }
+  }
+
   switch (path) {
     case "/":
     case "/home":
