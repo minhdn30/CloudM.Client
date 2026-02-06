@@ -37,37 +37,40 @@ async function openPostDetail(postId) {
     if (mainLoader) mainLoader.style.display = "flex";
 
     try {
+        console.log(`[PostDetail] Opening post: ${postId}`);
         const res = await API.Posts.getById(postId);
+        
         if (res.status === 403) {
+            console.warn("[PostDetail] Access denied (403)");
             PostUtils.hidePost(postId);
             return;
         }
-        if (!res.ok) throw new Error("Failed to load post");
+        
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(`Failed to load post (Status: ${res.status}): ${errorText}`);
+        }
         
         const data = await res.json();
         renderPostDetail(data);        
         
         if (mainLoader) mainLoader.style.display = "none";
 
-        
         // Start loading comments via module
         if (window.CommentModule) {
             CommentModule.loadComments(postId, 1, data.owner.accountId);
         }
 
-        // Join SignalR post group for realtime updates (experimental feature)
+        // Join SignalR post group for realtime updates
         if (window.PostHub) {
             await window.PostHub.joinPostGroup(postId);
         }
     } catch (err) {
         if (mainLoader) mainLoader.style.display = "none";
-        console.error(err);
+        console.error("[PostDetail] Failed to load post:", err);
 
-        // If 403 (Privacy) or 400 (Deleted/NotFound), hide post
-        // Special case handling since we are using getById
-        // If it's a fetch response we can check status
-        // Error object might contain status if we enhanced it, but let's check common patterns
-        if (err.message === "Failed to load post" || err.status === 403) {
+        // If Privacy or Deleted/NotFound, hide post
+        if (err.message.includes("403") || err.message.includes("404") || err.status === 403) {
             PostUtils.hidePost(postId);
         } else {
             if(window.toastError) toastError("Could not load post details");
@@ -485,7 +488,7 @@ function renderPostDetail(post) {
                 if (objectFitClass === "contain" && window.extractDominantColor) {
                     // Async
                     extractDominantColor(media.mediaUrl).then(color => {
-                        item.style.background = `linear-gradient(135deg, ${color}, #1a1a1a)`;
+                        item.style.background = `linear-gradient(135deg, ${color}, var(--img-gradient-base))`;
                     });
                 }
             }

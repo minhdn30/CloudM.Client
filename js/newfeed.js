@@ -241,9 +241,9 @@
       try {
         if (!window.extractDominantColor) return;
         const color = await extractDominantColor(img.src);
-        img.style.background = `linear-gradient(135deg, ${color}, #1a1a1a)`;
+        img.style.background = `linear-gradient(135deg, ${color}, var(--img-gradient-base))`;
         const track = img.closest('.media-track');
-        if (track) track.style.background = `linear-gradient(135deg, ${color}, #1a1a1a)`;
+        if (track) track.style.background = `linear-gradient(135deg, ${color}, var(--img-gradient-base))`;
       } catch (e) {
         console.error("❌ Failed to extract color:", e);
       }

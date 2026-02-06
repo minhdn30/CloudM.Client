@@ -133,6 +133,10 @@
         if (avatarImg) avatarImg.src = APP_CONFIG.DEFAULT_AVATAR;
         if (fullNameHeader) fullNameHeader.textContent = "Loading...";
         if (bioText) bioText.textContent = "";
+    const bioSection = document.querySelector(".profile-bio-section");
+    const statsEl = document.querySelector(".profile-stats");
+    if (bioSection) bioSection.style.display = "none";
+    if (statsEl) statsEl.classList.add("stats-no-bio");
         if (coverImg) coverImg.style.display = "none";
         
         // Reset stats
@@ -261,7 +265,7 @@
 
         if (!data) return;
 
-        const info = data.accountInfo || data.account; // Handle potential naming variations
+        const info = data.accountInfo || data.account || {}; 
         const followInfo = data.followInfo || {};
         const isOwner = data.isCurrentUser;
         const isFollowed = followInfo.isFollowedByCurrentUser ?? data.isFollowedByCurrentUser;
@@ -301,8 +305,20 @@
         // Use FullName in the prominent header position as requested
         if (fullNameHeader) fullNameHeader.textContent = info.fullName || "User";
         
-        // Bio
-        if (bioText) bioText.textContent = info.bio || "No bio yet.";
+        // Bio: Hide if empty
+        const bioSection = document.querySelector(".profile-bio-section");
+        const statsEl = document.querySelector(".profile-stats");
+        
+        if (bioSection) {
+            if (info.bio && info.bio.trim() !== "") {
+                if (bioText) bioText.textContent = info.bio;
+                bioSection.style.display = "block";
+                if (statsEl) statsEl.classList.remove("stats-no-bio");
+            } else {
+                bioSection.style.display = "none";
+                if (statsEl) statsEl.classList.add("stats-no-bio");
+            }
+        }
 
         // Stats
         if (postCount) postCount.textContent = data.totalPosts ?? data.postCount ?? 0;
@@ -426,16 +442,17 @@
 
         posts.forEach(post => {
             const item = document.createElement("div");
-            item.className = "profile-grid-item";
+            item.className = "profile-grid-item skeleton"; 
+            item.dataset.postId = post.postId;
             item.onclick = () => {
                 if (window.openPostDetail) window.openPostDetail(post.postId);
             };
 
-            const isMulti = post.medias && post.medias.length > 1;
-            const primaryMedia = post.medias && post.medias[0] ? post.medias[0].mediaUrl : "";
+            const isMulti = (post.mediaCount ?? (post.medias?.length ?? 0)) > 1;
+            const primaryMedia = (post.medias && post.medias[0]) ? post.medias[0].mediaUrl : (window.APP_CONFIG?.DEFAULT_POST_IMAGE || "");
 
             item.innerHTML = `
-                <img src="${primaryMedia}" alt="post">
+                <img class="img-loaded" src="${primaryMedia}" alt="post">
                 ${isMulti ? '<div class="profile-multi-media-icon"><i data-lucide="layers"></i></div>' : ''}
                 <div class="profile-grid-overlay">
                     <div class="profile-overlay-stat">
@@ -449,6 +466,25 @@
                 </div>
             `;
             grid.appendChild(item);
+
+            // 1. Setup loading state
+            const media = item.querySelector("img");
+            if (media) {
+                const onLoaded = () => {
+                    item.classList.remove("skeleton");
+                    media.classList.add("show");
+                };
+
+                if (media.complete) onLoaded();
+                else media.onload = onLoaded;
+            }
+
+            // 2. Apply dominant color background
+            if (primaryMedia && typeof window.extractDominantColor === 'function') {
+                extractDominantColor(primaryMedia).then(color => {
+                    item.style.background = `linear-gradient(135deg, ${color}, var(--img-gradient-base))`;
+                }).catch(err => console.warn("Color extraction failed", err));
+            }
         });
 
         if (window.lucide) lucide.createIcons();
@@ -502,7 +538,8 @@
         const modal = document.getElementById("edit-profile-modal");
         if (!modal || !currentProfileData) return;
 
-        const info = currentProfileData.account;
+        const info = currentProfileData.accountInfo || currentProfileData.account;
+        if (!info) return;
         document.getElementById("edit-fullname").value = info.fullName || "";
         document.getElementById("edit-bio").value = info.bio || "";
         document.getElementById("edit-phone").value = info.phone || "";
@@ -609,96 +646,6 @@
         if (window.toastInfo) toastInfo("More options coming soon!");
     };
 
-    global.initProfilePage = initProfile;
-    
-    // Expose currentProfileId for external synchronization (e.g. from FollowModule)
-    global.getProfileAccountId = () => currentProfileId;
-
-    async function loadProfileData(isSilent = false) {
-        if (!isSilent) {
-            const contentEl = document.getElementById("profile-content");
-            if(contentEl) contentEl.innerHTML = '<div class="loading-spinner"></div>';
-        }
-        
-        try {
-            const token = localStorage.getItem("accessToken");
-            if (!token) {
-                window.location.hash = "#/login";
-                return;
-            }
-
-            const baseUrl = (window.APP_CONFIG && window.APP_CONFIG.API_URL) ? window.APP_CONFIG.API_URL : "http://localhost:5000";
-            const apiUrl = `${baseUrl}/api/accounts/profile/${currentProfileId}`;
-
-            const response = await fetch(apiUrl, {
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                if (response.status === 401) {
-                    window.location.hash = "#/login";
-                    return;
-                }
-                throw new Error("Failed to load profile");
-            }
-
-            const data = await response.json();
-            
-            if (isSilent) {
-                // Background update: Only update stats and internal data
-                currentProfileData = data;
-                updateProfileStatsOnly(data);
-            } else {
-                // Full render
-                currentProfileData = data;
-                renderProfileHeader(data);
-                
-                // Only load posts if we are strictly on the main profile tab (empty hash param for tab)
-                // If user is on 'saved' or 'tagged', those handle their own loading.
-                // But simplified: just load posts default for now.
-                loadPosts(); 
-            }
-
-        } catch (error) {
-            console.error("Error loading profile:", error);
-            if (!isSilent) {
-                const contentEl = document.getElementById("profile-content");
-                if(contentEl) contentEl.innerHTML = `<div class="error-message">Failed to load profile. <button onclick="loadProfileData()">Retry</button></div>`;
-            }
-        }
-    }
-    
-    function updateProfileStatsOnly(data) {
-        if (!data || !data.followInfo) return;
-        
-        const followers = data.followInfo.followers;
-        const following = data.followInfo.following;
-        
-        const followersCountEl = document.getElementById("profile-followers-count");
-        const followingCountEl = document.getElementById("profile-following-count");
-
-        if (window.PostUtils && typeof PostUtils.animateCount === 'function') {
-            if (followersCountEl) PostUtils.animateCount(followersCountEl, followers);
-            if (followingCountEl) PostUtils.animateCount(followingCountEl, following);
-            
-            // Allow syncing to sidebar preview if needed
-            if (currentProfileId == localStorage.getItem("accountId")) {
-                 const previewEl = document.querySelector(".profile-preview");
-                 if (previewEl) {
-                     const statNums = previewEl.querySelectorAll(".profile-preview-stats b");
-                     if (statNums.length >= 3) {
-                         PostUtils.animateCount(statNums[1], followers);
-                         PostUtils.animateCount(statNums[2], following);
-                     }
-                 }
-            }
-        }
-    }
-
-    // ... (renderProfileHeader, etc.)
-
     global.updateFollowStatus = function(accountId, isFollowing, followers, following) {
         
         // 1. Invalidate cache logic REVISED
@@ -712,11 +659,7 @@
                 const profileHash = `#/profile?id=${accountId}`;
                 PageCache.clear(profileHash);
             }
-        } else {
-            // If it IS my profile, we explicitly do NOT clear cache so scroll is saved.
-            // But we might want to clear Main Cache if we have one?
-            // For now, trust the silent update.
-        }
+        } 
 
         // 2. If the user is CURRENTLY viewing this profile, update the live DOM and state
         if (currentProfileId == accountId && currentProfileData) {
@@ -750,13 +693,7 @@
                 if (following !== undefined && followingCountEl) followingCountEl.textContent = following;
             }
 
-            // Update Action Button (re-render partially or toggle class)
-            // Re-rendering entire header effectively updates button state
-            // But we can optimize to just update button if needed. 
-            // For now, re-render header to ensure consistency is safest, 
-            // BUT re-rendering header might reset animation or cause flicker.
-            // Let's just update the button manually for smoother UX.
-            
+            // Update Action Button
             const actionBtn = document.getElementById("profile-action-btn");
             if (actionBtn) {
                  const followBtn = actionBtn.querySelector(".profile-btn-follow, .profile-btn-following");
@@ -780,5 +717,8 @@
             }
         }
     };
+
+    global.initProfilePage = initProfile;
+    global.getProfileAccountId = () => currentProfileId;
 
 })(window);

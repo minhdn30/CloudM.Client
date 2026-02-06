@@ -57,7 +57,7 @@
 /* ===== Profile Header ===== */
 .profile-header {
     display: flex;
-    margin-bottom: 30px;
+    margin-bottom: 0; /* Clear margin to push stats up */
     gap: 30px;
     align-items: flex-start; /* Align tops to allow independent positioning */
     margin-top: -84px; /* Half of avatar height (168px / 2) */
@@ -249,11 +249,20 @@
 /* ===== Stats ===== */
 .profile-stats {
     display: flex;
-    gap: 48px;
-    margin-top: 24px; /* Give space from the horizontal name strip */
-    margin-bottom: 24px;
+    gap: 60px; /* Wider gap */
+    justify-content: center; /* Center in wrapper */
+    width: 100%;
+    margin-top: 0; /* Uses header margin-bottom */
+    margin-bottom: 30px;
     list-style: none;
-    padding: 0;
+    padding: 20px 0;
+    border-top: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--glass-border);
+    transition: margin-top 0.3s ease;
+}
+
+.profile-stats.stats-no-bio {
+    margin-top: -24px; /* Pull up further when bio is missing */
 }
 
 .profile-stats li {
@@ -261,13 +270,16 @@
     color: var(--text-primary);
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center; /* Center text */
+    min-width: 80px; /* Ensure click area */
+    cursor: pointer;
 }
 
 .stat-count {
     font-weight: 800;
-    font-size: 18px;
+    font-size: 24px; /* Bigger count */
     color: var(--text-primary);
+    margin-bottom: 4px;
 }
 
 .stat-label {
@@ -280,13 +292,18 @@
     font-size: 15px;
     line-height: 1.6;
     color: var(--text-primary);
-    margin-top: 10px; /* Small gap from stats */
+    margin-top: 16px; /* Hơi kéo lên một chút cho gần Name Row */
+    margin-left: -95px; /* Cùng margin-left với profile-name-row */
+    padding-left: 80px; /* Cùng padding-left với profile-name-row để thẳng hàng chữ */
 }
 
 .profile-bio-text {
     white-space: pre-wrap;
+    overflow-wrap: break-word; /* Đảm bảo xuống dòng khi gặp từ quá dài */
+    word-wrap: break-word;
     color: var(--text-secondary);
-    max-width: 600px;
+    width: 750px; /* Chiều ngang cố định */
+    max-width: 100%; /* Đảm bảo responsive trên màn hình nhỏ */
 }
 
 /* ===== Edit Profile Modal ===== */
@@ -551,15 +568,23 @@
 .profile-overlay-stat svg {
     width: 20px;
     height: 20px;
-    fill: white;
+    fill: white !important;
+    color: white !important;
+    stroke: white !important;
 }
 
 .profile-multi-media-icon {
     position: absolute;
     top: 10px;
     right: 10px;
-    color: white;
+    color: white !important;
     filter: drop-shadow(0 0 4px rgba(0,0,0,0.5));
+}
+
+.profile-multi-media-icon i,
+.profile-multi-media-icon svg {
+    color: white !important;
+    stroke: white !important;
 }
 
 /* ===== Responsive ===== */
@@ -585,7 +610,17 @@
     .profile-name-row {
         flex-direction: column;
         gap: 12px;
-        margin-bottom: 16px;
+        margin-bottom: 20px;
+        margin-left: 0;
+        margin-right: 0;
+        padding: 0;
+        height: auto;
+        background: transparent;
+    }
+
+    .profile-name-row::before,
+    .profile-name-row::after {
+        display: none;
     }
 
     .profile-fullname-header {
@@ -611,6 +646,21 @@
 
     .stat-label {
         font-size: 12px;
+    }
+
+    .profile-bio-section {
+        margin-left: 0;
+        padding: 0;
+        text-align: center;
+        margin-top: 10px;
+        display: flex;
+        justify-content: center;
+    }
+
+    .profile-bio-text {
+        width: auto;
+        max-width: 100%;
+        text-align: center;
     }
 
     /* Edit Profile Modal Responsive */

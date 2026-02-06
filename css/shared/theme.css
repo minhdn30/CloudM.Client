@@ -60,7 +60,10 @@
   --transition-fast: 0.15s ease;
   --transition-normal: 0.2s ease;
   --transition-slow: 0.3s ease;
+  /* ===== Image Gradients ===== */
+  --img-gradient-base: #1a1a1a;
 }
+
 
 /* ================= LIGHT MODE ================= */
 body.light-mode {
@@ -119,4 +122,7 @@ body.light-mode {
   --transition-fast: 0.15s ease;
   --transition-normal: 0.2s ease;
   --transition-slow: 0.3s ease;
+  /* ===== Image Gradients ===== */
+  --img-gradient-base: #d1d1d1d7;
 }
+

@@ -222,69 +222,85 @@
      * @param {number} [privacy] - Optional, to update privacy badge
      */
     PostUtils.syncPostFromDetail = function(postId, reactCount, isReacted, commentCount, createdAt, content, privacy) {
+        // 1. Sync for Newsfeed (.post elements)
         const postEl = document.querySelector(`.post[data-post-id="${postId}"]`);
-        if (!postEl) return;
-
-        // Special case: If explicitly passed 'remove' or triggered by forbidden action
-        if (reactCount === 'remove') {
-            PostUtils.hidePost(postId);
-            return;
-        }
-
-        // 1. Update React Button
-        if (reactCount !== undefined && isReacted !== undefined) {
-            const reactBtn = postEl.querySelector(`.react-btn`);
-            if (reactBtn) {
-                reactBtn.dataset.reacted = isReacted.toString();
-                const icon = reactBtn.querySelector(".react-icon");
-                const countEl = reactBtn.querySelector(".count");
-                if (icon) icon.classList.toggle("reacted", isReacted);
-                if (countEl) countEl.textContent = reactCount;
+        if (postEl) {
+            // Special case: If explicitly passed 'remove' or triggered by forbidden action
+            if (reactCount === 'remove') {
+                PostUtils.hidePost(postId);
+                return;
             }
-        }
-    
-        // 2. Update Comment Button
-        if (commentCount !== undefined) {
-            const commentBtn = postEl.querySelector(`div.action-item[onclick*="openPostDetail('${postId}')"]`);
-            if (commentBtn) {
-                const countEl = commentBtn.querySelector(".count");
-                if (countEl) countEl.textContent = commentCount;
+
+            // Update React Button
+            if (reactCount !== undefined && isReacted !== undefined) {
+                const reactBtn = postEl.querySelector(`.react-btn`);
+                if (reactBtn) {
+                    reactBtn.dataset.reacted = isReacted.toString();
+                    const icon = reactBtn.querySelector(".react-icon");
+                    const countEl = reactBtn.querySelector(".count");
+                    if (icon) icon.classList.toggle("reacted", isReacted);
+                    if (countEl) countEl.textContent = reactCount;
+                }
             }
-        }
         
-        // 3. Update Time Ago (Only if provided)
-        if (createdAt) {
-            const timeEl = postEl.querySelector('.post-time');
-            if (timeEl) {
-                timeEl.textContent = PostUtils.timeAgo(createdAt);
-                timeEl.title = PostUtils.formatFullDateTime(createdAt);
+            // Update Comment Button
+            if (commentCount !== undefined) {
+                const commentBtn = postEl.querySelector(`div.action-item[onclick*="openPostDetail('${postId}')"]`);
+                if (commentBtn) {
+                    const countEl = commentBtn.querySelector(".count");
+                    if (countEl) countEl.textContent = commentCount;
+                }
             }
-        }
+            
+            // Update Time Ago
+            if (createdAt) {
+                const timeEl = postEl.querySelector('.post-time');
+                if (timeEl) {
+                    timeEl.textContent = PostUtils.timeAgo(createdAt);
+                    timeEl.title = PostUtils.formatFullDateTime(createdAt);
+                }
+            }
 
-        // 4. Update Content/Caption
-        if (content !== undefined) {
-            const captionEl = postEl.querySelector(".post-caption");
-            if (captionEl) {
-                if (!content || content.trim().length === 0) {
-                    captionEl.style.display = "none";
-                    captionEl.textContent = "";
-                    delete captionEl.dataset.fullContent;
-                } else {
-                    captionEl.style.display = "block";
-                    PostUtils.setupCaption(captionEl, content);
+            // Update Content/Caption
+            if (content !== undefined) {
+                const captionEl = postEl.querySelector(".post-caption");
+                if (captionEl) {
+                    if (!content || content.trim().length === 0) {
+                        captionEl.style.display = "none";
+                        captionEl.textContent = "";
+                        delete captionEl.dataset.fullContent;
+                    } else {
+                        captionEl.style.display = "block";
+                        PostUtils.setupCaption(captionEl, content);
+                    }
+                }
+            }
+
+            // Update Privacy Badge
+            if (privacy !== undefined) {
+                const metaContainer = postEl.querySelector(".post-meta");
+                if (metaContainer) {
+                    const timeStr = postEl.querySelector('.post-time')?.outerHTML || "";
+                    const dot = `<span>•</span>`;
+                    const privacyBadge = PostUtils.renderPrivacyBadge(privacy);
+                    metaContainer.innerHTML = `${timeStr} ${dot} ${privacyBadge}`;
+                    if (window.lucide) lucide.createIcons();
                 }
             }
         }
 
-        // 5. Update Privacy Badge
-        if (privacy !== undefined) {
-            const metaContainer = postEl.querySelector(".post-meta");
-            if (metaContainer) {
-                const timeStr = postEl.querySelector('.post-time')?.outerHTML || "";
-                const dot = `<span>•</span>`;
-                const privacyBadge = PostUtils.renderPrivacyBadge(privacy);
-                metaContainer.innerHTML = `${timeStr} ${dot} ${privacyBadge}`;
-                if (window.lucide) lucide.createIcons();
+        // 2. Sync for Profile Grid (.profile-grid-item elements)
+        const profileItem = document.querySelector(`.profile-grid-item[data-post-id="${postId}"]`);
+        if (profileItem) {
+            if (reactCount === 'remove') {
+                profileItem.remove();
+                return;
+            }
+
+            const stats = profileItem.querySelectorAll(".profile-overlay-stat span");
+            if (stats.length >= 2) {
+                if (reactCount !== undefined) stats[0].textContent = reactCount;
+                if (commentCount !== undefined) stats[1].textContent = commentCount;
             }
         }
     };
@@ -329,6 +345,16 @@
             postEl.style.padding = "0";
             postEl.style.pointerEvents = "none";
             setTimeout(() => postEl.remove(), 450);
+        }
+
+        // 3. Remove from Profile Grid
+        const profileItem = document.querySelector(`.profile-grid-item[data-post-id="${postId}"]`);
+        if (profileItem) {
+            profileItem.style.transition = "all 0.4s ease";
+            profileItem.style.opacity = "0";
+            profileItem.style.transform = "scale(0.8)";
+            profileItem.style.pointerEvents = "none";
+            setTimeout(() => profileItem.remove(), 450);
         }
     };
 
