@@ -1,7 +1,7 @@
 window.APP_CONFIG = {
   API_BASE: "http://localhost:5000/api", // API
   HUB_BASE: "http://localhost:5000", // SignalR
-  DEFAULT_AVATAR: "/assets/images/default-avatar.jpg", // Default avatar image
+  DEFAULT_AVATAR: "assets/images/default-avatar.jpg", // Default avatar image
   NEWSFEED_LIMIT: 5, // Max newsfeed limit/1 rq
   CAPTION_TRUNCATE_LENGTH: 150, // Chiều dài nội dung post tối đa trước khi bị cắt và hiện nút "more"
   MAX_UPLOAD_FILES: 7, // Số lượng file tối đa khi upload post mới
@@ -15,6 +15,8 @@ window.APP_CONFIG = {
   INTERACTIONS_PAGE_SIZE: 10, // Số lượng người react load mỗi lần
   PROFILE_POSTS_PAGE_SIZE: 12, // Số lượng post load mỗi lần ở trang cá nhân (nên là bội số của 3)
   PREVIEW_BIO_TRUNCATE_LENGTH: 80, // Chiều dài tối đa của bio trong thẻ preview trước khi bị cắt
+  MAX_PROFILE_FULLNAME_LENGTH: 25, // Số ký tự tối đa cho Full Name
+  MAX_PROFILE_BIO_LENGTH: 200, // Số ký tự tối đa cho Bio
+  MAX_PROFILE_PHONE_LENGTH: 15, // Số ký tự tối đa cho Phone
+  MAX_PROFILE_ADDRESS_LENGTH: 100, // Số ký tự tối đa cho Address
 };
-
-

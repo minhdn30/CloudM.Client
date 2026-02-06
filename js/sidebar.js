@@ -1,3 +1,21 @@
+// EXPOSE: Function to update sidebar avatar and info from other scripts
+window.updateSidebarInfo = function (url, name) {
+  const avatarElement = document.getElementById("sidebar-avatar");
+  const nameElement = document.getElementById("sidebar-name");
+  
+  if (avatarElement) {
+    if (!url || url === "null" || url.trim() === "") {
+        avatarElement.src = APP_CONFIG.DEFAULT_AVATAR;
+    } else {
+        avatarElement.src = url;
+    }
+  }
+
+  if (nameElement) {
+    nameElement.textContent = name || localStorage.getItem("username") || localStorage.getItem("fullname") || "User";
+  }
+};
+
 async function loadSidebar() {
   const res = await fetch("pages/sidebar.html");
   document.getElementById("sidebar").innerHTML = await res.text();
@@ -7,14 +25,10 @@ async function loadSidebar() {
   const fullname = localStorage.getItem("fullname");
   const username = localStorage.getItem("username");
 
-  const avatarElement = document.getElementById("sidebar-avatar");
   const nameElement = document.getElementById("sidebar-name");
 
-  if (!avatarUrl || avatarUrl === "null" || avatarUrl.trim() === "") {
-    avatarElement.src = APP_CONFIG.DEFAULT_AVATAR;
-  } else {
-    avatarElement.src = avatarUrl;
-  }
+  // Initial update
+  window.updateSidebarInfo(avatarUrl);
 
   // Display Username as primary identifier
   nameElement.textContent = username || fullname || "User";

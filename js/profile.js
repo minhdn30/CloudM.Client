@@ -244,6 +244,26 @@
                 }
             }
 
+            // Always update local storage and sidebar if viewing my own profile
+            if (data.isCurrentUser || data.IsCurrentUser) {
+                const settings = data.settings || data.Settings;
+                if (settings) {
+                    localStorage.setItem("defaultPostPrivacy", settings.defaultPostPrivacy ?? settings.DefaultPostPrivacy ?? 0);
+                }
+                
+                const newAvatarUrl = accountInfo.avatarUrl || accountInfo.AvatarUrl || "";
+                const newFullname = accountInfo.fullName || accountInfo.FullName || "";
+                const newUsername = accountInfo.username || accountInfo.Username || "";
+
+                localStorage.setItem("avatarUrl", newAvatarUrl);
+                localStorage.setItem("fullname", newFullname);
+                localStorage.setItem("username", newUsername);
+
+                if (window.updateSidebarInfo) {
+                    window.updateSidebarInfo(newAvatarUrl, newUsername || newFullname);
+                }
+            }
+
             if (isSilent) {
                 // Background update: Only update stats and internal data
                 currentProfileData = data;
@@ -251,12 +271,6 @@
             } else {
                 // Full render
                 currentProfileData = data;
-                
-                // Update local storage if viewing my own profile
-                const settings = data.settings || data.Settings;
-                if (data.isCurrentUser && settings) {
-                    localStorage.setItem("defaultPostPrivacy", settings.defaultPostPrivacy ?? settings.DefaultPostPrivacy ?? 0);
-                }
                 
                 renderProfileHeader(data);
                 
@@ -599,36 +613,277 @@
         });
     }
 
-    // Edit Profile Modal logic ...
+    // Edit Profile Modal logic
+    let originalProfileData = {}; // Store original values for change detection
+    let bioEmojiPickerInstance = null;
+    let selectedAvatarFile = null;
+    let shouldDeleteAvatar = false;
+    let selectedCoverFile = null;
+    let shouldDeleteCover = false;
+
+    function setMaxLengthsFromConfig() {
+        // Set maxlength from APP_CONFIG
+        const fullnameInput = document.getElementById("edit-fullname");
+        const bioInput = document.getElementById("edit-bio");
+        const phoneInput = document.getElementById("edit-phone");
+        const addressInput = document.getElementById("edit-address");
+        const bioMaxLengthSpan = document.getElementById("bioMaxLength");
+
+        if (fullnameInput) fullnameInput.setAttribute("maxlength", window.APP_CONFIG.MAX_PROFILE_FULLNAME_LENGTH);
+        if (bioInput) bioInput.setAttribute("maxlength", window.APP_CONFIG.MAX_PROFILE_BIO_LENGTH);
+        if (phoneInput) phoneInput.setAttribute("maxlength", window.APP_CONFIG.MAX_PROFILE_PHONE_LENGTH);
+        if (addressInput) addressInput.setAttribute("maxlength", window.APP_CONFIG.MAX_PROFILE_ADDRESS_LENGTH);
+        if (bioMaxLengthSpan) bioMaxLengthSpan.textContent = window.APP_CONFIG.MAX_PROFILE_BIO_LENGTH;
+    }
+
     function setupEditProfileListeners() {
-        const avatarInput = document.getElementById("edit-avatar-input");
-        const coverInput = document.getElementById("edit-cover-input");
+        // Character counter for bio
+        const bioInput = document.getElementById("edit-bio");
+        const charCount = document.getElementById("bioCharCount");
+        
+        if (bioInput && charCount) {
+            // Auto-resize textarea
+            const autoResize = () => {
+                bioInput.style.height = 'auto';
+                bioInput.style.height = Math.min(bioInput.scrollHeight, 200) + 'px';
+            };
+            
+            bioInput.addEventListener("input", () => {
+                const length = bioInput.value.length;
+                charCount.textContent = length;
+                const maxLength = window.APP_CONFIG.MAX_PROFILE_BIO_LENGTH || 200;
+                if (length >= maxLength) {
+                    charCount.classList.add("at-max-length");
+                } else {
+                    charCount.classList.remove("at-max-length");
+                }
+                autoResize();
+            });
+            
+            // Initial resize
+            autoResize();
+        }
+
+        // Phone number validation
+        const phoneInput = document.getElementById("edit-phone");
+        if (phoneInput) {
+            phoneInput.addEventListener("input", (e) => {
+                // Allow only numbers, +, spaces, and hyphens
+                let value = e.target.value;
+                value = value.replace(/[^\d\+\s\-]/g, '');
+                e.target.value = value;
+            });
+        }
+
+        // Helper to update modal cover background when no cover image
+        const updateEditCoverBackground = async () => {
+            const coverPreview = document.getElementById("edit-cover-preview");
+            const avatarPreview = document.getElementById("edit-profile-preview");
+            const coverContainer = document.querySelector(".edit-cover-container");
+            
+            if (!coverContainer || !avatarPreview) return;
+
+            // Show gradient if: deleting cover OR (no current cover AND no new cover selected)
+            const noCover = shouldDeleteCover || (!originalProfileData.cover && !selectedCoverFile);
+            
+            if (noCover) {
+                if (coverPreview) coverPreview.style.display = "none";
+                if (typeof extractDominantColor === 'function' && avatarPreview.src) {
+                    try {
+                        const color = await extractDominantColor(avatarPreview.src);
+                        coverContainer.style.background = `linear-gradient(135deg, var(--bg-primary) 0%, ${color} 100%)`;
+                    } catch (e) {
+                        coverContainer.style.background = "linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%)";
+                    }
+                } else {
+                    coverContainer.style.background = "linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%)";
+                }
+            } else {
+                if (coverPreview) {
+                    coverPreview.style.display = "block";
+                }
+            }
+        };
+
+        // Avatar Upload & Delete Logic
+        const avatarInput = document.getElementById("avatar-upload-input");
+        const avatarPreview = document.getElementById("edit-profile-preview");
+        const deleteAvatarBtn = document.getElementById("delete-avatar-btn");
 
         if (avatarInput) {
             avatarInput.onchange = (e) => {
                 const file = e.target.files[0];
                 if (file) {
+                    const maxSize = (window.APP_CONFIG.MAX_UPLOAD_SIZE_MB || 5) * 1024 * 1024;
+                    if (file.size > maxSize) {
+                        if (window.toastError) toastError("File size exceeds limit.");
+                        avatarInput.value = "";
+                        return;
+                    }
+                    selectedAvatarFile = file;
+                    shouldDeleteAvatar = false;
                     const reader = new FileReader();
-                    reader.onload = (re) => {
-                        document.getElementById("edit-avatar-preview").src = re.target.result;
+                    reader.onload = (re) => { 
+                        avatarPreview.src = re.target.result;
+                        updateEditCoverBackground();
                     };
                     reader.readAsDataURL(file);
                 }
             };
         }
 
-        if (coverInput) {
+        if (deleteAvatarBtn) {
+            deleteAvatarBtn.onclick = () => {
+                selectedAvatarFile = null;
+                shouldDeleteAvatar = true;
+                if (avatarInput) avatarInput.value = "";
+                avatarPreview.src = window.APP_CONFIG.DEFAULT_AVATAR || "assets/images/default-avatar.jpg";
+                updateEditCoverBackground();
+            };
+        }
+
+        // Cover Upload & Delete Logic
+        const coverInput = document.getElementById("cover-upload-input");
+        const coverPreview = document.getElementById("edit-cover-preview");
+        const deleteCoverBtn = document.getElementById("delete-cover-btn");
+
+        if (coverInput && coverPreview) {
             coverInput.onchange = (e) => {
                 const file = e.target.files[0];
                 if (file) {
+                    const maxSize = (window.APP_CONFIG.MAX_UPLOAD_SIZE_MB || 5) * 1024 * 1024;
+                    if (file.size > maxSize) {
+                        if (window.toastError) toastError("Cover image size exceeds limit.");
+                        coverInput.value = "";
+                        return;
+                    }
+                    selectedCoverFile = file;
+                    shouldDeleteCover = false;
                     const reader = new FileReader();
-                    reader.onload = (re) => {
-                        document.getElementById("edit-cover-preview").src = re.target.result;
+                    reader.onload = (re) => { 
+                        coverPreview.src = re.target.result; 
+                        coverPreview.style.display = "block";
                     };
                     reader.readAsDataURL(file);
                 }
             };
         }
+
+        if (deleteCoverBtn && coverPreview) {
+            deleteCoverBtn.onclick = () => {
+                selectedCoverFile = null;
+                shouldDeleteCover = true;
+                if (coverInput) coverInput.value = "";
+                updateEditCoverBackground();
+            };
+        }
+
+        // Click outside modal to close with confirmation
+        const modal = document.getElementById("edit-profile-modal");
+        if (modal) {
+            let isMouseDownOnOverlay = false;
+            modal.onmousedown = (e) => { isMouseDownOnOverlay = (e.target === modal); };
+            modal.onmouseup = (e) => {
+                if (isMouseDownOnOverlay && e.target === modal) checkChangesAndClose();
+                isMouseDownOnOverlay = false;
+            };
+
+            const escHandler = (e) => {
+                if (e.key === "Escape" && modal.style.display === "flex") checkChangesAndClose();
+            };
+            document.removeEventListener("keydown", escHandler);
+            document.addEventListener("keydown", escHandler);
+        }
+
+        // Initial background update
+        updateEditCoverBackground();
+    }
+
+    function hasProfileChanges() {
+        const fullName = document.getElementById("edit-fullname").value.trim();
+        const bio = document.getElementById("edit-bio").value.trim();
+        const phone = document.getElementById("edit-phone").value.trim();
+        const address = document.getElementById("edit-address").value.trim();
+        const genderEl = document.querySelector('input[name="gender"]:checked');
+        const gender = genderEl ? genderEl.value : "";
+
+        return (
+            fullName !== (originalProfileData.fullName || "") ||
+            bio !== (originalProfileData.bio || "") ||
+            phone !== (originalProfileData.phone || "") ||
+            address !== (originalProfileData.address || "") ||
+            gender !== (originalProfileData.gender || "") ||
+            selectedAvatarFile !== null ||
+            shouldDeleteAvatar ||
+            selectedCoverFile !== null ||
+            shouldDeleteCover
+        );
+    }
+
+    global.checkChangesAndClose = function() {
+        if (hasProfileChanges()) {
+            showDiscardChangesConfirmation();
+        } else {
+            closeEditProfile();
+        }
+    }
+
+    function showDiscardChangesConfirmation() {
+        // Prevent multiple popups
+        if (document.querySelector(".unfollow-overlay")) {
+            return;
+        }
+
+        const overlay = document.createElement("div");
+        overlay.className = "unfollow-overlay"; // Reuse overlay style
+
+        const popup = document.createElement("div");
+        popup.className = "unfollow-popup"; // Reuse popup style
+
+        popup.innerHTML = `
+            <div class="unfollow-content">
+                <h3>Discard changes?</h3>
+                <p>You have unsaved changes. Are you sure you want to discard them?</p>
+            </div>
+            <div class="unfollow-actions">
+                <button class="unfollow-btn unfollow-confirm" data-action="discard">Discard</button>
+                <button class="unfollow-btn unfollow-cancel" data-action="keep">Cancel</button>
+            </div>
+        `;
+
+        overlay.appendChild(popup);
+        document.body.appendChild(overlay);
+
+        requestAnimationFrame(() => overlay.classList.add("show"));
+
+        // Define closePopup first
+        const closePopup = () => {
+            overlay.classList.remove("show");
+            setTimeout(() => overlay.remove(), 200);
+        };
+
+        // Direct button listeners instead of event delegation
+        const discardBtn = popup.querySelector('[data-action="discard"]');
+        const keepBtn = popup.querySelector('[data-action="keep"]');
+        
+        if (discardBtn) {
+            discardBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closeEditProfile();
+                closePopup();
+            };
+        }
+        
+        if (keepBtn) {
+            keepBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closePopup();
+            };
+        }
+
+        overlay.onclick = (e) => { if (e.target === overlay) closePopup(); };
     }
 
     global.openEditProfile = function() {
@@ -638,24 +893,100 @@
         const info = currentProfileData.accountInfo || currentProfileData.account;
         if (!info) return;
         
-        document.getElementById("edit-fullname").value = info.fullName || "";
-        document.getElementById("edit-bio").value = info.bio || "";
-        document.getElementById("edit-phone").value = info.phone || "";
-        document.getElementById("edit-address").value = info.address || "";
-        document.getElementById("edit-gender").value = (info.gender !== null && info.gender !== undefined) ? info.gender.toString() : "true";
+        setMaxLengthsFromConfig();
+        
+        // Reset flags
+        selectedAvatarFile = null;
+        shouldDeleteAvatar = false;
+        selectedCoverFile = null;
+        shouldDeleteCover = false;
+        
+        originalProfileData = {
+            fullName: info.fullName || "",
+            bio: info.bio || "",
+            phone: info.phone || "",
+            address: info.address || "",
+            gender: (info.gender !== null && info.gender !== undefined) ? info.gender.toString() : "",
+            avatar: info.avatarUrl || info.avatar || window.APP_CONFIG.DEFAULT_AVATAR,
+            cover: info.coverUrl || info.cover || ""
+        };
 
-        document.getElementById("edit-avatar-preview").src = info.avatarUrl || APP_CONFIG.DEFAULT_AVATAR;
-        document.getElementById("edit-cover-preview").src = info.coverUrl || "assets/gradients/orb-1.png";
+        // Populate form
+        document.getElementById("edit-fullname").value = originalProfileData.fullName;
+        document.getElementById("edit-bio").value = originalProfileData.bio;
+        document.getElementById("edit-phone").value = originalProfileData.phone;
+        document.getElementById("edit-address").value = originalProfileData.address;
+        
+        // Populate gender radio
+        const genderRadios = document.querySelectorAll('input[name="gender"]');
+        genderRadios.forEach(radio => {
+            radio.checked = (radio.value === originalProfileData.gender);
+        });
+        
+        // Previews
+        const avatarPreview = document.getElementById("edit-profile-preview");
+        if (avatarPreview) avatarPreview.src = originalProfileData.avatar;
 
-        document.getElementById("edit-avatar-input").value = "";
-        document.getElementById("edit-cover-input").value = "";
+        const coverPreview = document.getElementById("edit-cover-preview");
+        const coverContainer = document.querySelector(".edit-cover-container");
+        
+        if (coverPreview && coverContainer) {
+            if (originalProfileData.cover) {
+                coverPreview.src = originalProfileData.cover;
+                coverPreview.style.display = "block";
+            } else {
+                coverPreview.style.display = "none";
+                // Trigger gradient update
+                if (typeof extractDominantColor === 'function' && originalProfileData.avatar) {
+                    extractDominantColor(originalProfileData.avatar).then(color => {
+                        coverContainer.style.background = `linear-gradient(135deg, var(--bg-primary) 0%, ${color} 100%)`;
+                    });
+                }
+            }
+        }
+
+        const bioCharCount = document.getElementById("bioCharCount");
+        if (bioCharCount) {
+            const length = originalProfileData.bio.length;
+            bioCharCount.textContent = length;
+            const maxLength = window.APP_CONFIG.MAX_PROFILE_BIO_LENGTH || 200;
+            if (length >= maxLength) {
+                bioCharCount.classList.add("at-max-length");
+            } else {
+                bioCharCount.classList.remove("at-max-length");
+            }
+        }
 
         modal.style.display = "flex";
+        
+        if (!bioEmojiPickerInstance) {
+            setupEditProfileListeners();
+            bioEmojiPickerInstance = true;
+        } else {
+            // Already setup, but need to update background for this user
+            const avatarPreview = document.getElementById("edit-profile-preview");
+            if (avatarPreview && !originalProfileData.cover) {
+                if (typeof extractDominantColor === 'function') {
+                    extractDominantColor(avatarPreview.src).then(color => {
+                        if (coverContainer) coverContainer.style.background = `linear-gradient(135deg, var(--bg-primary) 0%, ${color} 100%)`;
+                    });
+                }
+            }
+        }
+
+        if (window.lucide) lucide.createIcons();
     };
 
     global.closeEditProfile = function() {
         const modal = document.getElementById("edit-profile-modal");
-        if (modal) modal.style.display = "none";
+        if (modal) {
+            modal.style.display = "none";
+            // Close emoji picker if open
+            const emojiContainer = document.getElementById("bioEmojiPicker");
+            if (emojiContainer) {
+                EmojiUtils.closePicker(emojiContainer);
+            }
+        }
     };
 
     global.saveProfileChanges = async function() {
@@ -664,23 +995,72 @@
         const btn = document.querySelector("#edit-profile-modal .profile-btn-primary");
         if (!btn) return;
         
-        const originalText = btn.textContent;
-        btn.textContent = "Saving...";
+        // Get values
+        const fullName = document.getElementById("edit-fullname").value.trim();
+        const bio = document.getElementById("edit-bio").value.trim();
+        const phone = document.getElementById("edit-phone").value.trim();
+        const address = document.getElementById("edit-address").value.trim();
+        const genderEl = document.querySelector('input[name="gender"]:checked');
+        const gender = genderEl ? genderEl.value : "";
+        
+        // Validation
+        if (!fullName) {
+            if (window.toastError) toastError("Full name is required");
+            return;
+        }
+        
+        if (fullName.length > window.APP_CONFIG.MAX_PROFILE_FULLNAME_LENGTH) {
+            if (window.toastError) toastError(`Full name must be less than ${window.APP_CONFIG.MAX_PROFILE_FULLNAME_LENGTH} characters`);
+            return;
+        }
+        
+        if (bio.length > window.APP_CONFIG.MAX_PROFILE_BIO_LENGTH) {
+            if (window.toastError) toastError(`Bio must be less than ${window.APP_CONFIG.MAX_PROFILE_BIO_LENGTH} characters`);
+            return;
+        }
+        
+        // Phone validation - must be valid format if provided
+        if (phone && !/^[\d\+\s\-]+$/.test(phone)) {
+            if (window.toastError) toastError("Phone number contains invalid characters");
+            return;
+        }
+        
+        if (phone.length > window.APP_CONFIG.MAX_PROFILE_PHONE_LENGTH) {
+            if (window.toastError) toastError(`Phone number must be less than ${window.APP_CONFIG.MAX_PROFILE_PHONE_LENGTH} characters`);
+            return;
+        }
+        
+        if (address.length > window.APP_CONFIG.MAX_PROFILE_ADDRESS_LENGTH) {
+            if (window.toastError) toastError(`Address must be less than ${window.APP_CONFIG.MAX_PROFILE_ADDRESS_LENGTH} characters`);
+            return;
+        }
+        
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i><span>Saving...</span>';
+        if (window.lucide) lucide.createIcons();
         btn.disabled = true;
 
         try {
             const formData = new FormData();
-            formData.append("FullName", document.getElementById("edit-fullname").value);
-            formData.append("Bio", document.getElementById("edit-bio").value);
-            formData.append("Phone", document.getElementById("edit-phone").value);
-            formData.append("Address", document.getElementById("edit-address").value);
-            formData.append("Gender", document.getElementById("edit-gender").value);
+            formData.append("FullName", fullName);
+            formData.append("Bio", bio);
+            formData.append("Phone", phone);
+            formData.append("Address", address);
+            formData.append("Gender", gender);
 
-            const avatarFile = document.getElementById("edit-avatar-input").files[0];
-            if (avatarFile) formData.append("Image", avatarFile);
+            // Avatar changes
+            if (shouldDeleteAvatar) {
+                formData.append("DeleteAvatar", "true");
+            } else if (selectedAvatarFile) {
+                formData.append("AvatarFile", selectedAvatarFile);
+            }
 
-            const coverFile = document.getElementById("edit-cover-input").files[0];
-            if (coverFile) formData.append("CoverImage", coverFile);
+            // Cover changes
+            if (shouldDeleteCover) {
+                formData.append("DeleteCover", "true");
+            } else if (selectedCoverFile) {
+                formData.append("CoverFile", selectedCoverFile);
+            }
 
             const res = await API.Accounts.updateProfile(formData);
             if (res.ok) {
@@ -689,13 +1069,14 @@
                 loadProfileData(); 
             } else {
                 const data = await res.json();
-                if (window.toastError) toastError(data.title || "Failed to update profile.");
+                if (window.toastError) toastError(data.message || "Failed to update profile.");
             }
         } catch (err) {
             console.error(err);
             if (window.toastError) toastError("An error occurred while saving.");
         } finally {
-            btn.textContent = originalText;
+            btn.innerHTML = originalContent;
+            if (window.lucide) lucide.createIcons();
             btn.disabled = false;
         }
     };
