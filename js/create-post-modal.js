@@ -564,11 +564,32 @@ function saveCropData() {
     // Only save crop data for images
     // Calculate crop coordinates in original image
     const container = document.getElementById("mediaZoomContainer");
+    if (!container) return;
+    
     const containerRect = container.getBoundingClientRect();
+    
+    // VALIDATION: Don't save if container has no size (hidden/not rendered)
+    if (containerRect.width <= 0 || containerRect.height <= 0) {
+      console.warn("saveCropData: Container has no size, skipping save");
+      return;
+    }
+    
+    // VALIDATION: Don't save if image dimensions are not set
+    if (!imageNaturalWidth || !imageNaturalHeight) {
+      console.warn("saveCropData: Image dimensions not set, skipping save");
+      return;
+    }
+    
     const centerX = containerRect.width / 2;
     const centerY = containerRect.height / 2;
 
     const finalScale = displayScale * zoomLevel;
+    
+    // VALIDATION: Prevent division by zero
+    if (finalScale <= 0) {
+      console.warn("saveCropData: Invalid scale, skipping save");
+      return;
+    }
 
     // Crop frame position in container
     const cropLeft = centerX - cropFrameSize.width / 2;
@@ -581,16 +602,22 @@ function saveCropData() {
     const imgTop = imgCenterY - (imageNaturalHeight * finalScale) / 2;
 
     // Crop area relative to image (in pixel values first)
-    const cropX_px = (cropLeft - imgLeft) / finalScale;
-    const cropY_px = (cropTop - imgTop) / finalScale;
-    const cropWidth_px = cropFrameSize.width / finalScale;
-    const cropHeight_px = cropFrameSize.height / finalScale;
+    let cropX_px = (cropLeft - imgLeft) / finalScale;
+    let cropY_px = (cropTop - imgTop) / finalScale;
+    let cropWidth_px = cropFrameSize.width / finalScale;
+    let cropHeight_px = cropFrameSize.height / finalScale;
+    
+    // CLAMP: Ensure crop coordinates are within valid bounds
+    cropX_px = Math.max(0, Math.min(cropX_px, imageNaturalWidth));
+    cropY_px = Math.max(0, Math.min(cropY_px, imageNaturalHeight));
+    cropWidth_px = Math.max(1, Math.min(cropWidth_px, imageNaturalWidth - cropX_px));
+    cropHeight_px = Math.max(1, Math.min(cropHeight_px, imageNaturalHeight - cropY_px));
 
     // Normalize to 0-1 range based on image dimensions
-    const cropX_norm = Math.max(0, cropX_px / imageNaturalWidth);
-    const cropY_norm = Math.max(0, cropY_px / imageNaturalHeight);
-    const cropWidth_norm = Math.min(cropWidth_px / imageNaturalWidth, 1);
-    const cropHeight_norm = Math.min(cropHeight_px / imageNaturalHeight, 1);
+    const cropX_norm = cropX_px / imageNaturalWidth;
+    const cropY_norm = cropY_px / imageNaturalHeight;
+    const cropWidth_norm = cropWidth_px / imageNaturalWidth;
+    const cropHeight_norm = cropHeight_px / imageNaturalHeight;
 
     media.cropData = {
       ratio: currentCropRatio,
@@ -598,10 +625,10 @@ function saveCropData() {
       offsetX: imageOffsetX,
       offsetY: imageOffsetY,
       // Store both pixel values (for display/editing) and normalized values (for API)
-      cropX_px: Math.max(0, cropX_px),
-      cropY_px: Math.max(0, cropY_px),
-      cropWidth_px: Math.min(cropWidth_px, imageNaturalWidth),
-      cropHeight_px: Math.min(cropHeight_px, imageNaturalHeight),
+      cropX_px: cropX_px,
+      cropY_px: cropY_px,
+      cropWidth_px: cropWidth_px,
+      cropHeight_px: cropHeight_px,
       // Normalized values for backend (0-1)
       cropX: cropX_norm,
       cropY: cropY_norm,
@@ -739,25 +766,25 @@ function resetPostForm() {
   // 4. Clear slider DOM
   if (sliderWrapper) sliderWrapper.innerHTML = "";
 
-  // 5. Deep clean mediaFiles array - explicitly nullify large objects
+  // 5. Deep clean mediaFiles array - revoke Object URLs and nullify references
   if (mediaFiles && mediaFiles.length > 0) {
     mediaFiles.forEach((media) => {
-      // Nullify Base64 data (can be very large, ~7MB per image)
-      if (media.data) {
-        media.data = null;
+      // Revoke Object URL to free browser memory
+      if (media.data && media.data.startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(media.data);
+        } catch (e) {
+          // Ignore errors if URL is already revoked
+        }
       }
-      // Nullify File object reference
-      if (media.file) {
-        media.file = null;
-      }
-      // Nullify crop data object
-      if (media.cropData) {
-        media.cropData = null;
-      }
-      // Nullify other properties
+      // Nullify references
+      media.data = null;
+      media.file = null;
+      media.cropData = null;
       media.dominantColor = null;
     });
   }
+
 
   // Clear the array
   mediaFiles = [];
@@ -806,8 +833,8 @@ function triggerMediaUpload() {
   }
 }
 
-// Handle media upload
-function handleMediaUpload(event) {
+// Handle media upload - Using Object URL for better memory performance
+async function handleMediaUpload(event) {
   const files = event.target.files;
   if (!files || files.length === 0) return;
 
@@ -823,13 +850,13 @@ function handleMediaUpload(event) {
     return;
   }
 
-  Array.from(files).forEach((file) => {
+  for (const file of Array.from(files)) {
     // Check if we've reached the limit
     if (mediaFiles.length >= APP_CONFIG.MAX_UPLOAD_FILES) {
       if (window.toastError) {
         toastError(`Maximum ${APP_CONFIG.MAX_UPLOAD_FILES} images per post!`);
       }
-      return;
+      break;
     }
 
     const isImage = file.type.startsWith("image/");
@@ -838,10 +865,10 @@ function handleMediaUpload(event) {
       if (window.toastError) {
         toastError("Please select image files only!");
       }
-      return;
+      continue;
     }
 
-    const maxSize = APP_CONFIG.MAX_UPLOAD_SIZE_MB * 1024 * 1024; 
+    const maxSize = APP_CONFIG.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
     if (file.size > maxSize) {
       const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
       if (window.toastError) {
@@ -849,41 +876,41 @@ function handleMediaUpload(event) {
           `Image "${file.name}" is ${fileSizeMB}MB. Maximum size is ${APP_CONFIG.MAX_UPLOAD_SIZE_MB}MB!`,
         );
       }
-      return;
+      continue;
     }
 
-    const reader = new FileReader();
-    reader.onload = async function (e) {
-      // Extract dominant color before creating media object
-      const dominantColor = await extractDominantColor(e.target.result);
+    // Create Object URL instead of base64 - much more memory efficient
+    const objectUrl = URL.createObjectURL(file);
+    
+    // Extract dominant color using object URL
+    const dominantColor = await extractDominantColor(objectUrl);
 
-      const mediaData = {
-        data: e.target.result,
-        type: "image",
-        file: file,
-        cropData: null,
-        dominantColor: dominantColor,
-      };
-
-      mediaFiles.push(mediaData);
-
-      // Switch to the newly added media immediately
-      currentMediaIndex = mediaFiles.length - 1;
-
-      if (mediaFiles.length === 1) {
-        showMediaPreview();
-      } else {
-        showMediaAtIndex(currentMediaIndex);
-        updateThumbnails();
-      }
-
-      lucide.createIcons();
+    const mediaData = {
+      data: objectUrl,        // Now stores Object URL instead of base64
+      file: file,             // Keep original file for upload
+      type: "image",
+      cropData: null,
+      dominantColor: dominantColor,
     };
-    reader.readAsDataURL(file);
-  });
+
+    mediaFiles.push(mediaData);
+
+    // Switch to the newly added media immediately
+    currentMediaIndex = mediaFiles.length - 1;
+
+    if (mediaFiles.length === 1) {
+      showMediaPreview();
+    } else {
+      showMediaAtIndex(currentMediaIndex);
+      updateThumbnails();
+    }
+
+    lucide.createIcons();
+  }
 
   event.target.value = "";
 }
+
 
 // Update character count
 function updateCharCount() {
@@ -1102,26 +1129,32 @@ async function submitPost() {
     for (let i = 0; i < mediaFiles.length; i++) {
       const m = mediaFiles[i];
 
-      // Ensure crop data is saved for current media
-      if (m.cropData && i === currentMediaIndex) {
-        saveCropData();
-      }
-
-      // Convert image to Blob and append (apply crop if exists)
-      let imageDataUrl = m.data;
+      const filename = m.file && m.file.name ? m.file.name : `image_${i}.png`;
+      
+      // If has crop data, create cropped image (returns base64) and convert to blob
+      // Otherwise, use original file directly (more efficient)
       if (m.cropData) {
         try {
-          imageDataUrl = await createCleanCroppedImage(m);
+          const croppedDataUrl = await createCleanCroppedImage(m);
+          // createCleanCroppedImage returns base64, convert to blob
+          if (croppedDataUrl && croppedDataUrl.startsWith("data:")) {
+            const blob = dataURLToBlob(croppedDataUrl);
+            formData.append("MediaFiles", blob, filename);
+          } else {
+            // Fallback: if somehow got Object URL back, use original file
+            formData.append("MediaFiles", m.file, filename);
+          }
         } catch (err) {
           console.warn("Failed to create cropped image for index", i, err);
-          imageDataUrl = m.data;
+          // Fallback to original file
+          formData.append("MediaFiles", m.file, filename);
         }
+      } else {
+        // No crop, use original file directly - most efficient
+        formData.append("MediaFiles", m.file, filename);
       }
-
-      const blob = dataURLToBlob(imageDataUrl);
-      const filename = m.file && m.file.name ? m.file.name : `image_${i}.png`;
-      formData.append("MediaFiles", blob, filename);
     }
+
 
     // Debug log: show what we're sending
     const serverPreview = {
@@ -1162,13 +1195,43 @@ async function submitPost() {
       currentStep = 1;
       showStep(1);
 
-      // Open the newly created post
-      if (data && data.postId && window.openPostDetail) {
+      // Immediately inject into Newsfeed and Profile (No refresh needed)
+      if (data) {
+          // Map PostDetailResponse structure from API to what the UI expects (PostFeedModel/PostItem)
+          const postToPrepend = {
+              ...data,
+              // Backend returns 'owner' but UI expects 'author'
+              author: data.owner ? {
+                  accountId: data.owner.accountId,
+                  username: data.owner.username,
+                  fullName: data.owner.fullName,
+                  avatarUrl: data.owner.avatarUrl,
+                  isFollowedByCurrentUser: data.owner.isFollowedByCurrentUser || false
+              } : null,
+              // UI expects 'reactCount' and 'commentCount'
+              reactCount: data.totalReacts || 0,
+              commentCount: data.totalComments || 0,
+              // Set isAuthor manually for immediate UI logic if needed
+              isOwner: true 
+          };
+
+          if (window.prependPostToFeed) window.prependPostToFeed(postToPrepend);
+          if (window.prependPostToProfile) window.prependPostToProfile(postToPrepend);
+      }
+
+      // Open the newly created post using postCode (SEO-friendly URL)
+      if (data && data.postCode && window.openPostDetailByCode) {
          // Small delay to ensure clean modal transition
          setTimeout(() => {
-            window.openPostDetail(data.postId);
+            window.openPostDetailByCode(data.postCode);
          }, 100); 
+      } else if (data && data.postId && window.openPostDetail) {
+         // Fallback to postId if postCode not available
+         setTimeout(() => {
+            window.openPostDetail(data.postId);
+         }, 100);
       }
+
     } else if (res.status === 401) {
       if (window.toastError) toastError("Unauthorized. Please login again.");
     } else {
@@ -1644,35 +1707,60 @@ function createCleanCroppedImage(media) {
     const img = new Image();
     img.onload = function () {
       const cropData = media.cropData;
-
-      // Canvas size matches the crop size exactly
-      const canvasWidth = cropData.cropWidth_px;
-      const canvasHeight = cropData.cropHeight_px;
+      const naturalWidth = img.naturalWidth;
+      const naturalHeight = img.naturalHeight;
+      
+      // VALIDATION: Ensure we have valid image dimensions
+      if (!naturalWidth || !naturalHeight) {
+        console.warn("createCleanCroppedImage: Invalid image dimensions, using original");
+        resolve(media.data);
+        return;
+      }
+      
+      // CLAMP: Ensure crop coordinates are within valid bounds
+      let cropX = Math.max(0, Math.min(cropData.cropX_px, naturalWidth - 1));
+      let cropY = Math.max(0, Math.min(cropData.cropY_px, naturalHeight - 1));
+      let cropWidth = Math.max(1, Math.min(cropData.cropWidth_px, naturalWidth - cropX));
+      let cropHeight = Math.max(1, Math.min(cropData.cropHeight_px, naturalHeight - cropY));
+      
+      // VALIDATION: Ensure canvas has valid size
+      if (cropWidth < 1 || cropHeight < 1) {
+        console.warn("createCleanCroppedImage: Invalid crop dimensions, using original");
+        resolve(media.data);
+        return;
+      }
 
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
-      canvas.width = canvasWidth;
-      canvas.height = canvasHeight;
+      canvas.width = Math.round(cropWidth);
+      canvas.height = Math.round(cropHeight);
 
-      // Draw image offset by crop position
+      // Draw image offset by crop position with validated coordinates
       ctx.drawImage(
         img,
-        cropData.cropX_px,
-        cropData.cropY_px,
-        cropData.cropWidth_px,
-        cropData.cropHeight_px,
+        cropX,
+        cropY,
+        cropWidth,
+        cropHeight,
         0,
         0,
-        canvasWidth,
-        canvasHeight
+        canvas.width,
+        canvas.height
       );
 
-      resolve(canvas.toDataURL());
+      resolve(canvas.toDataURL("image/jpeg", 0.92));
     };
+    
+    img.onerror = function() {
+      console.warn("createCleanCroppedImage: Failed to load image, using original");
+      resolve(media.data);
+    };
+    
     img.src = media.data;
   });
 }
+
 
 // Create cropped image canvas - FIXED FOR ORIGINAL RATIO
 function createCroppedImage(media) {

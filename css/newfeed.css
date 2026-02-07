@@ -36,6 +36,16 @@
   box-sizing: border-box;
 }
 
+/* Animation for newly prepended posts */
+.post-new-fade-in {
+  animation: post-fade-in 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+@keyframes post-fade-in {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* Post Header styles moved to shared/post-common.css */
 /* ===== Post More Button (•••) ===== */
 .post-more {
