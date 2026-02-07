@@ -552,52 +552,79 @@
         if (page === 1) grid.innerHTML = "";
 
         posts.forEach(post => {
-            const item = document.createElement("div");
-            item.className = "profile-grid-item skeleton"; 
-            item.dataset.postId = post.postId;
-            item.onclick = () => {
-                if (window.openPostDetail) window.openPostDetail(post.postId, post.postCode);
-            };
-
-            const isMulti = (post.mediaCount ?? (post.medias?.length ?? 0)) > 1;
-            const primaryMedia = (post.medias && post.medias[0]) ? post.medias[0].mediaUrl : (window.APP_CONFIG?.DEFAULT_POST_IMAGE || "");
-
-            item.innerHTML = `
-                <img class="img-loaded" src="${primaryMedia}" alt="post">
-                ${isMulti ? '<div class="profile-multi-media-icon"><i data-lucide="layers"></i></div>' : ''}
-                <div class="profile-grid-overlay">
-                    <div class="profile-overlay-stat">
-                        <i data-lucide="heart"></i>
-                        <span>${post.reactCount}</span>
-                    </div>
-                    <div class="profile-overlay-stat">
-                        <i data-lucide="message-circle"></i>
-                        <span>${post.commentCount}</span>
-                    </div>
-                </div>
-            `;
+            const item = createGridItem(post);
             grid.appendChild(item);
-
-            // 1. Setup loading state
-            const media = item.querySelector("img");
-            if (media) {
-                const onLoaded = () => {
-                    item.classList.remove("skeleton");
-                    media.classList.add("show");
-                };
-
-                if (media.complete) onLoaded();
-                else media.onload = onLoaded;
-            }
-
-            // 2. Apply dominant color background
-            if (primaryMedia && typeof window.extractDominantColor === 'function') {
-                extractDominantColor(primaryMedia).then(color => {
-                    item.style.background = `linear-gradient(135deg, ${color}, var(--img-gradient-base))`;
-                }).catch(err => console.warn("Color extraction failed", err));
-            }
         });
 
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function createGridItem(post) {
+        const item = document.createElement("div");
+        item.className = "profile-grid-item skeleton"; 
+        item.dataset.postId = post.postId;
+        item.onclick = () => {
+            if (window.openPostDetail) window.openPostDetail(post.postId, post.postCode);
+        };
+
+        const isMulti = (post.mediaCount ?? (post.medias?.length ?? 0)) > 1;
+        const primaryMedia = (post.medias && post.medias[0]) ? post.medias[0].mediaUrl : (window.APP_CONFIG?.DEFAULT_POST_IMAGE || "");
+
+        item.innerHTML = `
+            <img class="img-loaded" src="${primaryMedia}" alt="post">
+            ${isMulti ? '<div class="profile-multi-media-icon"><i data-lucide="layers"></i></div>' : ''}
+            <div class="profile-grid-overlay">
+                <div class="profile-overlay-stat">
+                    <i data-lucide="heart"></i>
+                    <span>${post.reactCount}</span>
+                </div>
+                <div class="profile-overlay-stat">
+                    <i data-lucide="message-circle"></i>
+                    <span>${post.commentCount}</span>
+                </div>
+            </div>
+        `;
+
+        // 1. Setup loading state
+        const media = item.querySelector("img");
+        if (media) {
+            const onLoaded = () => {
+                item.classList.remove("skeleton");
+                media.classList.add("show");
+            };
+
+            if (media.complete) onLoaded();
+            else media.onload = onLoaded;
+        }
+
+        // 2. Apply dominant color background
+        if (primaryMedia && typeof window.extractDominantColor === 'function') {
+            extractDominantColor(primaryMedia).then(color => {
+                item.style.background = `linear-gradient(135deg, ${color}, var(--img-gradient-base))`;
+            }).catch(err => console.warn("Color extraction failed", err));
+        }
+        
+        return item;
+    }
+
+    function prependPostToProfile(post) {
+        const grid = document.getElementById("profile-posts-grid");
+        if (!grid || !currentProfileId) return;
+        
+        // Only prepend if it's the current profile being viewed
+        if (currentProfileId !== post.author.accountId) {
+            return;
+        }
+
+        // Check for duplicates
+        if (grid.querySelector(`[data-post-id="${post.postId}"]` || `[data-post-id="${post.postId.toLowerCase()}"]`)) {
+            return;
+        }
+
+        const item = createGridItem(post);
+        item.classList.add("post-new-fade-in");
+        grid.prepend(item);
+        
         if (window.lucide) lucide.createIcons();
     }
 
@@ -1281,5 +1308,6 @@
 
     global.initProfilePage = initProfile;
     global.getProfileAccountId = () => currentProfileId;
+    global.prependPostToProfile = prependPostToProfile;
 
 })(window);

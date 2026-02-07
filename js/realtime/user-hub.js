@@ -68,6 +68,20 @@
                 }
             });
 
+            // Listen for new posts (for profile post count update)
+            connection.on("ReceiveNewPost", (data) => {
+                console.log("📌 [UserHub] New post created:", data);
+                UserHub.updateProfilePostCount(data.accountId, 1);
+            });
+
+            // Listen for deleted posts (for profile post count update)
+            connection.on("ReceiveDeletedPost", (postId, accountId) => {
+                console.log("🗑️ [UserHub] Post Deleted:", postId);
+                if (accountId) {
+                    UserHub.updateProfilePostCount(accountId, -1);
+                }
+            });
+
             // 3. Start connection
             try {
                 await connection.start();
@@ -148,6 +162,39 @@
                 console.log(`[UserHub] Left group Account-${accountId}`);
             } catch (err) {
                 console.error(`[UserHub] Failed to leave group`, err);
+            }
+        },
+
+        /**
+         * Update total post count in profile header
+         */
+        updateProfilePostCount: function(accountId, delta) {
+            // Check if we are currently viewing the profile of this account
+            if (window.getProfileAccountId && typeof window.getProfileAccountId === 'function') {
+                const currentProfileId = window.getProfileAccountId();
+                if (currentProfileId && accountId && currentProfileId.toLowerCase() !== accountId.toLowerCase()) {
+                    return;
+                }
+            }
+
+            const countEl = document.getElementById("profile-posts-count");
+            if (countEl) {
+                const current = parseInt(countEl.textContent) || 0;
+                const newValue = Math.max(0, current + delta);
+                console.log(`📈 [UserHub] Updating profile post count: ${current} -> ${newValue}`);
+                
+                // Update text directly or via animation if available
+                if (window.animateValue && typeof window.animateValue === 'function') {
+                    window.animateValue(countEl, newValue);
+                } else {
+                    countEl.textContent = newValue;
+                }
+                
+                // Update ProfileState if it exists
+                if (window.ProfileState && typeof window.ProfileState.getPageData === 'function') {
+                    const data = window.ProfileState.getPageData();
+                    if (data) data.postCount = newValue;
+                }
             }
         }
     };

@@ -441,7 +441,11 @@ window.PostHub = {
   init: initPostHub,
   joinPostGroup,
   leavePostGroup,
+  animateValue, // Export globally for other hubs to use
 };
+
+// Also export animateValue directly for convenience
+window.animateValue = animateValue;
 
 // Auto-initialize when script loads (if SignalR library is available)
 if (typeof signalR !== "undefined") {

@@ -123,7 +123,7 @@ function renderProfilePreview(data) {
             <div class="profile-preview-medias">
                 ${data.recentPosts
                   .map((p) => `
-                    <div class="profile-preview-media-item" onclick="if(window.InteractionModule) window.InteractionModule.closeReactList(); if(window.openPostDetail) window.openPostDetail('${p.postId}'); hidePreview();">
+                    <div class="profile-preview-media-item" onclick="if(window.InteractionModule) window.InteractionModule.closeReactList(); if(window.openPostDetail) window.openPostDetail('${p.postId}', '${p.postCode || ''}'); hidePreview();">
                       <img src="${p.mediaUrl}" alt="post">
                     </div>
                   `)

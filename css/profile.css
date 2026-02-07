@@ -620,6 +620,7 @@
     height: 36px;
     border-radius: 50%;
     border: none;
+    background: transparent;
     color: var(--text-primary);
     cursor: pointer;
     display: flex;
@@ -627,6 +628,7 @@
     justify-content: center;
     transition: all 0.2s ease;
 }
+
 
 .bio-char-count {
     display: flex;

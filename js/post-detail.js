@@ -42,8 +42,26 @@ async function openPostDetail(postId, postCode = null) {
     if (mainLoader) mainLoader.style.display = "flex";
 
     try {
-        const res = await API.Posts.getById(postId);
-        if (!res.ok) throw new Error("Failed to load post");
+        // Prefer getByPostCode if available and valid, fallback to getById
+        const res = (postCode && postCode.trim() !== '')
+            ? await API.Posts.getByPostCode(postCode)
+            : await API.Posts.getById(postId);
+        
+        if (!res.ok) {
+            // Handle permission/not found errors gracefully
+            if (res.status === 403 || res.status === 404 || res.status === 400) {
+                if (window.toastInfo) toastInfo("This post is no longer available or you don't have permission to view it.");
+                // Hide post from UI (feed/profile grid)
+                if (window.PostUtils) PostUtils.hidePost(postId);
+                if (mainLoader) mainLoader.style.display = "none";
+                closePostDetailModal();
+                return;
+            }
+            if (mainLoader) mainLoader.style.display = "none";
+            closePostDetailModal();
+            return;
+        }
+
         
         const data = await res.json();
         
@@ -70,6 +88,7 @@ async function openPostDetail(postId, postCode = null) {
         console.error(err);
         closePostDetailModal();
     }
+
 }
 
 async function openPostDetailByCode(postCode) {
@@ -88,7 +107,21 @@ async function openPostDetailByCode(postCode) {
 
     try {
         const res = await API.Posts.getByPostCode(postCode);
-        if (!res.ok) throw new Error("Post not found");
+        if (!res.ok) {
+            if (mainLoader) mainLoader.style.display = "none";
+            // Handle permission/not found errors gracefully
+            if (res.status === 403 || res.status === 404 || res.status === 400) {
+                if (window.location.hash.startsWith("#/p/")) {
+                    window.showErrorPage("Post not found", "The post you are looking for doesn't exist or you don't have permission to view it.");
+                } else {
+                    if (window.toastInfo) toastInfo("This post is no longer available or you don't have permission to view it.");
+                    closePostDetailModal();
+                }
+                return;
+            }
+            closePostDetailModal();
+            return;
+        }
         
         const data = await res.json();
         currentPostId = data.postId;

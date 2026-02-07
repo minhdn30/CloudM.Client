@@ -85,6 +85,14 @@
     if (!feedContainer) return;
     
     posts.forEach((post) => {
+      const postEl = createPostElement(post);
+      feedContainer.appendChild(postEl);
+    });
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function createPostElement(post) {
       const postEl = document.createElement("div");
       postEl.className = "post";
       postEl.setAttribute("data-post-id", post.postId);
@@ -126,13 +134,13 @@
 
           <div class="post-caption"></div>
           
-          ${renderMedias(post.medias, post.postId)}
+          ${renderMedias(post.medias, post.postId, post.postCode)}
 
           <div class="post-actions">
             <div class="left">
               <div class="action-item react-btn"
-       data-post-id="${post.postId}"
-       data-reacted="${post.isReactedByCurrentUser}">
+        data-post-id="${post.postId}"
+        data-reacted="${post.isReactedByCurrentUser}">
        
     <i data-lucide="heart"
        class="react-icon ${post.isReactedByCurrentUser ? "reacted" : ""} hover-scale-sm">
@@ -156,8 +164,6 @@
           </div>
         `;
 
-      feedContainer.appendChild(postEl);
-      
       const mediaSlider = postEl.querySelector('.media-slider');
       if (mediaSlider) {
         const aspectRatio = getAspectRatioCSS(post.feedAspectRatio);
@@ -174,18 +180,32 @@
 
       const captionEl = postEl.querySelector(".post-caption");
       PostUtils.setupCaption(captionEl, post.content || "");
-    });
-
-    if (window.lucide) lucide.createIcons();
+      
+      return postEl;
   }
 
-  function renderMedias(medias, postId) {
+  function prependPostToFeed(post) {
+      if (!feedContainer) return;
+      
+      // Check if post already exists to avoid duplicates (e.g. from SignalR)
+      if (document.querySelector(`.post[data-post-id="${post.postId}"]` || `.post[data-post-id="${post.postId.toLowerCase()}"]`)) {
+          return;
+      }
+
+      const postEl = createPostElement(post);
+      postEl.classList.add("post-new-fade-in"); // Add animation class
+      feedContainer.prepend(postEl);
+      
+      if (window.lucide) lucide.createIcons();
+  }
+
+  function renderMedias(medias, postId, postCode) {
     if (!medias || medias.length === 0) return "";
 
     return `
       <div class="post-media">
         <div class="media-slider">
-          <div class="media-track" onclick="openPostDetail('${postId}')" style="cursor: pointer;">
+          <div class="media-track" onclick="openPostDetail('${postId}', '${postCode || ''}')" style="cursor: pointer;">
             ${medias
               .map((m) => {
                 if (m.type === 1) {
@@ -313,6 +333,7 @@
 
   // Expose initFeed
   window.initFeed = initFeed;
+  window.prependPostToFeed = prependPostToFeed;
 
   // React listener
   document.addEventListener("click", async (e) => {
