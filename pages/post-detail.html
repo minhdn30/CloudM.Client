@@ -1,6 +1,15 @@
 <!-- Post Detail Modal -->
 <div id="postDetailModal" class="modal-overlay">
     <div class="modal-backdrop" onclick="closePostDetailModal()"></div>
+    
+    <!-- Post Navigation Buttons (Profile only) -->
+    <button class="post-nav-btn prev" id="postNavPrev" onclick="navigateToPost('prev')" style="display: none;">
+        <i data-lucide="chevron-left"></i>
+    </button>
+    <button class="post-nav-btn next" id="postNavNext" onclick="navigateToPost('next')" style="display: none;">
+        <i data-lucide="chevron-right"></i>
+    </button>
+    
     <div class="modal-card post-detail-card">
         <!-- Main Loading Overlay -->
         <div id="detailMainLoader" class="loading-overlay" style="display: none;">
