@@ -9,16 +9,21 @@ const CommentModule = (function () {
   let commentHasNext = false;
   let isCommentsLoading = false;
   let currentPostOwnerId = null;
+  
+  // Race condition prevention: Request ID validation
+  let currentLoadRequestId = 0;
 
   /**
    * Initialize or reset comment state for a new post
    */
   function resetState() {
     commentPage = 1;
-    commentPage = 1;
     commentHasNext = false;
     isCommentsLoading = false;
     currentPostOwnerId = null;
+    
+    // Invalidate any in-flight requests
+    currentLoadRequestId++;
 
     // Clear DOM if exists
     const list = document.getElementById("detailCommentsList");
@@ -68,6 +73,9 @@ const CommentModule = (function () {
 
     isCommentsLoading = true;
     
+    // Capture request ID for race condition validation
+    const requestId = currentLoadRequestId;
+    
     if (page === 1) {
         showSkeletons(commentsList, 3);
     } else if (loader) {
@@ -76,6 +84,13 @@ const CommentModule = (function () {
 
     try {
       const res = await API.Comments.getByPostId(postId, page, commentPageSize);
+      
+      // RACE CONDITION FIX: Check if this request is still valid
+      if (requestId !== currentLoadRequestId) {
+        // Request is stale, another post was opened - ignore response
+        return;
+      }
+      
       if (res.status === 403) {
         PostUtils.hidePost(postId);
         return;
@@ -84,6 +99,9 @@ const CommentModule = (function () {
 
       const data = await res.json();
       const comments = data.items || [];
+
+      // Final check before rendering
+      if (requestId !== currentLoadRequestId) return;
 
       comments.forEach((comment) => {
         // Prevent duplicates (e.g. from SignalR)
@@ -103,11 +121,14 @@ const CommentModule = (function () {
     } catch (err) {
       console.error("Error loading comments:", err);
     } finally {
-      isCommentsLoading = false;
-      hideSkeletons(commentsList);
-      if (loader) loader.style.display = "none";
+      // Only update loading state if this request is still current
+      if (requestId === currentLoadRequestId) {
+        isCommentsLoading = false;
+        hideSkeletons(commentsList);
+        if (loader) loader.style.display = "none";
 
-      if (window.lucide) lucide.createIcons();
+        if (window.lucide) lucide.createIcons();
+      }
     }
   }
 
