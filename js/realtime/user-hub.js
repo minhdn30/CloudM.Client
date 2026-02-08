@@ -152,6 +152,57 @@
                 }
             });
 
+            // Listen for account settings updates
+            connection.on("ReceiveAccountSettingsUpdate", (settings) => {
+                console.log("⚙️ [UserHub] Settings updated:", settings);
+                
+                const accountId = settings.accountId || settings.AccountId;
+                const myId = localStorage.getItem("accountId");
+                const isMe = accountId && myId && accountId.toLowerCase() === myId.toLowerCase();
+
+                // 1. Update Profile Page if viewing this account
+                if (window.ProfilePage) {
+                    const currentProfileId = window.ProfilePage.getAccountId();
+                    if (currentProfileId && accountId && currentProfileId.toLowerCase() === accountId.toLowerCase()) {
+                        let currentProfileData = window.ProfilePage.getData();
+                        if (currentProfileData) {
+                            currentProfileData.settings = settings;
+                            
+                            // Re-apply visibility logic for phone/address if it's NOT me
+                            if (!isMe) {
+                                const isFollowed = currentProfileData?.followInfo?.isFollowedByCurrentUser ?? currentProfileData?.isFollowedByCurrentUser ?? false;
+                                const info = currentProfileData.accountInfo || currentProfileData.account;
+                                
+                                if (info) {
+                                    const phonePrivacy = settings.phonePrivacy ?? settings.PhonePrivacy ?? 0;
+                                    const addressPrivacy = settings.addressPrivacy ?? settings.AddressPrivacy ?? 0;
+
+                                    // Note: If we lose permission, the data (info.phone) might have been hidden previously.
+                                    // If we gain permission, we might need a refresh. But usually, if it's cached, we have it.
+                                    // Actually, if it was hidden by the server, real-time won't "unhide" it without a refresh 
+                                    // because the 'value' isn't in the 'settings' object, but the profile data itself.
+                                    // However, we can at least hide it immediately if privacy becomes stricter.
+                                    
+                                    const canSeePhone = phonePrivacy === 0 || (phonePrivacy === 1 && isFollowed);
+                                    if (!canSeePhone) info.phone = null;
+                                    
+                                    const canSeeAddress = addressPrivacy === 0 || (addressPrivacy === 1 && isFollowed);
+                                    if (!canSeeAddress) info.address = null;
+                                }
+                            }
+
+                            window.ProfilePage.setData(currentProfileData);
+                            window.ProfilePage.renderHeader();
+                        }
+                    }
+                }
+
+                // 2. Check Follow List permissions
+                if (window.FollowListModule && typeof FollowListModule.checkPermission === 'function') {
+                    FollowListModule.checkPermission(accountId, settings);
+                }
+            });
+
             // 3. Start connection
             try {
                 await connection.start();
