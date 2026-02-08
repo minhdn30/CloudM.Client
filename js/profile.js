@@ -76,7 +76,6 @@
              loadProfileData(true); 
              
              // Setup listeners again because DOM was replaced
-             setupTabListeners();
              setupEditProfileListeners();
              
              // Also need to join group
@@ -118,7 +117,6 @@
         resetState();
         loadProfileData();
         // setupScrollListener is now global
-        setupTabListeners();
         setupEditProfileListeners();
         setupFollowStatsListeners();
     }
@@ -475,6 +473,9 @@
             lucide.createIcons();
         }
 
+        // Render Tabs
+        renderProfileTabs(isOwner);
+
         // Auto-shrink font size for long usernames
         if (usernameHeader) {
             usernameHeader.style.fontSize = "32px"; // Reset
@@ -492,6 +493,76 @@
         
         if (window.lucide) lucide.createIcons();
     }
+
+    function renderProfileTabs(isOwner) {
+        const tabsContainer = document.getElementById("profile-tabs");
+        if (!tabsContainer) return;
+
+        let tabs = [
+            { id: 'posts', label: 'Posts', icon: 'grid' },
+            { id: 'reels', label: 'Reels', icon: 'clapperboard' },
+            { id: 'tagged', label: 'Tagged', icon: 'user-square' }
+        ];
+
+        if (isOwner) {
+            tabs.push({ id: 'saved', label: 'Saved', icon: 'bookmark' });
+        }
+
+        tabsContainer.innerHTML = tabs.map(tab => `
+            <div class="profile-tab ${tab.id === 'posts' ? 'active' : ''}" data-tab="${tab.id}" onclick="switchProfileTab('${tab.id}')">
+                <i data-lucide="${tab.icon}"></i>
+                <span>${tab.label}</span>
+            </div>
+        `).join('');
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    window.switchProfileTab = function(tabName) {
+        const grid = document.getElementById("profile-posts-grid");
+        const loader = document.getElementById("profile-posts-loader");
+        
+        // Update UI active state
+        document.querySelectorAll(".profile-tab").forEach(t => {
+            t.classList.toggle("active", t.dataset.tab === tabName);
+        });
+
+        if (tabName === "posts") {
+            // Restore posts grid
+            grid.innerHTML = "";
+            grid.classList.remove("placeholder-mode");
+            page = 1;
+            hasMore = true;
+            isLoading = false;
+            loadPosts();
+        } else {
+            // Show placeholder
+            const iconMap = {
+                reels: 'clapperboard',
+                tagged: 'user-square',
+                saved: 'bookmark'
+            };
+            const labels = {
+                reels: 'Reels',
+                tagged: 'Tagged',
+                saved: 'Saved'
+            };
+
+            grid.classList.add("placeholder-mode");
+            grid.innerHTML = `
+                <div class="profile-tab-placeholder">
+                    <div class="placeholder-icon-circle">
+                        <i data-lucide="${iconMap[tabName]}"></i>
+                    </div>
+                    <h2>${labels[tabName]} coming soon</h2>
+                    <p>We're working on ${labels[tabName].toLowerCase()} feature. It will be available in a future update.</p>
+                </div>
+            `;
+            if (loader) loader.style.display = "none";
+            hasMore = false;
+            if (window.lucide) lucide.createIcons();
+        }
+    };
 
     async function loadPosts() {
         if (isLoading || !hasMore) return;
@@ -709,17 +780,6 @@
         if (window.lucide) lucide.createIcons();
     }
 
-    // Tabs
-    function setupTabListeners() {
-        const tabs = document.querySelectorAll(".profile-tab-item");
-        tabs.forEach(tab => {
-            tab.onclick = () => {
-                tabs.forEach(t => t.classList.remove("active"));
-                tab.classList.add("active");
-                // TODO: Handle content switch (Posts, Reels, Saved, Tagged)
-            };
-        });
-    }
 
     // Edit Profile Modal logic
     let originalProfileData = {}; // Store original values for change detection

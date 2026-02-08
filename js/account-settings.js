@@ -29,6 +29,8 @@
         hasUnsavedChanges = false;
         originalSettings = null;
         
+        window.scrollTo(0, 0); // Reset scroll position for this page only
+        
         await loadCurrentSettings();
         setupToggleButtons();
         

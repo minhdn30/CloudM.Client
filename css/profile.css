@@ -1051,6 +1051,58 @@
     margin-top: 20px;
 }
 
+.profile-posts-grid.placeholder-mode {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    grid-template-columns: none;
+    text-align: center;
+}
+
+.profile-tab-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 60px 20px;
+    max-width: 400px;
+}
+
+.placeholder-icon-circle {
+    width: 80px;
+    height: 80px;
+    background: var(--bg-secondary);
+    border: 2.5px solid var(--text-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+}
+
+.placeholder-icon-circle i,
+.placeholder-icon-circle svg {
+    width: 32px;
+    height: 32px;
+    color: var(--text-primary);
+}
+
+.profile-tab-placeholder h2 {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.profile-tab-placeholder p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
 .profile-grid-item {
     position: relative;
     aspect-ratio: 1 / 1;

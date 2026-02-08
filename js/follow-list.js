@@ -34,6 +34,29 @@ const FollowListModule = (function () {
      * @param {string} type - 'followers' or 'following'
      */
     async function openFollowList(accountId, type = 'followers') {
+        // 1. Pre-check: Nếu đang xem profile của người này, kiểm tra quyền trước để tránh lag/flicker
+        if (window.ProfilePage && window.ProfilePage.getAccountId() === accountId) {
+            const data = window.ProfilePage.getData();
+            if (data && !data.isCurrentUser) {
+                const settings = data.settings;
+                const isFollowed = data.followInfo?.isFollowedByCurrentUser ?? false;
+                const privacy = type === 'followers' ? settings?.followerPrivacy : settings?.followingPrivacy;
+                
+                // 0: Public, 1: FollowOnly, 2: Private
+                let hasPermission = true;
+                if (privacy === 2) {
+                    hasPermission = false;
+                } else if (privacy === 1 && !isFollowed) {
+                    hasPermission = false;
+                }
+
+                if (!hasPermission) {
+                    if (window.toastError) toastError(`This account is private or you don't have permission to view this ${type} list`);
+                    return; // Thoát ngay, không mở modal, không khóa cuộn
+                }
+            }
+        }
+
         targetId = accountId;
         listType = type;
         currentPage = 1;
@@ -51,7 +74,7 @@ const FollowListModule = (function () {
             // Reset UI
             _resetUI();
             
-            // Show modal
+            // Show modal and lock scroll
             modal.classList.add("show");
             document.body.style.overflow = "hidden";
 
@@ -59,12 +82,14 @@ const FollowListModule = (function () {
             const titleEl = modal.querySelector(".modal-header h3 span");
             if (titleEl) titleEl.textContent = type.charAt(0).toUpperCase() + type.slice(1);
 
-            // Initial load
+            // Initial load (API call will still handle 403 as a fallback)
             await _loadData(1);
 
         } catch (error) {
             console.error(error);
             if (window.toastError) toastError("Could not load list");
+            // Đảm bảo mở lại cuộn nếu load lỗi
+            document.body.style.overflow = "";
         }
     }
 
@@ -304,7 +329,37 @@ const FollowListModule = (function () {
         openFollowList,
         closeFollowList,
         toggleSort: _toggleSort,
-        handleFollow
+        handleFollow,
+        getCurrentTargetId: () => targetId,
+        getCurrentListType: () => listType,
+        isModalOpen: () => {
+            const modal = document.getElementById(MODAL_ID);
+            return modal && modal.classList.contains("show");
+        },
+        checkPermission: function(accountId, settings) {
+            if (!this.isModalOpen() || targetId !== accountId) return;
+
+            const myId = localStorage.getItem("accountId");
+            if (accountId === myId) return; // Always keep open for owner
+
+            const privacy = listType === 'followers' ? settings.followerPrivacy : settings.followingPrivacy;
+            
+            // 0: Public, 1: FollowOnly, 2: Private
+            let hasPermission = true;
+            if (privacy === 2) {
+                hasPermission = false;
+            } else if (privacy === 1) {
+                // Check if current user is following the owner
+                const profileData = window.ProfilePage ? window.ProfilePage.getData() : null;
+                const isFollowed = profileData?.followInfo?.isFollowedByCurrentUser ?? false;
+                if (!isFollowed) hasPermission = false;
+            }
+
+            if (!hasPermission) {
+                if (window.toastError) toastError(`Permission changed. You can no longer view this ${listType} list.`);
+                closeFollowList();
+            }
+        }
     };
 })();
 
