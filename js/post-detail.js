@@ -2,6 +2,12 @@ const POST_DETAIL_MODAL_ID = "postDetailModal";
 let currentPostId = null;
 let currentPostCreatedAt = null;
 
+// Navigation context for profile post navigation (next/prev)
+let navigationContext = null; // { source, postList, currentIndex, accountId, hasMore }
+
+// Track state of all posts viewed during navigation session (for profile sync)
+let viewedPostsState = new Map(); // postId -> { reactCount, isReacted, commentCount, createdAt, fullContent, privacyVal }
+
 
 
 /* formatFullDateTime moved to shared/post-utils.js */
@@ -14,8 +20,10 @@ if (!window.PostEdit) {
 }
 
 // Open Modal
-// Open Modal
-async function openPostDetail(postId, postCode = null) {
+// navigateDirection: 'next' | 'prev' | null - used for auto-skip when post is invalid
+async function openPostDetail(postId, postCode = null, navContext = null, navigateDirection = null) {
+    // Store navigation context if provided (from profile grid)
+    navigationContext = navContext;
     // Capture the current safe hash before we mess with the URL
     // This allows us to restore exactly where the user was (Profile, Home, etc.)
     if (!window.location.hash.includes("/p/")) {
@@ -50,9 +58,47 @@ async function openPostDetail(postId, postCode = null) {
         if (!res.ok) {
             // Handle permission/not found errors gracefully
             if (res.status === 403 || res.status === 404 || res.status === 400) {
-                if (window.toastInfo) toastInfo("This post is no longer available or you don't have permission to view it.");
                 // Hide post from UI (feed/profile grid)
                 if (window.PostUtils) PostUtils.hidePost(postId);
+                
+                // AUTO-SKIP: If navigating from profile, try to skip to next/prev post
+                if (navigationContext && navigationContext.source === 'profile' && navigateDirection) {
+                    if (window.toastInfo) toastInfo("Post unavailable, skipping...");
+                    
+                    // Remove invalid post from list
+                    const invalidIndex = navigationContext.currentIndex;
+                    navigationContext.postList.splice(invalidIndex, 1);
+                    
+                    // Also remove from profile.js profilePostIds if possible
+                    if (window.removeProfilePostId) {
+                        window.removeProfilePostId(postId);
+                    }
+                    
+                    // Adjust currentIndex based on direction
+                    if (navigateDirection === 'prev') {
+                        // Going backwards: index stays same (next item shifted down)
+                        navigationContext.currentIndex = Math.max(0, invalidIndex - 1);
+                    } else {
+                        // Going forward: index stays same (we removed item, next item now at same index)
+                        // But if we're at end, go back
+                        if (invalidIndex >= navigationContext.postList.length) {
+                            navigationContext.currentIndex = navigationContext.postList.length - 1;
+                        }
+                    }
+                    
+                    // Try next post if list not empty
+                    if (navigationContext.postList.length > 0 && navigationContext.currentIndex >= 0) {
+                        const nextPost = navigationContext.postList[navigationContext.currentIndex];
+                        if (mainLoader) mainLoader.style.display = "none";
+                        // Recursively try next post
+                        openPostDetail(nextPost.postId, nextPost.postCode, navigationContext, navigateDirection);
+                        return;
+                    }
+                    
+                    // No more posts, close modal
+                    if (window.toastInfo) toastInfo("No more posts available");
+                }
+                
                 if (mainLoader) mainLoader.style.display = "none";
                 closePostDetailModal();
                 return;
@@ -82,6 +128,9 @@ async function openPostDetail(postId, postCode = null) {
         }
 
         if (window.PostHub) await window.PostHub.joinPostGroup(data.postId);
+
+        // Update navigation buttons if context exists
+        updateNavigationButtons();
 
     } catch (err) {
         if (mainLoader) mainLoader.style.display = "none";
@@ -290,34 +339,99 @@ function cancelDiscardComment() {
     }
 }
 
+// Captures the current post's state from the DOM and stores it in viewedPostsState
+function captureCurrentPostState() {
+    if (!currentPostId || !window.PostUtils || !window.PostUtils.syncPostFromDetail) return;
+
+    const likeIcon = document.getElementById("detailLikeIcon");
+    const likeCountEl = document.getElementById("detailLikeCount");
+    const commentCountEl = document.getElementById("detailCommentCount");
+    const captionTextEl = document.getElementById("detailCaptionText");
+    const timeEl = document.getElementById("detailTime");
+
+    if (likeIcon && likeCountEl && commentCountEl && timeEl) {
+        const isReacted = likeIcon.classList.contains("reacted");
+        const reactCount = likeCountEl.textContent;
+        const commentCount = commentCountEl.textContent;
+        const createdAt = timeEl.dataset.createdAt;
+        const fullContent = captionTextEl?.dataset.fullContent || captionTextEl?.textContent;
+
+        const privacyBadge = document.querySelector("#detailTime .privacy-selector");
+        let privacyVal = undefined;
+        if (privacyBadge) {
+            const title = privacyBadge.getAttribute("title");
+            if (title === "Public") privacyVal = 0;
+            else if (title.includes("Follower")) privacyVal = 1; // "Followers Only" or "Followers"
+            else if (title === "Private") privacyVal = 2;
+        }
+
+        viewedPostsState.set(currentPostId, {
+            reactCount,
+            isReacted,
+            commentCount,
+            createdAt,
+            fullContent,
+            privacyVal
+        });
+    }
+}
+
+// Syncs all captured post states to the profile grid
+function syncAllViewedPosts() {
+    if (!window.PostUtils || !window.PostUtils.syncPostFromDetail) return;
+
+    viewedPostsState.forEach((state, postId) => {
+        window.PostUtils.syncPostFromDetail(
+            postId,
+            state.reactCount,
+            state.isReacted,
+            state.commentCount,
+            state.createdAt,
+            state.fullContent,
+            state.privacyVal
+        );
+    });
+}
+
 // Actually perform the close action
 function performClosePostDetail() {
-    // Sync data back to Feed before closing
-    if (currentPostId && window.PostUtils && window.PostUtils.syncPostFromDetail) {
-        const likeIcon = document.getElementById("detailLikeIcon");
-        const likeCount = document.getElementById("detailLikeCount");
-        const commentCount = document.getElementById("detailCommentCount");
-        const captionText = document.getElementById("detailCaptionText");
-        
-        if (likeIcon && likeCount && commentCount) {
-             const isReacted = likeIcon.classList.contains("reacted");
-             const rCount = likeCount.textContent;
-             const cCount = commentCount.textContent;
-             
-             // Get content and privacy from DOM
-             const fullContent = captionText?.dataset.fullContent || captionText?.textContent;
-             const privacyBadge = document.querySelector("#detailTime .privacy-selector");
-             let privacyVal = undefined;
-             if (privacyBadge) {
-                 const title = privacyBadge.getAttribute("title");
-                 if (title === "Public") privacyVal = 0;
-                 else if (title.includes("Follower")) privacyVal = 1; // "Followers Only" or "Followers"
-                 else if (title === "Private") privacyVal = 2;
-             }
-             
-             window.PostUtils.syncPostFromDetail(currentPostId, rCount, isReacted, cCount, currentPostCreatedAt, fullContent, privacyVal);
+    // Capture current post state before closing
+    captureCurrentPostState();
+    
+    // Sync ALL viewed posts back to profile grid (if navigating from profile)
+    if (navigationContext && navigationContext.source === 'profile') {
+        syncAllViewedPosts();
+    } else {
+        // Fallback: sync single post for non-profile sources (newsfeed, etc)
+        if (currentPostId && window.PostUtils && window.PostUtils.syncPostFromDetail) {
+            const likeIcon = document.getElementById("detailLikeIcon");
+            const likeCount = document.getElementById("detailLikeCount");
+            const commentCount = document.getElementById("detailCommentCount");
+            const captionText = document.getElementById("detailCaptionText");
+            
+            if (likeIcon && likeCount && commentCount) {
+                 const isReacted = likeIcon.classList.contains("reacted");
+                 const rCount = likeCount.textContent;
+                 const cCount = commentCount.textContent;
+                 
+                 const fullContent = captionText?.dataset.fullContent || captionText?.textContent;
+                 const privacyBadge = document.querySelector("#detailTime .privacy-selector");
+                 let privacyVal = undefined;
+                 if (privacyBadge) {
+                     const title = privacyBadge.getAttribute("title");
+                     if (title === "Public") privacyVal = 0;
+                     else if (title.includes("Follower")) privacyVal = 1;
+                     else if (title === "Private") privacyVal = 2;
+                 }
+                 
+                 window.PostUtils.syncPostFromDetail(currentPostId, rCount, isReacted, cCount, currentPostCreatedAt, fullContent, privacyVal);
+            }
         }
     }
+    
+    // Clear navigation session data
+    viewedPostsState.clear();
+    navigationContext = null;
 
     const postIdToClean = currentPostId;
     currentPostId = null;
@@ -375,13 +489,127 @@ function forceClosePostDetail() {
 // Export for global access (needed by PostUtils)
 window.forceClosePostDetail = forceClosePostDetail;
 
+// ================= POST NAVIGATION (Profile Only) =================
+// Update visibility of navigation buttons based on context
+function updateNavigationButtons() {
+    const prevBtn = document.getElementById('postNavPrev');
+    const nextBtn = document.getElementById('postNavNext');
+    
+    // Hide both buttons if no navigation context or not from profile
+    if (!navigationContext || navigationContext.source !== 'profile') {
+        if (prevBtn) prevBtn.style.display = 'none';
+        if (nextBtn) nextBtn.style.display = 'none';
+        return;
+    }
+    
+    const { postList, currentIndex, hasMore } = navigationContext;
+    
+    // Show/hide based on position in list
+    if (prevBtn) {
+        prevBtn.style.display = currentIndex > 0 ? 'flex' : 'none';
+    }
+    if (nextBtn) {
+        // Show Next if: not at end of list OR there are more posts to load
+        const canGoNext = currentIndex < postList.length - 1 || hasMore;
+        nextBtn.style.display = canGoNext ? 'flex' : 'none';
+    }
+    
+    // Re-render icons
+    if (window.lucide) lucide.createIcons();
+}
+
+// Navigate to next or previous post
+async function navigateToPost(direction) {
+    if (!navigationContext || navigationContext.source !== 'profile') return;
+    
+    const { postList, currentIndex, hasMore } = navigationContext;
+    const newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+    
+    // Bounds check for previous
+    if (newIndex < 0) return;
+    
+    // If trying to go beyond loaded list but hasMore is true, load more first
+    if (newIndex >= postList.length) {
+        if (hasMore && window.loadMoreProfilePosts) {
+            // Load more posts and retry
+            const newPosts = await window.loadMoreProfilePosts();
+            if (newPosts && newPosts.length > 0) {
+                // postList is already updated inside loadMoreProfilePosts()
+                // (renderPosts pushes into profilePostIds). Just refresh reference.
+                navigationContext.postList = postList;
+                // Sync hasMore from profile state
+                if (window.getProfileHasMore) {
+                    navigationContext.hasMore = window.getProfileHasMore();
+                }
+                // Retry navigation
+                navigateToPost(direction);
+            } else {
+                // No more posts available, update hasMore
+                navigationContext.hasMore = false;
+                updateNavigationButtons();
+            }
+            return;
+        }
+        return; // No more posts to load
+    }
+    
+    // PRE-LOAD: When approaching end of current list (3 posts remaining), load more in background
+    const remainingPosts = postList.length - newIndex - 1;
+    if (remainingPosts <= 3 && hasMore && window.loadMoreProfilePosts) {
+        // Fire and forget - don't await
+        window.loadMoreProfilePosts().then(newPosts => {
+            if (newPosts && newPosts.length > 0) {
+                // postList already appended in profile state; just refresh reference
+                navigationContext.postList = postList;
+                if (window.getProfileHasMore) {
+                    navigationContext.hasMore = window.getProfileHasMore();
+                }
+                // Update buttons in case we're now at a different position
+                updateNavigationButtons();
+            }
+        });
+    }
+    
+    // Capture current post state BEFORE navigating away
+    captureCurrentPostState();
+    
+    // Clear comment input before navigating (skip discard confirmation)
+    const commentInput = document.getElementById('detailCommentInput');
+    const postBtn = document.getElementById('postCommentBtn');
+    if (commentInput) {
+        commentInput.value = '';
+        commentInput.style.height = 'auto';
+    }
+    if (postBtn) postBtn.disabled = true;
+    
+    // Also clear any inline reply inputs
+    document.querySelectorAll('.reply-input').forEach(input => {
+        input.value = '';
+    });
+    
+    // Update context
+    navigationContext.currentIndex = newIndex;
+    
+    // Get new post info
+    const newPost = postList[newIndex];
+    
+    // Open new post with updated context and direction for auto-skip
+    openPostDetail(newPost.postId, newPost.postCode, navigationContext, direction);
+}
+
+// Export for HTML onclick
+window.navigateToPost = navigateToPost;
+
 // Reset View
 function resetPostDetailView() {
+    // Hide navigation buttons on reset
+    const prevBtn = document.getElementById('postNavPrev');
+    const nextBtn = document.getElementById('postNavNext');
+    if (prevBtn) prevBtn.style.display = 'none';
+    if (nextBtn) nextBtn.style.display = 'none';
+    
     document.getElementById("detailAvatar").src = APP_CONFIG.DEFAULT_AVATAR;
     document.getElementById("detailUsername").textContent = "";
-    document.getElementById("detailSliderWrapper").innerHTML = "";
-    document.getElementById("detailSliderWrapper").innerHTML = "";
-    
     document.getElementById("detailSliderWrapper").innerHTML = "";
     
     // Clear Caption
@@ -801,5 +1029,25 @@ document.addEventListener('DOMContentLoaded', () => {
             '.emoji-trigger'
         );
     }
+    
+    // Keyboard navigation for post detail modal (Arrow keys)
+    document.addEventListener('keydown', (e) => {
+        // Only when modal is open and has navigation context
+        const modal = document.getElementById(POST_DETAIL_MODAL_ID);
+        if (!modal || !modal.classList.contains('show')) return;
+        if (!navigationContext || navigationContext.source !== 'profile') return;
+        
+        // Skip if user is typing in an input/textarea
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) return;
+        
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            navigateToPost('prev');
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            navigateToPost('next');
+        }
+    });
 });
 

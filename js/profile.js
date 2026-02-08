@@ -10,6 +10,9 @@
     let hasMore = true;
     const PAGE_SIZE = APP_CONFIG.PROFILE_POSTS_PAGE_SIZE;
 
+    // Post navigation: Store post IDs in grid order for next/prev navigation
+    let profilePostIds = [];
+
     let currentProfileData = null;
 
     // Permanent State Accessor for App Router
@@ -123,6 +126,7 @@
         page = 1;
         isLoading = false;
         hasMore = true;
+        profilePostIds = []; // Reset post navigation list
         // Clear grid immediately to avoid showing previous user's posts
         const grid = document.getElementById("profile-posts-grid");
         if (grid) grid.innerHTML = "";
@@ -545,13 +549,75 @@
         }
     }
 
+    /**
+     * Load more posts for modal navigation (called from post-detail.js)
+     * Returns array of new post objects with postId and postCode
+     */
+    async function loadMoreProfilePosts() {
+        if (isLoading || !hasMore) return [];
+        
+        const fetchForId = currentProfileId;
+        isLoading = true;
+
+        try {
+            const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fetchForId);
+            if (!isGuid) {
+                isLoading = false;
+                return [];
+            }
+
+            const res = await API.Posts.getByAccountId(fetchForId, page, PAGE_SIZE);
+            
+            if (fetchForId !== currentProfileId) return [];
+            if (!res.ok) throw new Error("Failed to load posts");
+
+            const data = await res.json();
+            const items = data.items || data;
+
+            if (!items || items.length < PAGE_SIZE) {
+                hasMore = false;
+            }
+            
+            // Render to grid (for visual consistency) and update profilePostIds
+            renderPosts(items);
+            page++;
+            
+            // Return the new posts for navigation context update
+            return items.map(post => ({ postId: post.postId, postCode: post.postCode }));
+        } catch (err) {
+            console.error(err);
+            return [];
+        } finally {
+            if (fetchForId === currentProfileId) {
+                isLoading = false;
+            }
+        }
+    }
+
+    // Export for post-detail.js navigation
+    window.loadMoreProfilePosts = loadMoreProfilePosts;
+    window.getProfileHasMore = () => hasMore;
+    
+    // Remove a post from the navigation list (called when post becomes invalid during navigation)
+    window.removeProfilePostId = function(postId) {
+        const index = profilePostIds.findIndex(p => p.postId === postId);
+        if (index !== -1) {
+            profilePostIds.splice(index, 1);
+        }
+    };
+
     function renderPosts(posts) {
         const grid = document.getElementById("profile-posts-grid");
         if (!grid) return;
 
-        if (page === 1) grid.innerHTML = "";
+        if (page === 1) {
+            grid.innerHTML = "";
+            profilePostIds = []; // Reset on first page
+        }
 
         posts.forEach(post => {
+            // Collect post IDs for navigation
+            profilePostIds.push({ postId: post.postId, postCode: post.postCode });
             const item = createGridItem(post);
             grid.appendChild(item);
         });
@@ -564,7 +630,18 @@
         item.className = "profile-grid-item skeleton"; 
         item.dataset.postId = post.postId;
         item.onclick = () => {
-            if (window.openPostDetail) window.openPostDetail(post.postId, post.postCode);
+            if (window.openPostDetail) {
+                // Find current index in the list
+                const index = profilePostIds.findIndex(p => p.postId === post.postId);
+                // Pass navigation context for next/prev functionality
+                window.openPostDetail(post.postId, post.postCode, {
+                    source: 'profile',
+                    postList: profilePostIds,
+                    currentIndex: index,
+                    accountId: currentProfileId,
+                    hasMore: hasMore
+                });
+            }
         };
 
         const isMulti = (post.mediaCount ?? (post.medias?.length ?? 0)) > 1;
@@ -620,6 +697,9 @@
         if (grid.querySelector(`[data-post-id="${post.postId}"]` || `[data-post-id="${post.postId.toLowerCase()}"]`)) {
             return;
         }
+
+        // Keep navigation list in sync (newest at top)
+        profilePostIds.unshift({ postId: post.postId, postCode: post.postCode });
 
         const item = createGridItem(post);
         item.classList.add("post-new-fade-in");
@@ -1320,9 +1400,12 @@
             const followersCountEl = document.getElementById("profile-followers-count");
             const followingCountEl = document.getElementById("profile-following-count");
             
-            if (window.PostUtils && typeof PostUtils.animateCount === 'function') {
+            if (window.animateValue && typeof window.animateValue === 'function') {
+                if (followers !== undefined && followersCountEl) window.animateValue(followersCountEl, followers);
+                if (following !== undefined && followingCountEl) window.animateValue(followingCountEl, following);
+            } else if (window.PostUtils && typeof PostUtils.animateCount === 'function') {
                 if (followers !== undefined && followersCountEl) PostUtils.animateCount(followersCountEl, followers);
-                 if (following !== undefined && followingCountEl) PostUtils.animateCount(followingCountEl, following);
+                if (following !== undefined && followingCountEl) PostUtils.animateCount(followingCountEl, following);
             } else {
                 // Fallback
                 if (followers !== undefined && followersCountEl) followersCountEl.textContent = followers;

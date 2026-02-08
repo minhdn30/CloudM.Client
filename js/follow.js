@@ -237,10 +237,15 @@
                  const previewEl = document.querySelector(".profile-preview");
                  if (previewEl) {
                      const statNums = previewEl.querySelectorAll(".profile-preview-stats b");
-                     if (statNums.length >= 3) {
-                         if (followers !== undefined) PostUtils.animateCount(statNums[1], followers);
-                         if (following !== undefined) PostUtils.animateCount(statNums[2], following);
-                     }
+                      if (statNums.length >= 3) {
+                          if (window.animateValue && typeof window.animateValue === 'function') {
+                              if (followers !== undefined) window.animateValue(statNums[1], followers);
+                              if (following !== undefined) window.animateValue(statNums[2], following);
+                          } else {
+                              if (followers !== undefined) PostUtils.animateCount(statNums[1], followers);
+                              if (following !== undefined) PostUtils.animateCount(statNums[2], following);
+                          }
+                      }
                  }
              }
         }
