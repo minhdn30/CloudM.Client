@@ -1,6 +1,6 @@
 .feed {
   max-width: 600px;
-  margin: 0 auto;
+  margin: 0; /* Bỏ căn giữa để bám theo lề trái của container cha */
 }
 
 /* Realtime update animations (Sliding Counter) */

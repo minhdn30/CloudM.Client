@@ -2,8 +2,8 @@
 .profile-container {
     margin: 0 !important;
     padding: 0 !important;
-    margin-left: 72px !important; /* Dành chỗ cho sidebar cố định */
-    width: calc(100% - 72px) !important;
+    margin-left: 12px !important; /* Dành chỗ cho sidebar cố định */
+    width: calc(100% - 12px) !important;
     display: flex !important;
     justify-content: center !important;
     align-items: flex-start !important;
