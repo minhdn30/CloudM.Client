@@ -1,0 +1,43 @@
+<div class="chat-page-container">
+    <!-- Main Chat Area -->
+    <div class="chat-main" id="chat-main-area">
+        <!-- Chat View -->
+        <div class="chat-view" id="chat-view">
+            <div class="chat-view-header">
+                <div class="chat-view-user">
+                    <div class="chat-view-avatar">
+                        <img src="" alt="" id="chat-view-img">
+                        <div class="chat-view-status hidden" id="chat-view-status-dot"></div>
+                    </div>
+                    <div class="chat-view-info">
+                        <div class="chat-view-name" id="chat-view-name"></div>
+                        <div class="chat-view-status-text" id="chat-view-status-text"></div>
+                    </div>
+                </div>
+                <div class="chat-view-actions">
+                    <button class="chat-icon-btn"><i data-lucide="phone"></i></button>
+                    <button class="chat-icon-btn"><i data-lucide="video"></i></button>
+                    <button class="chat-icon-btn"><i data-lucide="info"></i></button>
+                </div>
+            </div>
+
+            <div class="chat-view-messages" id="chat-view-messages">
+                <!-- Messages load here -->
+            </div>
+
+            <div class="chat-view-input-container">
+                <div class="chat-view-input-actions">
+                    <button class="chat-icon-btn"><i data-lucide="smile"></i></button>
+                    <button class="chat-icon-btn"><i data-lucide="image"></i></button>
+                    <button class="chat-icon-btn"><i data-lucide="paperclip"></i></button>
+                </div>
+                <div class="chat-view-input-wrapper">
+                    <textarea id="chat-message-input" placeholder="Message..." rows="1"></textarea>
+                </div>
+                <button class="chat-send-btn" id="chat-page-send-btn" disabled>
+                    <i data-lucide="send"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

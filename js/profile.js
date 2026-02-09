@@ -169,7 +169,7 @@
         loadProfileData(true);
         
         // Also ensure listeners are setup (just in case)
-        setupTabListeners();
+        setupFollowStatsListeners();
         setupEditProfileListeners();
         
         // And ensure Group join
@@ -1330,7 +1330,11 @@
     };
 
     global.openMessage = function(accountId) {
-        if (window.toastInfo) toastInfo("Messaging feature coming soon!");
+        if (window.ChatWindow) {
+            ChatWindow.openByAccountId(accountId);
+        } else {
+            if (window.toastInfo) toastInfo("Messaging feature is loading...");
+        }
     };
 
 

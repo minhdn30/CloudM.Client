@@ -123,6 +123,23 @@
     };
 
     /**
+     * Format time for chat separators (e.g. "13:58 19/12/23")
+     * @param {string|Date} dateVal 
+     */
+    PostUtils.formatChatSeparatorTime = function(dateVal) {
+        const date = new Date(dateVal);
+        const pad = (num) => num.toString().padStart(2, '0');
+        
+        const HH = pad(date.getHours());
+        const mm = pad(date.getMinutes());
+        const DD = pad(date.getDate());
+        const MM = pad(date.getMonth() + 1);
+        const YY = date.getFullYear().toString().slice(-2);
+
+        return `${HH}:${mm} ${DD}/${MM}/${YY}`;
+    };
+
+    /**
      * Setup caption truncation with more/less toggle
      * @param {HTMLElement} el - The caption text element
      * @param {string} fullContent - Full caption text

@@ -445,8 +445,12 @@ window.viewProfile = viewProfile;
 
 /* ===== Open Chat ===== */
 function openChat(userId) {
-  // TODO: Open chat with user
-  console.log("Open chat with:", userId);
+  if (window.ChatWindow) {
+    ChatWindow.openByAccountId(userId);
+    hidePreview();
+  } else {
+    console.warn("ChatWindow not initialized");
+  }
 }
 
 // Expose currentAccountId for external checks (e.g. from follow.js)

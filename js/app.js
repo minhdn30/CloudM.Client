@@ -52,6 +52,9 @@ function closeAllOverlayModals() {
           window.FollowListModule.closeFollowList();
       }
   }
+  if (window.closeChatSidebar && !window.location.hash.startsWith('#/messages')) {
+      window.closeChatSidebar();
+  }
   
   document.body.style.overflow = "";
 }
@@ -194,7 +197,7 @@ function router() {
       break;
 
     case "/messages":
-      loadPlaceholder("Messages", "send");
+      loadChatPage();
       break;
 
     case "/notifications":
@@ -254,6 +257,13 @@ async function loadProfilePage() {
     await loadPage("profile");
     if (window.initProfilePage) {
         window.initProfilePage();
+    }
+}
+
+async function loadChatPage() {
+    await loadPage("chat-page");
+    if (window.initChatPage) {
+        window.initChatPage();
     }
 }
 

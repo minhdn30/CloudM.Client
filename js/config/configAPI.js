@@ -310,6 +310,26 @@
         return apiFetch(url);
       },
     },
+
+    Conversations: {
+      getConversations: (isPrivate, search, page = 1, pageSize = window.APP_CONFIG?.CONVERSATIONS_PAGE_SIZE || 20) => {
+        let url = `/Conversations?page=${page}&pageSize=${pageSize}`;
+        if (isPrivate !== undefined && isPrivate !== null) url += `&isPrivate=${isPrivate}`;
+        if (search) url += `&search=${encodeURIComponent(search)}`;
+        return apiFetch(url);
+      },
+      getById: (conversationId) => apiFetch(`/Conversations/${conversationId}`),
+      getMessages: (conversationId, page = 1, pageSize = window.APP_CONFIG?.CHATPAGE_MESSAGES_PAGE_SIZE || 20) => 
+        apiFetch(`/Conversations/${conversationId}/messages?page=${page}&pageSize=${pageSize}`),
+      getPrivateWithMessages: (otherId, page = 1, pageSize = window.APP_CONFIG?.CHATPAGE_MESSAGES_PAGE_SIZE || 20) =>
+        apiFetch(`/Conversations/private/${otherId}?page=${page}&pageSize=${pageSize}`),
+      deleteHistory: (conversationId) => apiFetch(`/Conversations/${conversationId}/history`, { method: "DELETE" }),
+    },
+
+    Messages: {
+      sendPrivate: (formData, onProgress) => 
+        uploadFormDataWithProgress("/Messages/private-chat", formData, onProgress),
+    },
   };
 
   // Global Reactivation Handler
