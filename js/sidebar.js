@@ -58,6 +58,7 @@ async function loadSidebar() {
 
 // THÊM MỚI: Tự động collapse sidebar khi chuột rời khỏi
 function setupAutoClose() {
+  const sidebarContainer = document.getElementById("sidebar");
   const sidebar = document.querySelector(".sidebar");
 
   sidebar.addEventListener("mouseleave", () => {
@@ -75,12 +76,14 @@ function setupAutoClose() {
     // Nếu không, cho phép sidebar tự thu gọn (CSS hover sẽ xử lý)
     if (!hasOpenPopup) {
       sidebar.classList.remove("expanded");
+      sidebarContainer?.classList.remove("expanded");
     }
   });
 }
 
 // THÊM MỚI: Hàm đóng tất cả dropdown và collapse sidebar
 function closeAllDropdowns() {
+  const sidebarContainer = document.getElementById("sidebar");
   const sidebar = document.querySelector(".sidebar");
   const moreDropdown = document.getElementById("moreDropdown");
   const settingsDropdown = document.getElementById("settingsDropdown");
@@ -90,6 +93,7 @@ function closeAllDropdowns() {
   settingsDropdown?.classList.remove("show");
   createDropdown?.classList.remove("show");
   sidebar?.classList.remove("expanded");
+  sidebarContainer?.classList.remove("expanded");
 }
 
 function toggleMoreMenu(e) {
@@ -112,9 +116,11 @@ function toggleMoreMenu(e) {
     void moreDropdown.offsetWidth; // Force reflow to restart animation
     moreDropdown.classList.add("show");
     sidebar.classList.add("expanded");
+    document.getElementById("sidebar")?.classList.add("expanded");
   } else {
     moreDropdown.classList.remove("show");
     sidebar.classList.remove("expanded");
+    document.getElementById("sidebar")?.classList.remove("expanded");
   }
 }
 
@@ -134,6 +140,7 @@ function toggleSettingsMenu(e) {
 
   // Keep sidebar expanded
   sidebar.classList.add("expanded");
+  document.getElementById("sidebar")?.classList.add("expanded");
 
   // Recreate icons for the settings menu
   lucide.createIcons();
@@ -178,9 +185,11 @@ function toggleCreateMenu(e) {
     void createDropdown.offsetWidth; // Force reflow to restart animation
     createDropdown.classList.add("show");
     sidebar.classList.add("expanded");
+    document.getElementById("sidebar")?.classList.add("expanded");
   } else {
     createDropdown.classList.remove("show");
     sidebar.classList.remove("expanded");
+    document.getElementById("sidebar")?.classList.remove("expanded");
   }
 
   // Recreate icons
@@ -271,6 +280,13 @@ function navigate(e, route, clickedEl = null) {
   if (route === "/create/post") {
       e.preventDefault();
       if (window.openCreatePostModal) openCreatePostModal();
+      closeAllDropdowns();
+      return;
+  }
+
+  if (route === "/messages") {
+      e.preventDefault();
+      if (window.toggleChatSidebar) window.toggleChatSidebar();
       closeAllDropdowns();
       return;
   }

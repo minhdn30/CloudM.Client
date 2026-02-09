@@ -29,6 +29,10 @@
   width: 260px;
 }
 
+/* .sidebar.compact has been removed to allow normal expansion */
+
+
+
 /* ================= LOGO ================= */
 .sidebar-logo {
   display: flex;
@@ -44,6 +48,7 @@
 .sidebar:hover .sidebar-logo,
 .sidebar.expanded .sidebar-logo {
   justify-content: flex-start;
+  padding-left: 12px; /* Perfectly aligned with menu items */
 }
 
 .logo-icon {
@@ -150,6 +155,15 @@
 }
 
 /* ================= PROFILE ================= */
+.menu-item.profile {
+    padding-left: 12px;
+}
+
+.sidebar:hover .menu-item.profile,
+.sidebar.expanded .menu-item.profile {
+    padding-left: 12px; /* Keep consistent with other icons */
+}
+
 .menu-item.profile img {
   width: 28px;
   height: 28px;

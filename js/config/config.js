@@ -20,4 +20,7 @@ window.APP_CONFIG = {
   MAX_PROFILE_PHONE_LENGTH: 15, // Số ký tự tối đa cho Phone
   MAX_PROFILE_ADDRESS_LENGTH: 100, // Số ký tự tối đa cho Address
   FOLLOW_LIST_PAGE_SIZE: 15, // Số lượng người trong danh sách followers/following load mỗi lần
+  CONVERSATIONS_PAGE_SIZE: 20, // Số lượng cuộc trò chuyện load mỗi lần
+  CHATPAGE_MESSAGES_PAGE_SIZE: 20, // Số lượng tin nhắn load mỗi lần tại trang Chat Page
+  CHATWINDOW_MESSAGES_PAGE_SIZE: 10, // Số lượng tin nhắn load mỗi lần tại cửa sổ Chat nhỏ (Floating)
 };
