@@ -62,7 +62,7 @@ const InteractionModule = (function () {
 
             // 3. Show modal and reset list
             modal.classList.add("show");
-            document.body.style.overflow = "hidden";
+            if (window.lockScroll) lockScroll();
             
             const listContainer = document.getElementById("interactionList");
             if (listContainer) listContainer.innerHTML = "";
@@ -328,7 +328,7 @@ const InteractionModule = (function () {
             syncCountToUI();
             
             modal.classList.remove("show");
-            document.body.style.overflow = "";
+            if (window.unlockScroll) unlockScroll();
             targetId = null;
         }
     }

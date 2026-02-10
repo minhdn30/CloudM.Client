@@ -244,10 +244,14 @@ const ChatSidebar = {
 
     openConversation(id) {
         const targetHash = `#/messages?id=${id}`;
-        if (window.location.hash !== targetHash) window.location.hash = targetHash;
-
-        if (window.ChatPage && typeof window.ChatPage.selectConversation === 'function') {
-            window.ChatPage.selectConversation(id);
+        if (window.location.hash !== targetHash) {
+            window.location.hash = targetHash;
+            // The router (app.js) will handle the navigation/update
+        } else {
+            // Already on this specific conversation hash, just ensure UI is updated
+            if (window.ChatPage && typeof window.ChatPage.selectConversation === 'function') {
+                window.ChatPage.selectConversation(id);
+            }
         }
     }
 };

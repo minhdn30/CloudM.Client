@@ -16,6 +16,48 @@ body {
     background var(--transition-slow),
     color var(--transition-slow);
 }
+
+/* ================= GLOBAL SCROLLBAR ================= */
+/* Hide native html/body scrollbar (Windows forces arrows on it) */
+html, body {
+  overflow: hidden;
+  height: 100%;
+  margin: 0;
+}
+
+/* Let #app handle scrolling — div scrollbars fully support custom styling */
+.main-content {
+  height: 100vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-primary) transparent;
+}
+
+.main-content::-webkit-scrollbar {
+  width: 6px;
+  cursor: pointer;
+}
+
+.main-content::-webkit-scrollbar-track {
+  background: transparent;
+  cursor: pointer;
+}
+
+.main-content::-webkit-scrollbar-thumb {
+  background: var(--accent-primary);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.main-content::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-hover);
+}
+
+.main-content::-webkit-scrollbar-thumb:active {
+  background: var(--accent-hover);
+}
+
 /* ================= GLOBAL UPLOAD OVERLAY (Instagram Style) ================= */
 .global-upload-overlay {
   position: fixed;

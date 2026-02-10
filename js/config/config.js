@@ -23,4 +23,5 @@ window.APP_CONFIG = {
   CONVERSATIONS_PAGE_SIZE: 20, // Số lượng cuộc trò chuyện load mỗi lần
   CHATPAGE_MESSAGES_PAGE_SIZE: 20, // Số lượng tin nhắn load mỗi lần tại trang Chat Page
   CHATWINDOW_MESSAGES_PAGE_SIZE: 10, // Số lượng tin nhắn load mỗi lần tại cửa sổ Chat nhỏ (Floating)
+  MAX_CHAT_MESSAGE_LENGTH: 1000, // Số ký tự tối đa cho mỗi tin nhắn chat
 };

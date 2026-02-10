@@ -8,6 +8,21 @@ if (window.APP_CONFIG) {
 }
 
 /* =========================
+   SCROLL HELPERS
+   ========================= */
+function lockScroll() {
+  const mc = document.querySelector('.main-content');
+  if (mc) mc.style.overflow = "hidden";
+}
+window.lockScroll = lockScroll;
+
+function unlockScroll() {
+  const mc = document.querySelector('.main-content');
+  if (mc) mc.style.overflow = "auto";
+}
+window.unlockScroll = unlockScroll;
+
+/* =========================
    ROUTER
    ========================= */
 async function loadPage(pageName) {
@@ -20,25 +35,31 @@ async function loadPage(pageName) {
 }
 
 function closeAllOverlayModals() {
-  if (window.closePostDetailModal) {
-      const modal = document.getElementById("postDetailModal");
-      if (modal && modal.classList.contains("show")) {
-          if (window.forceClosePostDetail) window.forceClosePostDetail();
-          else window.closePostDetailModal();
+  // Post Detail
+  const postDetailModal = document.getElementById("postDetailModal");
+  if (postDetailModal && postDetailModal.classList.contains("show")) {
+      if (typeof window.closePostDetailModal === 'function') {
+          window.closePostDetailModal();
+      } else {
+          postDetailModal.classList.remove("show");
       }
   }
 
+  // Profile Preview
   if (typeof hidePreview === 'function') hidePreview();
   else {
       const previewEl = document.getElementById("profile-preview");
       if (previewEl) previewEl.classList.add("hidden");
   }
 
+  // Create Post
   const createModal = document.getElementById("createPostModal");
   if (createModal && createModal.classList.contains("show")) {
        if (window.closeCreatePostModal) window.closeCreatePostModal();
+       else createModal.classList.remove("show");
   }
 
+  // React List
   if (window.InteractionModule && typeof window.InteractionModule.closeReactList === 'function') {
       const interactModal = document.getElementById("interactionModal");
       if (interactModal && interactModal.classList.contains("show")) {
@@ -46,22 +67,26 @@ function closeAllOverlayModals() {
       }
   }
 
+  // Follow List
   if (window.FollowListModule && typeof window.FollowListModule.closeFollowList === 'function') {
       const followModal = document.getElementById("followListModal");
       if (followModal && followModal.classList.contains("show")) {
           window.FollowListModule.closeFollowList();
       }
   }
+
+  // Chat Sidebar
   if (window.closeChatSidebar && !window.location.hash.startsWith('#/messages')) {
       window.closeChatSidebar();
   }
   
-  document.body.style.overflow = "";
+  unlockScroll();
 }
 window.closeAllOverlayModals = closeAllOverlayModals;
 
 function getCacheKey(hash) {
     if (!hash || hash === "#/" || hash === "#/home") return "home";
+    if (hash.startsWith("#/messages")) return "#/messages";
     return hash;
 }
 
@@ -71,9 +96,6 @@ function router() {
   const hash = window.location.hash || "#/";
   const path = hash.slice(1).split("?")[0];
   
-  // Track Safe History (Non-Modal Pages)
-  // Only update if it's NOT a post URL. 
-  // If we are navigating TO a post, we want to keep the OLD hash as the safe one.
   if (!path.startsWith("/p/")) {
       window._lastSafeHash = hash;
   }
@@ -81,27 +103,21 @@ function router() {
   const prevKey = getCacheKey(lastHash);
   const nextKey = getCacheKey(hash);
 
-  // 1. Save previous page state
   if (lastHash && prevKey !== nextKey) {
-      // SKIP SAVING for account-settings to ensure it always resets
       if (prevKey !== "#/account-settings") {
           const pageData = window.getPageData ? window.getPageData() : null;
           PageCache.save(prevKey, app, pageData);
       }
   }
 
-  // 2. Clear current hooks for next page
   window.getPageData = null;
   window.setPageData = null;
 
-  // 3. Update tracking
   lastHash = hash;
 
-  // 4. Close Overlays
+  // IMPORTANT: Close overlays first, which calls unlockScroll()
   closeAllOverlayModals();
 
-  // SPECIAL RULE: Do not cache/restore other people's profiles. 
-  // Always force fresh load (reset scroll) for them. Keep cache only for MY profile.
   if (path.startsWith("/profile")) {
       const myId = localStorage.getItem("accountId");
       const myUsername = localStorage.getItem("username");
@@ -115,38 +131,35 @@ function router() {
           targetId = hash.split("/profile/")[1].split("?")[0];
       }
 
-      // If targetId exists (not empty) and is different from myId AND myUsername -> Update Strategy: CLEAR CACHE
       const isMe = !targetId || 
                    (myId && targetId.toLowerCase() === myId.toLowerCase()) || 
                    (myUsername && targetId.toLowerCase() === myUsername.toLowerCase());
 
       if (!isMe) {
-          // console.log("[Router] Clearing cache for foreign profile to reset scroll");
           PageCache.clear(nextKey);
       }
   }
 
-  // 5. Try Restore
   if (PageCache.has(nextKey)) {
+      if (prevKey === nextKey) {
+          if (path === "/messages" && window.ChatPage && typeof window.ChatPage.handleUrlNavigation === 'function') {
+              window.ChatPage.handleUrlNavigation();
+          }
+          setActiveSidebar(path);
+          return;
+      }
+
       const cached = PageCache.get(nextKey);
       
-      // CRITICAL FIX: Restore JS state data BEFORE restoring DOM.
-      // Restoring DOM triggers scroll events immediately, so state (currentProfileId) MUST be ready.
-      
-      // For Profile page, rely on the Permanent State Accessor because global hooks are cleared
       if (path.startsWith("/profile") && window.ProfileState && cached.data) {
           window.ProfileState.setPageData(cached.data);
       } 
-      // Fallback for other pages or if setPageData is somehow available
       else if (window.setPageData && cached.data) {
           window.setPageData(cached.data);
       }
       
-      // RESTORE DOM (PageCache.restore handles clearing and appending correctly)
       PageCache.restore(nextKey, app);
       
-      // One thing missing: Silent Update (fetching new stats).
-      // Profile.js has no way to know it was restored unless we tell it.
       if (path.startsWith("/profile") && window.triggerProfileSilentUpdate) {
           window.triggerProfileSilentUpdate();
       }
@@ -155,9 +168,9 @@ function router() {
       return;
   }
 
-  // 6. Fresh Load
-  app.innerHTML = "";
-  window.scrollTo(0, 0);
+  app.innerHTML = '<div class="page-loader-container"><div class="spinner spinner-large"></div></div>';
+  const mc = document.querySelector('.main-content');
+  if (mc) mc.scrollTop = 0;
   
   if (path.startsWith("/profile")) {
       loadProfilePage();
@@ -168,7 +181,6 @@ function router() {
   if (path.startsWith("/p/")) {
       const postCode = path.split("/p/")[1];
       if (postCode) {
-          // Open Home background if coming from direct link
           loadHome().then(() => {
               if (window.openPostDetailByCode) {
                   window.openPostDetailByCode(postCode);
@@ -216,7 +228,7 @@ function router() {
 }
 
 async function showErrorPage(title, message) {
-    app.innerHTML = ""; // Clear current
+    app.innerHTML = ""; 
     await loadPage("error");
     
     const titleEl = document.getElementById("error-title");
@@ -246,14 +258,6 @@ function loadPlaceholder(title, iconName) {
 }
 
 async function loadProfilePage() {
-    const hash = window.location.hash;
-    const key = getCacheKey(hash);
-
-    // REMOVED: Do not clear cache here, let initProfilePage handle restore & silent update
-    // if (hash === "#/profile" || hash === "#/profile/") {
-    //     PageCache.clear(key);
-    // }
-
     await loadPage("profile");
     if (window.initProfilePage) {
         window.initProfilePage();
@@ -287,21 +291,17 @@ window.reloadHome = reloadPage;
 window.addEventListener("hashchange", router);
 window.addEventListener("DOMContentLoaded", router);
 
-// CAPTURE SCROLL BEFORE NAVIGATION
-// This prevents the browser from resetting scroll to 0 during hashchange before we can save it.
 document.addEventListener("click", (e) => {
-    // Find closest anchor tag
     const link = e.target.closest("a");
     if (link) {
         const href = link.getAttribute("href");
-        // Only snapshot for internal hash links
         if (href && href.startsWith("#")) {
              if (window.PageCache && typeof window.PageCache.snapshot === 'function') {
-                 window.PageCache.snapshot();
+                  window.PageCache.snapshot();
              }
         }
     }
-}, true); // Use capture phase to run before other handlers
+}, true);
 
 /* =========================
    LOGOUT
@@ -315,7 +315,6 @@ function clearSessionAndRedirect() {
   window.location.href = "auth.html";
 }
 
-// Global logout function callable from sidebar or elsewhere
 window.logout = function() {
     clearSessionAndRedirect();
 };

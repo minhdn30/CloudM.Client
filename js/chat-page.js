@@ -9,9 +9,15 @@ const ChatPage = {
     isLoading: false,
     hasMore: true,
     pageSize: window.APP_CONFIG?.CHATPAGE_MESSAGES_PAGE_SIZE || 20,
+    currentMetaData: null,
 
     async init() {
         console.log("ChatPage initialized");
+        this.currentChatId = null; // Important: reset state on new DOM init
+        this.page = 1;
+        this.hasMore = true;
+        this.isLoading = false;
+        
         this.cacheElements();
         this.attachEventListeners();
         this.initScrollListener();
@@ -27,12 +33,22 @@ const ChatPage = {
     attachEventListeners() {
         const input = document.getElementById('chat-message-input');
         if (input) {
+            // Set max length from config
+            const maxLen = window.APP_CONFIG?.MAX_CHAT_MESSAGE_LENGTH || 1000;
+            input.setAttribute('maxlength', maxLen);
+
             input.addEventListener('input', () => {
                 input.style.height = 'auto';
                 input.style.height = (input.scrollHeight) + 'px';
                 
+                const container = document.querySelector('.chat-view-input-container');
+                const hasContent = input.value.trim().length > 0;
+                if (container) {
+                    container.classList.toggle('has-content', hasContent);
+                }
+                
                 const sendBtn = document.getElementById('chat-page-send-btn');
-                sendBtn.disabled = input.value.trim().length === 0;
+                if (sendBtn) sendBtn.disabled = !hasContent;
             });
             
             input.addEventListener('keydown', (e) => {
@@ -46,6 +62,23 @@ const ChatPage = {
         const sendBtn = document.getElementById('chat-page-send-btn');
         if (sendBtn) {
             sendBtn.onclick = () => this.sendMessage();
+        }
+
+        // Toggle actions menu on click (+)
+        const toggleBtn = document.querySelector('.chat-toggle-actions');
+        const expansion = document.querySelector('.chat-input-expansion');
+        if (toggleBtn && expansion) {
+            toggleBtn.onclick = (e) => {
+                e.stopPropagation();
+                expansion.classList.toggle('is-show');
+            };
+
+            // Close menu when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!expansion.contains(e.target)) {
+                    expansion.classList.remove('is-show');
+                }
+            });
         }
     },
 
@@ -107,8 +140,13 @@ const ChatPage = {
         const statusText = document.getElementById('chat-view-status-text');
         const statusDot = document.getElementById('chat-view-status-dot');
 
-        if (img) img.src = ChatCommon.getAvatar(meta);
-        if (nameEl) nameEl.innerText = ChatCommon.getDisplayName(meta);
+        if (img) {
+            const avatarUrl = ChatCommon.getAvatar(meta);
+            img.src = avatarUrl;
+            // Ensure image is visible or use default if load fails
+            img.onerror = () => { img.src = window.APP_CONFIG?.DEFAULT_AVATAR; };
+        }
+        if (nameEl) nameEl.innerText = ChatCommon.getDisplayName(meta) || 'Chat';
         
         if (statusText) {
             if (!meta.isGroup && meta.otherMember) {
@@ -139,7 +177,7 @@ const ChatPage = {
         const oldScrollHeight = msgContainer.scrollHeight;
 
         if (!isLoadMore) {
-            msgContainer.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-tertiary);">Loading messages...</div>';
+            msgContainer.innerHTML = '<div class="chat-messages-loader"><div class="spinner spinner-large"></div></div>';
         }
 
         try {
@@ -168,11 +206,14 @@ const ChatPage = {
                 
                 if (isLoadMore) {
                     msgContainer.insertAdjacentHTML('afterbegin', html);
-                    // Maintain scroll position after prepending items
-                    msgContainer.scrollTop = msgContainer.scrollHeight - oldScrollHeight;
+                    requestAnimationFrame(() => {
+                        msgContainer.scrollTop = msgContainer.scrollHeight - oldScrollHeight;
+                    });
                 } else {
                     msgContainer.innerHTML = html;
-                    msgContainer.scrollTop = msgContainer.scrollHeight;
+                    requestAnimationFrame(() => {
+                        msgContainer.scrollTop = msgContainer.scrollHeight;
+                    });
                 }
 
                 this.page++;
@@ -188,23 +229,33 @@ const ChatPage = {
     renderMessageList(messages, isPrepend = false) {
         if (!messages.length) return '';
         
+        const isGroup = !!this.currentMetaData?.isGroup;
+        const myId = localStorage.getItem('accountId');
         let html = '';
         let lastTime = null;
 
-        // If prepending, we don't have the 'previous' message time easily here, 
-        // but renderMessageList is usually called for a batch.
         messages.forEach((m, idx) => {
             const currentTime = new Date(m.sentAt);
-            // Gap > 15 minutes or it's the very first message globally
             if (!lastTime || (currentTime - lastTime > 15 * 60 * 1000)) {
                 html += ChatCommon.renderChatSeparator(m.sentAt);
             }
 
-            const isOwn = m.sender?.accountId === localStorage.getItem('accountId');
-            const showAuthor = this.currentMetaData?.isGroup && !isOwn;
-            html += ChatCommon.renderMessageBubble({ ...m, isOwn }, {
-                showAuthor,
-                authorName: showAuthor ? (m.sender?.fullName || m.sender?.username) : ''
+            m.isOwn = m.sender?.accountId === myId;
+
+            const prevMsg = idx > 0 ? messages[idx - 1] : null;
+            const nextMsg = idx < messages.length - 1 ? messages[idx + 1] : null;
+            const groupPos = ChatCommon.getGroupPosition(m, prevMsg, nextMsg);
+
+            const senderAvatar = !m.isOwn ? (m.sender?.avatarUrl || '') : '';
+            const authorName = isGroup && !m.isOwn
+                ? (m.sender?.nickname || m.sender?.fullName || m.sender?.username || '')
+                : '';
+
+            html += ChatCommon.renderMessageBubble(m, {
+                isGroup,
+                groupPos,
+                senderAvatar,
+                authorName
             });
 
             lastTime = currentTime;
@@ -217,26 +268,62 @@ const ChatPage = {
         const msgContainer = document.getElementById('chat-view-messages');
         if (!msgContainer) return;
 
-        // Check time of last message in container to see if we need a separator
+        const isGroup = !!this.currentMetaData?.isGroup;
+        const myId = localStorage.getItem('accountId');
+        const isOwn = msg.sender?.accountId === myId || msg.isOwn;
+        msg.isOwn = isOwn;
+
+        // Time separator
         const lastMsgEl = msgContainer.querySelector('.msg-bubble-wrapper:last-of-type');
         const lastTime = lastMsgEl ? new Date(lastMsgEl.dataset.sentAt) : null;
         const currentTime = new Date(msg.sentAt);
-
         if (!lastTime || (currentTime - lastTime > 15 * 60 * 1000)) {
             msgContainer.insertAdjacentHTML('beforeend', ChatCommon.renderChatSeparator(msg.sentAt));
         }
 
-        const isOwn = msg.sender?.accountId === localStorage.getItem('accountId') || msg.isOwn;
-        const showAuthor = this.currentMetaData?.isGroup && !isOwn;
-        
+        // Determine grouping with the previous message in DOM
+        let prevSenderId = lastMsgEl ? lastMsgEl.dataset.senderId : null;
+        let prevTime = lastTime;
+        const twoMin = 2 * 60 * 1000;
+        const sameSender = prevSenderId && prevSenderId === (msg.sender?.accountId || myId);
+        const closeTime = prevTime && (currentTime - prevTime < twoMin);
+        const groupedWithPrev = sameSender && closeTime;
+
+        // New message is always 'last' or 'single' in its group (nothing comes after)
+        const groupPos = groupedWithPrev ? 'last' : 'single';
+
+        // Update previous message's groupPos if we're grouping with it
+        if (groupedWithPrev && lastMsgEl) {
+            if (lastMsgEl.classList.contains('msg-group-single')) {
+                lastMsgEl.classList.replace('msg-group-single', 'msg-group-first');
+            } else if (lastMsgEl.classList.contains('msg-group-last')) {
+                lastMsgEl.classList.replace('msg-group-last', 'msg-group-middle');
+            }
+            // Update avatar visibility on previous message
+            const prevAvatar = lastMsgEl.querySelector('.msg-avatar');
+            if (prevAvatar && !prevAvatar.classList.contains('msg-avatar-spacer')) {
+                prevAvatar.classList.add('msg-avatar-spacer');
+                prevAvatar.innerHTML = '';
+            }
+        }
+
+        const senderAvatar = !isOwn ? (msg.sender?.avatarUrl || '') : '';
+        const authorName = isGroup && !isOwn
+            ? (msg.sender?.nickname || msg.sender?.fullName || msg.sender?.username || '')
+            : '';
+        if (!msg.sender?.accountId) msg.senderId = myId;
+
         const div = document.createElement('div');
-        div.innerHTML = ChatCommon.renderMessageBubble({ ...msg, isOwn }, {
-            showAuthor,
-            authorName: showAuthor ? (msg.sender?.fullName || msg.sender?.username) : ''
+        div.innerHTML = ChatCommon.renderMessageBubble(msg, {
+            isGroup,
+            groupPos,
+            senderAvatar,
+            authorName
         });
-        
+
         const bubble = div.firstElementChild;
-        bubble.dataset.sentAt = msg.sentAt; // Store for next comparison
+        bubble.dataset.sentAt = msg.sentAt;
+        bubble.dataset.senderId = msg.sender?.accountId || myId;
         msgContainer.appendChild(bubble);
         msgContainer.scrollTop = msgContainer.scrollHeight;
     },
