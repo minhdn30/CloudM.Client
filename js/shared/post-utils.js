@@ -337,7 +337,7 @@
                 const modal = document.getElementById("postDetailModal");
                 if (modal) {
                     modal.classList.remove("show");
-                    document.body.style.overflow = "";
+                    if (window.unlockScroll) unlockScroll();
                 }
             }
             if (window.toastInfo) window.toastInfo("This post is no longer available.");

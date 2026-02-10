@@ -89,7 +89,7 @@ function openCreatePostModal() {
   isProcessingCrop = false;
 
   modal.classList.add("show");
-  document.body.style.overflow = "hidden";
+  if (window.lockScroll) lockScroll();
 
   loadCreatePostUserInfo();
   resetPrivacySelector();
@@ -161,7 +161,7 @@ function confirmDiscardPost() {
   if (!modal) return;
 
   modal.classList.remove("show");
-  document.body.style.overflow = "";
+        if (window.unlockScroll) unlockScroll();
 
   resetPostForm();
   currentStep = 1;
@@ -189,7 +189,7 @@ function closeCreatePostModal() {
   if (!modal) return;
 
   modal.classList.remove("show");
-  document.body.style.overflow = "";
+        if (window.unlockScroll) unlockScroll();
 
   resetPostForm();
   currentStep = 1;
@@ -1194,7 +1194,7 @@ async function submitPost() {
       const modal = document.getElementById("createPostModal");
       if (modal) {
         modal.classList.remove("show");
-        document.body.style.overflow = "";
+        if (window.unlockScroll) unlockScroll();
       }
 
       // Reset form

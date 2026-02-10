@@ -44,7 +44,7 @@ async function openPostDetail(postId, postCode = null, navContext = null, naviga
 
     resetPostDetailView();
     if (modal) modal.classList.add("show");
-    document.body.style.overflow = "hidden";
+    if (window.lockScroll) lockScroll();
 
     const mainLoader = document.getElementById("detailMainLoader");
     if (mainLoader) mainLoader.style.display = "flex";
@@ -149,7 +149,7 @@ async function openPostDetailByCode(postCode) {
 
     resetPostDetailView();
     modal.classList.add("show");
-    document.body.style.overflow = "hidden";
+    if (window.lockScroll) lockScroll();
 
     const mainLoader = document.getElementById("detailMainLoader");
     if (mainLoader) mainLoader.style.display = "flex";
@@ -445,7 +445,7 @@ function performClosePostDetail() {
     const modal = document.getElementById(POST_DETAIL_MODAL_ID);
     if (modal) {
         modal.classList.remove("show");
-        document.body.style.overflow = ""; // Restore scroll
+        if (window.unlockScroll) unlockScroll(); // Restore scroll
 
         // Reset URL if it's currently on a post
         if (window.location.hash.startsWith("#/p/")) {
