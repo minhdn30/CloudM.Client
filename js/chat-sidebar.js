@@ -217,10 +217,26 @@ const ChatSidebar = {
             return;
         }
 
+        const myId = (localStorage.getItem('accountId') || '').toLowerCase();
+
         const html = items.map(conv => {
             const avatar = ChatCommon.getAvatar(conv);
             const name = escapeHtml(ChatCommon.getDisplayName(conv));
-            const lastMsg = escapeHtml(ChatCommon.getLastMsgPreview(conv));
+            
+            // --- Improved Last Message Preview ---
+            let previewText = ChatCommon.getLastMsgPreview(conv);
+            const lastMsgSenderId = (conv.lastMessage?.sender?.accountId || '').toLowerCase();
+            if (lastMsgSenderId) {
+                if (lastMsgSenderId === myId) {
+                    previewText = `You: ${previewText}`;
+                } else if (conv.isGroup) {
+                    const sender = conv.lastMessage.sender;
+                    const senderName = sender.nickname || sender.nickname || sender.fullName || sender.username || 'User';
+                    previewText = `${senderName}: ${previewText}`;
+                }
+            }
+            const lastMsgEscaped = escapeHtml(previewText);
+
             const time = conv.lastMessageSentAt ? PostUtils.timeAgo(conv.lastMessageSentAt, true) : '';
             const unread = conv.unreadCount > 0;
             const isOnline = !conv.isGroup && conv.otherMember && conv.otherMember.isActive;
@@ -229,8 +245,23 @@ const ChatSidebar = {
             const isChatPage = window.location.hash.startsWith('#/messages');
             const isActive = isChatPage && conv.conversationId === this.currentActiveId;
 
+            // --- Seen Avatars Logic ---
+            let seenHtml = '';
+            if (!unread && lastMsgSenderId === myId && conv.lastMessageSeenBy && conv.lastMessageSeenBy.length > 0) {
+                seenHtml = `
+                    <div class="chat-seen-avatars">
+                        ${conv.lastMessageSeenBy.map(m => `
+                            <img src="${m.avatarUrl || APP_CONFIG.DEFAULT_AVATAR}" 
+                                 title="Seen by ${escapeHtml(m.displayName)}" 
+                                 class="chat-mini-seen-avatar">
+                        `).join('')}
+                    </div>
+                `;
+            }
+
             return `
                 <div class="chat-item ${unread ? 'unread' : ''} ${isActive ? 'active' : ''}" 
+                     data-conversation-id="${conv.conversationId}"
                      onclick="ChatSidebar.openConversation('${conv.conversationId}')">
                     <div class="chat-avatar-wrapper">
                         <img src="${avatar}" alt="${name}" class="chat-avatar" onerror="this.src='${APP_CONFIG.DEFAULT_AVATAR}'">
@@ -241,11 +272,13 @@ const ChatSidebar = {
                             <span class="chat-name">${name}</span>
                         </div>
                         <div class="chat-msg-row">
-                            <span class="chat-last-msg">${lastMsg}</span>
+                            <span class="chat-last-msg">${lastMsgEscaped}</span>
                             ${time ? `<span class="chat-msg-dot">·</span><span class="chat-meta">${time}</span>` : ''}
                         </div>
                     </div>
-                    ${unread ? `<div class="chat-unread-badge">${conv.unreadCount > 9 ? '9+' : conv.unreadCount}</div>` : ''}
+                    <div class="chat-item-end">
+                        ${unread ? `<div class="chat-unread-badge">${conv.unreadCount > 9 ? '9+' : conv.unreadCount}</div>` : seenHtml}
+                    </div>
                 </div>
             `;
         }).join('');
@@ -266,20 +299,153 @@ const ChatSidebar = {
             // The router (app.js) will handle the navigation/update
         } else {
             // Already on this specific conversation hash, just ensure UI is updated
-            if (window.ChatPage && typeof window.ChatPage.selectConversation === 'function') {
-                window.ChatPage.selectConversation(id);
+            if (window.ChatPage && typeof window.ChatPage.loadConversation === 'function') {
+                window.ChatPage.loadConversation(id);
             }
             this.updateActiveId(id);
         }
     },
 
+    /**
+     * Clear unread badge for a specific conversation.
+     * Called after SeenConversation succeeds.
+     */
+    clearUnread(conversationId) {
+        // Update in-memory data
+        const conv = this.conversations.find(c => c.conversationId === conversationId);
+        if (conv) {
+            conv.unreadCount = 0;
+        }
+
+        // Update DOM: find the chat-item and remove unread styling + badge
+        const item = document.querySelector(`.chat-item[data-conversation-id="${conversationId}"]`);
+        if (item) {
+            item.classList.remove('unread');
+            const badge = item.querySelector('.chat-unread-badge');
+            if (badge) badge.remove();
+        }
+    },
+
+    /**
+     * Increment unread badge for a specific conversation.
+     * Updates preview text, time, moves item to top. Like Facebook/Instagram.
+     */
+    incrementUnread(conversationId, message) {
+        const listContainer = document.getElementById('chat-conversation-list');
+        if (!listContainer) return;
+
+        const myId = (localStorage.getItem('accountId') || '').toLowerCase();
+        const senderId = (message?.sender?.accountId || message?.Sender?.AccountId || '').toLowerCase();
+        const isMe = senderId === myId;
+
+        // Update in-memory data
+        const conv = this.conversations.find(c => c.conversationId === conversationId);
+        if (conv) {
+            if (!isMe) {
+                conv.unreadCount = (conv.unreadCount || 0) + 1;
+            }
+            if (message) {
+                conv.lastMessageSentAt = message.sentAt || message.SentAt || new Date().toISOString();
+            }
+        }
+
+        // Find existing DOM item
+        let item = document.querySelector(`.chat-item[data-conversation-id="${conversationId}"]`);
+
+        if (item) {
+            // Update unread styling
+            if (!isMe) {
+                item.classList.add('unread');
+            }
+
+            // Update or create badge
+            let badge = item.querySelector('.chat-unread-badge');
+            const newCount = conv?.unreadCount || 1;
+            if (badge) {
+                badge.textContent = newCount > 9 ? '9+' : newCount;
+            } else {
+                badge = document.createElement('div');
+                badge.className = 'chat-unread-badge';
+                badge.textContent = newCount > 9 ? '9+' : newCount;
+                item.appendChild(badge);
+            }
+
+        // Update preview text
+        if (message) {
+            let content = message.content || message.Content || '';
+            const isMedia = (message.medias?.length > 0) || (message.Medias?.length > 0);
+            
+            if (!content && isMedia) {
+                const firstMedia = (message.medias || message.Medias)[0];
+                const type = firstMedia.mediaType === 0 ? '[Image]' : '[Video]';
+                content = type;
+            }
+
+            // Group chat sender name prefix
+            const senderId = (message.sender?.accountId || message.Sender?.AccountId || '').toLowerCase();
+            const myId = (localStorage.getItem('accountId') || '').toLowerCase();
+            
+            let prefix = "";
+            if (senderId === myId) {
+                prefix = "You: ";
+            } else if (conv?.isGroup) {
+                const senderName = message.sender?.nickname || message.sender?.fullName || message.sender?.username || 
+                                 message.Sender?.Nickname || message.Sender?.FullName || message.Sender?.Username || 'User';
+                prefix = `${senderName}: `;
+            }
+
+            const previewText = prefix + content;
+            const preview = item.querySelector('.chat-last-msg');
+            if (preview) preview.textContent = previewText;
+
+            // Clear any seen avatars when new message arrives
+            const endArea = item.querySelector('.chat-item-end');
+            const existingSeen = endArea?.querySelector('.chat-seen-avatars');
+            if (existingSeen) existingSeen.remove();
+
+            // Update time
+            const timeMeta = item.querySelector('.chat-meta');
+            if (timeMeta) {
+                timeMeta.textContent = 'now';
+            } else {
+                const msgRow = item.querySelector('.chat-msg-row');
+                if (msgRow) {
+                    const dot = document.createElement('span');
+                    dot.className = 'chat-msg-dot';
+                    dot.textContent = '·';
+                    const time = document.createElement('span');
+                    time.className = 'chat-meta';
+                    time.textContent = 'now';
+                    msgRow.appendChild(dot);
+                    msgRow.appendChild(time);
+                }
+            }
+        }
+
+        // Move to top of list
+        listContainer.prepend(item);
+    }
+    // If item not in DOM (e.g. new conversation), do a reload IF it matches filter
+    else {
+        // Simple logic: if searching, don't auto-add. 
+        if (this.searchTerm) return;
+
+        // If filtering by type, we should ideally check if the message matches the filter
+        // For simplicity, we just reload effectively.
+        this.page = 1;
+        this.hasMore = true;
+        this.loadConversations(false);
+    }
+    },
+
+    /**
+     * Update the active ID using data-conversation-id attribute.
+     */
     updateActiveId(id, retryCount = 0) {
         this.currentActiveId = id;
         
-        // Update UI immediately if sidebar is rendered
         const items = document.querySelectorAll('.chat-item');
         
-        // If sidebar content hasn't fully loaded yet, retry a few times
         if (items.length === 0 && retryCount < 5 && window.location.hash.startsWith('#/messages')) {
             setTimeout(() => this.updateActiveId(id, retryCount + 1), 200);
             return;
@@ -288,7 +454,8 @@ const ChatSidebar = {
         if (items.length > 0) {
             const isChatPage = window.location.hash.startsWith('#/messages');
             items.forEach(item => {
-                const isTarget = isChatPage && id && item.getAttribute('onclick')?.includes(id);
+                const convId = item.dataset.conversationId;
+                const isTarget = isChatPage && id && convId === id;
                 item.classList.toggle('active', !!isTarget);
             });
         }

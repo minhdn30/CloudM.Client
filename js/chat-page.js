@@ -47,24 +47,18 @@ const ChatPage = {
             input.addEventListener('input', () => {
                 input.style.height = 'auto';
                 input.style.height = (input.scrollHeight) + 'px';
-                
-                const container = document.querySelector('.chat-view-input-container');
-                const hasText = input.value.trim().length > 0;
-                const hasFiles = this.pendingFiles.length > 0;
-                const hasContent = hasText || hasFiles;
-                
-                if (container) {
-                    container.classList.toggle('has-content', hasContent);
-                }
-                
-                const sendBtn = document.getElementById('chat-page-send-btn');
-                if (sendBtn) sendBtn.disabled = !hasContent;
+                this.updateInputState();
             });
             
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    this.sendMessage();
+                    if (this.currentChatId && this.currentMetaData) {
+                        this.sendMessage();
+                    } else if (this.currentChatId) {
+                        // Try fallback one last time
+                        this.sendMessage();
+                    }
                 }
             });
         }
@@ -149,59 +143,233 @@ const ChatPage = {
         };
     },
 
-    listenForMessages() {
-        // Stop duplicate listeners if any
-        if (window.chatHubConnection) {
-            window.chatHubConnection.off('ReceiveNewMessage');
-            window.chatHubConnection.on('ReceiveNewMessage', (msg) => {
-                const convId = msg.conversationId;
-                if (this.currentChatId === convId) {
-                    // 1. Check if message already exists in DOM (by real ID)
-                    if (msg.messageId && document.querySelector(`[data-message-id="${msg.messageId}"]`)) {
-                        return;
-                    }
+    /**
+     * Mark the current conversation as seen (read).
+     * Sends SeenConversation to ChatHub and updates sidebar badge.
+     */
+    markConversationSeen(conversationId, messageId) {
+        if (!conversationId || !messageId) return;
+        const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conversationId);
+        if (!isGuid) return;
 
-                    // 2. Try to merge with an optimistic bubble if it's our own message
-                    const myId = localStorage.getItem('accountId');
-                    if (msg.sender?.accountId === myId) {
-                        // Find a pending/sent bubble with same content
-                        const optimisticMsg = document.querySelector(`.msg-bubble-wrapper.sent[data-status="pending"], .msg-bubble-wrapper.sent[data-status="sent"]`);
-                        if (optimisticMsg) {
-                            const content = optimisticMsg.querySelector('.msg-bubble')?.innerText.trim();
-                            if (content === msg.content?.trim()) {
-                                // Found match! Merge real data into optimistic bubble
-                                optimisticMsg.dataset.messageId = msg.messageId;
-                                delete optimisticMsg.dataset.status;
-                                optimisticMsg.querySelector('.msg-status')?.remove();
-                                return;
+        if (window.chatHubConnection && window.chatHubConnection.state === signalR.HubConnectionState.Connected) {
+            window.chatHubConnection.invoke('SeenConversation', conversationId, messageId)
+                .then(() => {
+                    if (window.ChatSidebar) {
+                        // Check if conversation was actually unread before clearing
+                        const conv = window.ChatSidebar.conversations.find(c => c.conversationId === conversationId);
+                        const wasUnread = conv && conv.unreadCount > 0;
+                        window.ChatSidebar.clearUnread(conversationId);
+                        // Decrement global badge only if it was unread
+                        if (wasUnread && typeof updateGlobalMessageBadge === 'function') {
+                            updateGlobalMessageBadge(-1);
+                        }
+                    }
+                })
+                .catch(err => console.error('SeenConversation error:', err));
+        }
+    },
+
+    /**
+     * Get the last message ID from the current chat view DOM.
+     */
+    getLastMessageId() {
+        const msgContainer = document.getElementById('chat-view-messages');
+        if (!msgContainer) return null;
+        const allMsgs = msgContainer.querySelectorAll('[data-message-id]');
+        if (allMsgs.length === 0) return null;
+        return allMsgs[allMsgs.length - 1].dataset.messageId;
+    },
+
+    scrollToBottom(force = false) {
+        const msgContainer = document.getElementById('chat-view-messages');
+        if (!msgContainer) return;
+        
+        const doScroll = () => {
+            msgContainer.scrollTop = msgContainer.scrollHeight;
+        };
+
+        doScroll();
+        requestAnimationFrame(doScroll);
+        
+        // Multiple checks to ensure it stays at bottom even if content (images) expand
+        setTimeout(doScroll, 50);
+        setTimeout(doScroll, 150);
+        setTimeout(doScroll, 300);
+    },
+
+    listenForMessages() {
+        if (!window.chatHubConnection) {
+            setTimeout(() => this.listenForMessages(), 1000);
+            return;
+        }
+
+        // 1. Receive New Message
+        window.chatHubConnection.off('ReceiveNewMessage');
+        window.chatHubConnection.on('ReceiveNewMessage', (msg) => {
+            // --- ROBUST PROPERTY RESOLUTION ---
+            const convId = (msg.ConversationId || msg.conversationId || '').toLowerCase();
+            const messageId = msg.MessageId || msg.messageId;
+            const tempId = msg.TempId || msg.tempId;
+            const rawSenderId = msg.Sender?.AccountId || msg.sender?.accountId || msg.SenderId || msg.senderId || '';
+            const senderId = rawSenderId.toLowerCase();
+            const content = (msg.Content || msg.content || '').trim();
+
+            const myId = (localStorage.getItem('accountId') || '').toLowerCase();
+
+            if (this.currentChatId?.toLowerCase() === convId) {
+                // 1. Check if message already exists in DOM (by real ID)
+                if (messageId && document.querySelector(`[data-message-id="${messageId}"]`)) {
+                    return;
+                }
+
+                // 2. Check tempId duplication
+                if (tempId && document.querySelector(`[data-temp-id="${tempId}"]`)) {
+                    return;
+                }
+
+                // 3. Merge check for our own messages
+                if (senderId === myId) {
+                    const msgContainer = document.getElementById('chat-view-messages');
+                    const optimisticMsgs = msgContainer?.querySelectorAll('.msg-bubble-wrapper.sent[data-status="pending"]');
+                    let matched = false;
+                    
+                    if (optimisticMsgs) {
+                        for (let opt of optimisticMsgs) {
+                            const optContent = opt.querySelector('.msg-bubble')?.innerText.trim();
+                            if (optContent === content) {
+                                opt.dataset.messageId = messageId;
+                                delete opt.dataset.status;
+                                opt.querySelector('.msg-status')?.remove();
+                                
+                                const seenRow = opt.querySelector('.msg-seen-row');
+                                if (seenRow) seenRow.id = `seen-row-${messageId}`;
+
+                                this.markConversationSeen(convId, messageId);
+                                if (window.ChatSidebar && typeof window.ChatSidebar.incrementUnread === 'function') {
+                                    window.ChatSidebar.incrementUnread(convId, msg);
+                                }
+                                matched = true;
+                                break;
                             }
                         }
                     }
-
-                    this.appendMessage(msg);
-                    
-                    // Also notify Sidebar to update last message/unread
-                    if (window.ChatSidebar && typeof window.ChatSidebar.loadConversations === 'function') {
-                        window.ChatSidebar.loadConversations();
-                    }
-                } else {
-                    // Message from other conversation -> Refresh sidebar to show unread badge
-                    if (window.ChatSidebar && typeof window.ChatSidebar.loadConversations === 'function') {
-                        window.ChatSidebar.loadConversations();
-                    }
+                    if (matched) return; 
                 }
+
+                this.appendMessage(msg);
+                this.markConversationSeen(convId, messageId);
+                
+                if (window.ChatSidebar && typeof window.ChatSidebar.incrementUnread === 'function') {
+                    window.ChatSidebar.incrementUnread(convId, msg);
+                }
+            } else {
+                if (window.ChatSidebar && typeof window.ChatSidebar.incrementUnread === 'function') {
+                    window.ChatSidebar.incrementUnread(convId, msg);
+                }
+            }
+        });
+
+        // 2. Member Seen Status Update
+        window.chatHubConnection.off('MemberSeen');
+        window.chatHubConnection.on('MemberSeen', (data) => {
+            console.log("Realtime Seen Event received:", data);
+            // Handle both PascalCase (SignalR default) and camelCase
+            const convId = data.ConversationId || data.conversationId;
+            const accId = data.AccountId || data.accountId;
+            const msgId = data.LastSeenMessageId || data.lastSeenMessageId;
+
+            if (this.currentChatId === convId) {
+                this.moveSeenAvatar(accId, msgId);
+            }
+        });
+    },
+
+    /**
+     * Initial render for all members' seen indicators
+     */
+    updateMemberSeenStatuses(meta) {
+        if (!meta || !meta.memberSeenStatuses) return;
+        console.log("Initial Seen Statuses from Metadata:", meta.memberSeenStatuses);
+        const myId = localStorage.getItem('accountId');
+
+        meta.memberSeenStatuses.forEach(member => {
+            if (member.accountId === myId) return; 
+            if (!member.lastSeenMessageId) return;
+            
+            this.moveSeenAvatar(member.accountId, member.lastSeenMessageId, {
+                avatar: member.avatarUrl,
+                name: member.displayName
             });
-        } else {
-            // Retry if hub not started yet
-            setTimeout(() => this.listenForMessages(), 1000);
+        });
+    },
+
+    /**
+     * Move (or create) a member's seen avatar to a specific message's seen row
+     */
+    moveSeenAvatar(accountId, messageId, memberInfo = null) {
+        if (!accountId || !messageId) return;
+
+        const myId = (localStorage.getItem('accountId') || '').toLowerCase();
+        const targetAccountId = accountId.toLowerCase();
+
+        // 0. DO NOT show our own seen indicator to ourselves!
+        if (targetAccountId === myId) return;
+
+        // 1. Resolve avatar/name if not provided (from metadata)
+        if (!memberInfo && this.currentMetaData?.memberSeenStatuses) {
+            const member = this.currentMetaData.memberSeenStatuses.find(m => {
+                const mId = (m.accountId || m.AccountId || '').toLowerCase();
+                return mId === targetAccountId;
+            });
+            if (member) {
+                memberInfo = {
+                    avatar: member.avatarUrl || member.AvatarUrl,
+                    name: member.displayName || member.DisplayName
+                };
+            }
         }
+
+        // 2. Remove existing avatar for THIS member in THIS conversation
+        const existing = document.querySelector(`.seen-avatar[data-account-id="${accountId}"]`);
+        if (existing) {
+            existing.remove();
+        }
+
+        // 3. Find target seen-row (Match by real messageId)
+        const targetRow = document.getElementById(`seen-row-${messageId}`);
+        if (!targetRow) {
+            console.warn(`Target seen-row not found for message: ${messageId}.`);
+            return;
+        }
+
+        // 3.5. LOGIC FIX: Only show Member X's avatar under messages NOT sent by Member X
+        const bubbleWrapper = targetRow.closest('.msg-bubble-wrapper');
+        const messageSenderId = bubbleWrapper?.dataset.senderId;
+        if (messageSenderId === accountId) {
+            // Member is just seeing their own message, don't show avatar here
+            return;
+        }
+
+        // 4. Create avatar element
+        const avatarUrl = memberInfo?.avatar || APP_CONFIG.DEFAULT_AVATAR;
+        const displayName = memberInfo?.name || 'User';
+
+        const img = document.createElement('img');
+        img.src = avatarUrl;
+        img.className = 'seen-avatar';
+        img.dataset.accountId = accountId;
+        img.title = displayName;
+        img.onerror = () => img.src = APP_CONFIG.DEFAULT_AVATAR;
+
+        targetRow.appendChild(img);
     },
 
     handleUrlNavigation() {
         const hash = window.location.hash;
         if (hash.includes('?id=')) {
             const id = hash.split('?id=')[1].split('&')[0];
-            if (id) this.selectConversation(id);
+            if (id) this.loadConversation(id);
         }
     },
 
@@ -223,39 +391,63 @@ const ChatPage = {
         }
     },
 
-    async selectConversation(id) {
-        if (!id) return;
+    async loadConversation(conversationId) {
+        if (!conversationId) return;
         
-        // If switching to a DIFFERENT conversation, leave the old group first
-        if (this.currentChatId && this.currentChatId !== id) {
-            this.leaveCurrentConversation();
+        // 1. If clicking the same conversation, don't re-join or re-render everything
+        if (this.currentChatId === conversationId) {
+            console.log("Already in this conversation, skipping re-load.");
+            return;
         }
 
-        // Reset state for new chat
-        if (this.currentChatId !== id) {
-            this.currentChatId = id;
-            this.page = 1;
-            this.hasMore = true;
-            this.isLoading = false;
+        // 2. Increment generation to cancel any in-flight requests from previous conversation
+        this._loadGeneration = (this._loadGeneration || 0) + 1;
+        const gen = this._loadGeneration;
+
+        // 3. Cleanup previous state
+        const msgContainer = document.getElementById('chat-view-messages');
+        if (msgContainer) msgContainer.innerHTML = '';
+        
+        if (this.currentChatId && window.chatHubConnection) {
+            console.log("leaving group", this.currentChatId);
+            window.chatHubConnection.invoke('LeaveConversation', this.currentChatId);
         }
+
+        this.currentChatId = conversationId;
+        this.currentMetaData = null;
+        this.messages = [];
+        this.pageIndex = 1;
+        this.hasMore = true;
+        this.isLoading = false;
+        
 
         // Visual update in Sidebar anyway
         if (window.ChatSidebar) {
-            window.ChatSidebar.updateActiveId(id);
+            window.ChatSidebar.updateActiveId(conversationId);
+            
+            // PRE-LOAD MetaData from Sidebar if available (improves fast-clicking send experience)
+            if (window.ChatSidebar.conversations) {
+                const sidebarConv = window.ChatSidebar.conversations.find(c => c.conversationId === conversationId);
+                if (sidebarConv) {
+                    this.currentMetaData = sidebarConv;
+                    this.renderHeader(sidebarConv);
+                    this.updateInputState();
+                }
+            }
         }
 
-        await this.loadMessages(id, false);
+        await this.loadMessages(conversationId, false, gen);
+
+        // Stale check: if user already navigated away, don't join group
+        if (this._loadGeneration !== gen) return;
 
         // Join the SignalR group for this conversation
         if (window.chatHubConnection && window.chatHubConnection.state === signalR.HubConnectionState.Connected) {
-            // Validate if ID is a real GUID before joining (prevent server errors for "new-" or profile IDs)
-            const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+            const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conversationId);
             if (isGuid) {
-                window.chatHubConnection.invoke("JoinConversation", id)
-                    .then(() => console.log(`✅ Joined Conv-${id} group`))
+                window.chatHubConnection.invoke("JoinConversation", conversationId)
+                    .then(() => console.log(`✅ Joined Conv-${conversationId} group`))
                     .catch(err => console.error("Error joining conversation group:", err));
-            } else {
-                console.log(`ℹ️ Skip JoinConversation for non-GUID ID: ${id}`);
             }
         }
     },
@@ -287,9 +479,12 @@ const ChatPage = {
         }
     },
 
-    async loadMessages(id, isLoadMore = false) {
+    async loadMessages(id, isLoadMore = false, gen = null) {
         if (this.isLoading) return;
         if (isLoadMore && !this.hasMore) return;
+
+        // Use current generation if not provided (for load-more scrolls)
+        if (gen === null) gen = this._loadGeneration || 0;
 
         const msgContainer = document.getElementById('chat-view-messages');
         if (!msgContainer) return;
@@ -303,12 +498,23 @@ const ChatPage = {
 
         try {
             const res = await window.API.Conversations.getMessages(id, this.page, this.pageSize);
+
+            // Stale check: if user switched conversations while awaiting, discard results
+            if (this._loadGeneration !== gen) {
+                console.log('Discarding stale loadMessages response for', id);
+                return;
+            }
+
             if (res.ok) {
                 const data = await res.json();
                 
                 if (data.metaData) {
                     this.currentMetaData = data.metaData;
                     this.renderHeader(data.metaData);
+                    this.updateInputState();
+                    
+                    // Render where members are currently at
+                    setTimeout(() => this.updateMemberSeenStatuses(data.metaData), 100);
                 }
 
                 const messages = data.messages.items || [];
@@ -332,9 +538,12 @@ const ChatPage = {
                     });
                 } else {
                     msgContainer.innerHTML = html;
-                    requestAnimationFrame(() => {
-                        msgContainer.scrollTop = msgContainer.scrollHeight;
-                    });
+                    this.scrollToBottom();
+                    
+                    // Render seen indicators after DOM is ready - use longer timeout for stability
+                    if (data.metaData) {
+                        setTimeout(() => this.updateMemberSeenStatuses(data.metaData), 200);
+                    }
                 }
 
                 this.page++;
@@ -359,21 +568,24 @@ const ChatPage = {
             // Support both camelCase and PascalCase for medias
             if (!m.medias && m.Medias) m.medias = m.Medias;
             
+            m.isOwn = (m.sender?.accountId || m.senderId) === myId;
+
             const currentTime = new Date(m.sentAt);
             const gap = window.APP_CONFIG?.CHAT_TIME_SEPARATOR_GAP || 15 * 60 * 1000;
             if (!lastTime || (currentTime - lastTime > gap)) {
                 html += ChatCommon.renderChatSeparator(m.sentAt);
             }
 
-            m.isOwn = m.sender?.accountId === myId;
-
             const prevMsg = idx > 0 ? messages[idx - 1] : null;
             const nextMsg = idx < messages.length - 1 ? messages[idx + 1] : null;
             const groupPos = ChatCommon.getGroupPosition(m, prevMsg, nextMsg);
 
-            const senderAvatar = !m.isOwn ? (m.sender?.avatarUrl || '') : '';
+            // Access avatar with case-insensitive fallback
+            const avatarRaw = m.sender?.avatarUrl || m.sender?.AvatarUrl || '';
+            const senderAvatar = !m.isOwn ? avatarRaw : '';
+            
             const authorName = isGroup && !m.isOwn
-                ? (m.sender?.nickname || m.sender?.fullName || m.sender?.username || '')
+                ? (m.sender?.nickname || m.sender?.Nickname || m.sender?.fullName || m.sender?.FullName || m.sender?.username || '')
                 : '';
 
             html += ChatCommon.renderMessageBubble(m, {
@@ -394,24 +606,34 @@ const ChatPage = {
         if (!msgContainer) return;
 
         const isGroup = !!this.currentMetaData?.isGroup;
-        const myId = localStorage.getItem('accountId');
-        const isOwn = msg.sender?.accountId === myId || msg.isOwn;
+        const myId = (localStorage.getItem('accountId') || '').toLowerCase();
+        
+        // --- ROBUST PROPERTY RESOLUTION ---
+        const rawSenderId = msg.Sender?.AccountId || msg.sender?.accountId || msg.SenderId || msg.senderId || '';
+        const senderId = rawSenderId.toLowerCase();
+        
+        // If it's an optimistic message (no senderId yet), it MUST be own
+        const isOwn = (senderId === myId) || (msg.tempId && !senderId);
         msg.isOwn = isOwn;
+
+        const messageId = msg.MessageId || msg.messageId;
+        const tempId = msg.TempId || msg.tempId;
 
         // Time separator
         const lastMsgEl = msgContainer.querySelector('.msg-bubble-wrapper:last-of-type');
         const lastTime = lastMsgEl ? new Date(lastMsgEl.dataset.sentAt) : null;
-        const currentTime = new Date(msg.sentAt);
+        const sentAt = msg.SentAt || msg.sentAt;
+        const currentTime = new Date(sentAt);
         const gap = window.APP_CONFIG?.CHAT_TIME_SEPARATOR_GAP || 15 * 60 * 1000;
         if (!lastTime || (currentTime - lastTime > gap)) {
-            msgContainer.insertAdjacentHTML('beforeend', ChatCommon.renderChatSeparator(msg.sentAt));
+            msgContainer.insertAdjacentHTML('beforeend', ChatCommon.renderChatSeparator(sentAt));
         }
 
         // Determine grouping with the previous message in DOM
         let prevSenderId = lastMsgEl ? lastMsgEl.dataset.senderId : null;
         let prevTime = lastTime;
         const groupGap = window.APP_CONFIG?.CHAT_GROUPING_GAP || 2 * 60 * 1000;
-        const sameSender = prevSenderId && prevSenderId === (msg.sender?.accountId || myId);
+        const sameSender = prevSenderId && prevSenderId === senderId;
         const closeTime = prevTime && (currentTime - prevTime < groupGap);
         const groupedWithPrev = sameSender && closeTime;
 
@@ -433,11 +655,18 @@ const ChatPage = {
             }
         }
 
-        const senderAvatar = !isOwn ? (msg.sender?.avatarUrl || '') : '';
-        const authorName = isGroup && !isOwn
-            ? (msg.sender?.nickname || msg.sender?.fullName || msg.sender?.username || '')
-            : '';
-        if (!msg.sender?.accountId) msg.senderId = myId;
+        const avatarRaw = msg.Sender?.AvatarUrl || msg.sender?.avatarUrl || msg.sender?.AvatarUrl || '';
+        const senderAvatar = !isOwn ? avatarRaw : '';
+        
+        const authorRaw = msg.Sender?.DisplayName || msg.sender?.displayName || msg.sender?.nickname || msg.sender?.fullName || msg.sender?.username || '';
+        const authorName = isGroup && !isOwn ? authorRaw : '';
+        
+        // Ensure msg.sender object exists for renderMessageBubble if missing
+        if (!msg.sender) {
+            msg.sender = { accountId: senderId, avatarUrl: avatarRaw };
+        }
+        if (!msg.sentAt) msg.sentAt = sentAt;
+        if (!msg.messageId) msg.messageId = messageId;
 
         const div = document.createElement('div');
         div.innerHTML = ChatCommon.renderMessageBubble(msg, {
@@ -448,8 +677,9 @@ const ChatPage = {
         });
 
         const bubble = div.firstElementChild;
-        bubble.dataset.sentAt = msg.sentAt;
-        bubble.dataset.senderId = msg.sender?.accountId || myId;
+        bubble.dataset.sentAt = sentAt;
+        bubble.dataset.senderId = senderId;
+        if (messageId) bubble.dataset.messageId = messageId;
         
         // track temp id and status for optimistic UI
         if (msg.tempId) {
@@ -504,6 +734,15 @@ const ChatPage = {
             status: 'pending'
         });
         
+        // Update Sidebar immediately
+        if (window.ChatSidebar && typeof window.ChatSidebar.incrementUnread === 'function') {
+            window.ChatSidebar.incrementUnread(this.currentChatId, {
+                content,
+                sender: { accountId: (localStorage.getItem('accountId') || '') },
+                sentAt: new Date()
+            });
+        }
+        
         // Prepare data for real upload
         const filesToSend = [...this.pendingFiles];
 
@@ -523,6 +762,14 @@ const ChatPage = {
         try {
             let res;
             
+            // Final fallback check for metadata
+            if (!this.currentMetaData && window.ChatSidebar && window.ChatSidebar.conversations) {
+                const sidebarConv = window.ChatSidebar.conversations.find(c => c.conversationId === this.currentChatId);
+                if (sidebarConv) {
+                    this.currentMetaData = sidebarConv;
+                }
+            }
+
             if (this.currentMetaData && this.currentMetaData.isGroup) {
                 // group chat - use group API
                 res = await window.API.Messages.sendGroup(this.currentChatId, formData);
@@ -531,7 +778,7 @@ const ChatPage = {
                 formData.append('ReceiverId', this.currentMetaData.otherMember.accountId);
                 res = await window.API.Messages.sendPrivate(formData);
             } else {
-                console.error("Cannot determine chat type or missing metadata");
+                console.error("Cannot determine chat type or missing metadata", { meta: this.currentMetaData, id: this.currentChatId });
                 this.updateMessageStatus(tempId, 'failed', content);
                 return;
             }
@@ -558,7 +805,11 @@ const ChatPage = {
         const hasContent = hasText || hasFiles;
 
         if (container) container.classList.toggle('has-content', hasContent);
-        if (sendBtn) sendBtn.disabled = !hasContent;
+        
+        // Block send if no content OR metadata not yet available
+        const canSend = hasContent && (this.currentMetaData || (window.ChatSidebar?.conversations?.find(c => c.conversationId === this.currentChatId)));
+        
+        if (sendBtn) sendBtn.disabled = !canSend;
     },
 
     async handleMediaUpload(files) {
@@ -640,22 +891,31 @@ const ChatPage = {
         this.updateInputState();
     },
 
-    updateMessageStatus(tempId, status, content, realMessageId = null) {
-        const msgContainer = document.getElementById('chat-view-messages');
-        if (!msgContainer) return;
-        
-        const msgEl = msgContainer.querySelector(`[data-temp-id="${tempId}"]`);
-        if (!msgEl) return;
-        
-        msgEl.dataset.status = status;
-        
-        if (realMessageId) {
-            msgEl.dataset.messageId = realMessageId;
+    updateMessageStatus(tempId, status, content, realId = null) {
+        const bubble = document.querySelector(`[data-temp-id="${tempId}"]`);
+        if (!bubble) return;
+
+        bubble.dataset.status = status;
+        if (realId) {
+            bubble.dataset.messageId = realId;
+            // SYNC SEEN ROW ID: This is critical so moveSeenAvatar can find it!
+            const seenRow = bubble.querySelector('.msg-seen-row');
+            if (seenRow) seenRow.id = `seen-row-${realId}`;
         }
         
-        // remove any existing status
-        const existingStatus = msgEl.querySelector('.msg-status');
+        // Remove existing status indicators from THIS bubble
+        const existingStatus = bubble.querySelector('.msg-status');
         if (existingStatus) existingStatus.remove();
+        
+        // If this message is being marked as SENT, remove "Sent" status from all PREVIOUS messages
+        if (status === 'sent') {
+            document.querySelectorAll('.msg-bubble-wrapper.sent[data-status="sent"]').forEach(el => {
+                if (el !== bubble) {
+                    el.removeAttribute('data-status');
+                    el.querySelector('.msg-status')?.remove();
+                }
+            });
+        }
         
         // create status element below bubble
         const statusEl = document.createElement('div');
@@ -673,7 +933,7 @@ const ChatPage = {
             statusEl.onclick = () => this.retryMessage(tempId, content);
         }
         
-        msgEl.appendChild(statusEl);
+        bubble.appendChild(statusEl);
     },
 
     async retryMessage(tempId, content) {

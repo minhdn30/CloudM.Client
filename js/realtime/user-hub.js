@@ -205,29 +205,49 @@
 
             // Listen for global message notifications (Toasts/Badges)
             connection.on("ReceiveMessageNotification", (data) => {
-                const { conversationId, message } = data;
-                const myId = localStorage.getItem("accountId");
+                const convId = (data.ConversationId || data.conversationId || '').toLowerCase();
+                const message = data.Message || data.message;
+                const myId = (localStorage.getItem("accountId") || '').toLowerCase();
+                const senderId = (message?.sender?.accountId || message?.Sender?.AccountId || '').toLowerCase();
                 
-                // Don't toast if we are the sender
-                if (message.sender?.accountId === myId) return;
+                // Don't process if we are the sender
+                if (senderId === myId) return;
 
-                // Don't toast if we already have this chat open in ChatPage
-                if (window.ChatPage && window.ChatPage.currentChatId === conversationId) return;
-
-                // Don't toast if we already have this chat open in ChatWindow
-                if (window.ChatWindow && window.ChatWindow.openChats && window.ChatWindow.openChats.has(conversationId)) return;
-
-                // Show toast
-                const senderName = message.sender?.fullName || message.sender?.username || "Someone";
-                const content = message.content || "Sent you a media message";
+                // Check if this chat is currently active (already being read)
+                const isActiveInPage = window.ChatPage && window.ChatPage.currentChatId?.toLowerCase() === convId;
                 
-                if (window.toastInfo) {
-                    window.toastInfo(`💬 ${senderName}: ${content}`);
+                // Case-insensitive check for ChatWindow Map keys
+                let isActiveInWindow = false;
+                if (window.ChatWindow && window.ChatWindow.openChats) {
+                    for (let openId of window.ChatWindow.openChats.keys()) {
+                        if (openId.toLowerCase() === convId) {
+                            isActiveInWindow = true;
+                            break;
+                        }
+                    }
                 }
 
-                // Refresh sidebar unread counts
-                if (window.ChatSidebar && typeof window.ChatSidebar.loadConversations === 'function') {
-                    window.ChatSidebar.loadConversations();
+                // Show toast if chat is NOT active
+                if (!isActiveInPage && !isActiveInWindow) {
+                    const senderName = message?.sender?.fullName || message?.sender?.username || message?.Sender?.FullName || message?.Sender?.Username || "Someone";
+                    const content = message?.content || message?.Content || "Sent you a media message";
+                    
+                    if (window.toastInfo) {
+                        window.toastInfo(`💬 ${senderName}: ${content}`);
+                    }
+
+                    // Update global badge (+1)
+                    if (typeof updateGlobalMessageBadge === 'function') {
+                        updateGlobalMessageBadge(1);
+                    }
+                }
+
+                // Update sidebar item (preview, badge, move to top) — always
+                if (window.ChatSidebar && typeof window.ChatSidebar.incrementUnread === 'function') {
+                    // Only increment unread badge if chat is NOT active
+                    if (!isActiveInPage && !isActiveInWindow) {
+                        window.ChatSidebar.incrementUnread(convId, message);
+                    }
                 }
             });
 
