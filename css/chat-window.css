@@ -30,6 +30,15 @@
     transform: translateY(0);
 }
 
+.chat-box.is-focused {
+    box-shadow: 0 5px 35px rgba(var(--accent-primary-rgb, 59, 130, 246), 0.3);
+    border-color: var(--accent-primary, #3b82f6);
+}
+
+.chat-box.is-focused .chat-box-header {
+    background: rgba(var(--accent-primary-rgb, 59, 130, 246), 0.05);
+}
+
 .chat-box.minimized {
     height: 48px;
 }
@@ -134,6 +143,11 @@
     flex-direction: column;
     gap: 2px;
     background: var(--bg-primary);
+}
+
+.chat-messages::before {
+    content: '';
+    flex: 1;
 }
 
 /* Chat Window overrides for shared msg classes (smaller sizes) */

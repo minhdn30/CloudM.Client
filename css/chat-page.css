@@ -104,6 +104,11 @@
     gap: 2px;
 }
 
+.chat-view-messages::before {
+    content: '';
+    flex: 1;
+}
+
 /* ================================================
    Message Bubbles – Messenger-style with grouping
    ================================================ */
@@ -707,4 +712,37 @@
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/* Seen indicators (Facebook Messenger style) */
+.msg-seen-row {
+    display: flex;
+    justify-content: flex-end;
+    padding: 2px 4px 4px 0;
+    margin-top: -6px; /* pull closer to bubble */
+    gap: 2px;
+    min-height: 14px;
+    position: relative;
+    z-index: 2;
+}
+
+.received .msg-seen-row {
+    justify-content: flex-start;
+    padding-left: 48px; /* keep align with bubble start */
+}
+
+.seen-avatar {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1.5px solid var(--bg-primary);
+    background: var(--bg-secondary);
+    transition: transform 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.seen-avatar:hover {
+    transform: scale(1.5);
+    z-index: 10;
 }

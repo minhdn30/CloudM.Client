@@ -325,6 +325,7 @@
       getPrivateWithMessages: (otherId, page = 1, pageSize = window.APP_CONFIG?.CHATPAGE_MESSAGES_PAGE_SIZE || 20) =>
         apiFetch(`/Conversations/private/${otherId}?page=${page}&pageSize=${pageSize}`),
       deleteHistory: (conversationId) => apiFetch(`/Conversations/${conversationId}/history`, { method: "DELETE" }),
+      getUnreadCount: () => apiFetch('/Conversations/unread-count'),
     },
 
     Messages: {
