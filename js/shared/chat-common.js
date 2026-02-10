@@ -106,7 +106,8 @@ const ChatCommon = {
         // --- Avatar (Received messages only) ---
         // Show avatar on 'last' or 'single' position (bottom of group) like Messenger
         const showAvatar = isReceived && (groupPos === 'last' || groupPos === 'single');
-        const avatarSrc = senderAvatar || APP_CONFIG.DEFAULT_AVATAR;
+        
+        let avatarSrc = senderAvatar || msg.sender?.avatarUrl || msg.sender?.AvatarUrl || APP_CONFIG.DEFAULT_AVATAR;
         const avatarHtml = isReceived
             ? `<div class="msg-avatar ${showAvatar ? '' : 'msg-avatar-spacer'}">
                 ${showAvatar ? `<img src="${avatarSrc}" alt="" onerror="this.src='${APP_CONFIG.DEFAULT_AVATAR}'">` : ''}
@@ -124,6 +125,7 @@ const ChatCommon = {
                         ${msg.content ? `<div class="msg-bubble">${escapeHtml(msg.content)}</div>` : ''}
                     </div>
                 </div>
+                <div class="msg-seen-row" id="seen-row-${msg.messageId}"></div>
             </div>
         `;
     },

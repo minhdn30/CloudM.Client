@@ -26,8 +26,9 @@ const ChatWindow = {
                     }
 
                     // Try to merge with optimistic bubble
-                    const myId = localStorage.getItem('accountId');
-                    if (msg.sender?.accountId === myId) {
+                    const myId = (localStorage.getItem('accountId') || '').toLowerCase();
+                    const senderId = (msg.sender?.accountId || '').toLowerCase();
+                    if (senderId === myId) {
                         const msgContainer = document.getElementById(`chat-messages-${convId}`);
                         const optimisticMsg = msgContainer?.querySelector(`.msg-bubble-wrapper.sent[data-status="pending"], .msg-bubble-wrapper.sent[data-status="sent"]`);
                         if (optimisticMsg) {
@@ -36,17 +37,156 @@ const ChatWindow = {
                                 optimisticMsg.dataset.messageId = msg.messageId;
                                 delete optimisticMsg.dataset.status;
                                 optimisticMsg.querySelector('.msg-status')?.remove();
+                                if (window.ChatSidebar && typeof window.ChatSidebar.incrementUnread === 'function') {
+                                    window.ChatSidebar.incrementUnread(convId, msg);
+                                }
                                 return;
                             }
                         }
                     }
 
                     this.appendMessage(convId, msg);
+                    
+                    // DO NOT mark as seen immediately. Only when focused/clicked.
+                    // However, if the window IS already focused, we can seen it.
+                    const chatBox = document.getElementById(`chat-box-${convId}`);
+                    if (chatBox && chatBox.classList.contains('is-focused')) {
+                        this.markConversationSeen(convId, msg.messageId);
+                    }
+                }
+            });
+
+            // 2. Member Seen Status Update
+            window.chatHubConnection.on('MemberSeen', (data) => {
+                const convId = data.ConversationId || data.conversationId;
+                const accId = data.AccountId || data.accountId;
+                const msgId = data.LastSeenMessageId || data.lastSeenMessageId;
+
+                if (this.openChats.has(convId)) {
+                    this.moveSeenAvatar(convId, accId, msgId);
                 }
             });
         } else {
             setTimeout(() => this.listenForMessages(), 1000);
         }
+    },
+
+    /**
+     * Mark a conversation as seen (read).
+     */
+    markConversationSeen(conversationId, messageId) {
+        if (!conversationId || !messageId) return;
+        const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conversationId);
+        if (!isGuid) return;
+
+        if (window.chatHubConnection && window.chatHubConnection.state === signalR.HubConnectionState.Connected) {
+            window.chatHubConnection.invoke('SeenConversation', conversationId, messageId)
+                .then(() => {
+                    if (window.ChatSidebar) {
+                        const conv = window.ChatSidebar.conversations.find(c => c.conversationId === conversationId);
+                        const wasUnread = conv && conv.unreadCount > 0;
+                        window.ChatSidebar.clearUnread(conversationId);
+                        if (wasUnread && typeof updateGlobalMessageBadge === 'function') {
+                            updateGlobalMessageBadge(-1);
+                        }
+                    }
+                })
+                .catch(err => console.error('SeenConversation error:', err));
+        }
+    },
+
+    /**
+     * Get the last message ID from a chat window's message container.
+     */
+    getLastMessageId(conversationId) {
+        const msgContainer = document.getElementById(`chat-messages-${conversationId}`);
+        if (!msgContainer) return null;
+        const allMsgs = msgContainer.querySelectorAll('[data-message-id]');
+        if (allMsgs.length === 0) return null;
+        return allMsgs[allMsgs.length - 1].dataset.messageId;
+    },
+
+    scrollToBottom(conversationId) {
+        const msgContainer = document.getElementById(`chat-messages-${conversationId}`);
+        if (!msgContainer) return;
+
+        const doScroll = () => {
+            msgContainer.scrollTop = msgContainer.scrollHeight;
+        };
+
+        doScroll();
+        requestAnimationFrame(doScroll);
+        setTimeout(doScroll, 100);
+    },
+
+    /**
+     * Move (or create) a member's seen avatar to a specific message's seen row in a chat window
+     */
+    moveSeenAvatar(conversationId, accountId, messageId, memberInfo = null) {
+        const msgContainer = document.getElementById(`chat-messages-${conversationId}`);
+        if (!msgContainer) return;
+
+        // Resolve info from metadata if missing (realtime event)
+        if (!memberInfo) {
+            const chatObj = this.openChats.get(conversationId);
+            if (chatObj?.metaData?.memberSeenStatuses) {
+                const member = chatObj.metaData.memberSeenStatuses.find(m => m.accountId === accountId);
+                if (member) {
+                    memberInfo = {
+                        avatar: member.avatarUrl,
+                        name: member.displayName
+                    };
+                }
+            }
+        }
+
+        // 1. Remove existing if any in this window
+        const existing = msgContainer.querySelector(`.seen-avatar[data-account-id="${accountId}"]`);
+        if (existing) {
+            existing.remove();
+        }
+
+        // 2. Find target seen-row
+        const targetRow = msgContainer.querySelector(`#seen-row-${messageId}`);
+        if (!targetRow) return;
+
+        // 2.5 Logic Fix: Only show Member X's avatar under messages NOT sent by Member X
+        const bubbleWrapper = targetRow.closest('.msg-bubble-wrapper');
+        const messageSenderId = bubbleWrapper?.dataset.senderId;
+        if (messageSenderId === accountId) {
+            return;
+        }
+
+        // 3. Create or reconstruct avatar
+        const avatarUrl = memberInfo?.avatar || existing?.src || APP_CONFIG.DEFAULT_AVATAR;
+        const displayName = memberInfo?.name || existing?.title || 'User';
+
+        const img = document.createElement('img');
+        img.src = avatarUrl;
+        img.className = 'seen-avatar';
+        img.dataset.accountId = accountId;
+        img.title = displayName;
+        img.onerror = () => img.src = APP_CONFIG.DEFAULT_AVATAR;
+
+        targetRow.appendChild(img);
+    },
+
+    /**
+     * Initial render for all members' seen indicators in a chat window
+     */
+    updateMemberSeenStatuses(conversationId, meta) {
+        if (!meta || !meta.memberSeenStatuses) return;
+        const myId = localStorage.getItem('accountId');
+
+        meta.memberSeenStatuses.forEach(member => {
+            if (member.accountId === myId) return;
+            if (!member.lastSeenMessageId) return;
+            
+            this.moveSeenAvatar(conversationId, member.accountId, member.lastSeenMessageId, {
+                avatar: member.avatarUrl,
+                name: member.displayName
+            });
+        });
     },
 
     openChat(conv) {
@@ -117,6 +257,18 @@ const ChatWindow = {
         const chatBox = document.createElement('div');
         chatBox.className = 'chat-box';
         chatBox.id = `chat-box-${conv.conversationId}`;
+        chatBox.onclick = () => {
+            if (!chatBox.classList.contains('is-focused')) {
+                // Focus this window
+                document.querySelectorAll('.chat-box').forEach(b => b.classList.remove('is-focused'));
+                chatBox.classList.add('is-focused');
+                
+                // Mark as seen on focus
+                const lastId = this.getLastMessageId(conv.conversationId);
+                if (lastId) this.markConversationSeen(conv.conversationId, lastId);
+            }
+        };
+
         chatBox.innerHTML = `
             <div class="chat-box-header" onclick="ChatWindow.toggleMinimize('${conv.conversationId}')">
                 <div class="chat-header-info">
@@ -288,6 +440,17 @@ const ChatWindow = {
 
                 // Attach scroll listener for load-more
                 this.initScrollListener(id);
+
+                // Scroll to bottom
+                this.scrollToBottom(id);
+
+                // DO NOT mark as seen immediately on load. 
+                // Wait for interaction.
+
+                // Initial render for seen indicators
+                if (data.metaData) {
+                    setTimeout(() => this.updateMemberSeenStatuses(id, data.metaData), 50);
+                }
             }
         } catch (error) {
             console.error("Failed to load chat window messages:", error);
@@ -489,6 +652,15 @@ const ChatWindow = {
             status: 'pending'  // pending, sent, failed
         });
         
+        // Update Sidebar immediately
+        if (window.ChatSidebar && typeof window.ChatSidebar.incrementUnread === 'function') {
+            window.ChatSidebar.incrementUnread(id, {
+                content,
+                sender: { accountId: (localStorage.getItem('accountId') || '') },
+                sentAt: new Date()
+            });
+        }
+        
         inputField.innerText = '';
         inputField.focus();
         
@@ -579,9 +751,19 @@ const ChatWindow = {
             msgEl.dataset.messageId = realMessageId;
         }
         
-        // remove any existing status
+        // Remove existing status indicators from THIS bubble
         const existingStatus = msgEl.querySelector('.msg-status');
         if (existingStatus) existingStatus.remove();
+
+        // If this message is being marked as SENT, remove "Sent" status from all PREVIOUS messages in this window
+        if (status === 'sent') {
+            msgContainer.querySelectorAll('.msg-bubble-wrapper.sent[data-status="sent"]').forEach(el => {
+                if (el !== msgEl) {
+                    el.removeAttribute('data-status');
+                    el.querySelector('.msg-status')?.remove();
+                }
+            });
+        }
         
         // create status element below bubble
         const statusEl = document.createElement('div');

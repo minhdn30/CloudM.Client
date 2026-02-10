@@ -54,6 +54,51 @@ async function loadSidebar() {
   // Set initial active state based on current hash after sidebar HTML is in DOM
   const path = (window.location.hash || "#/home").slice(1).split("?")[0];
   setActiveSidebar(path);
+
+  // Load unread message count for global badge
+  loadGlobalMessageBadge();
+}
+
+/**
+ * Fetch unread conversation count from API and update the global Messages badge.
+ */
+async function loadGlobalMessageBadge() {
+  try {
+    const res = await window.API.Conversations.getUnreadCount();
+    if (res.ok) {
+      const data = await res.json();
+      setGlobalMessageBadge(data.count);
+    }
+  } catch (err) {
+    console.error('Failed to load global message badge:', err);
+  }
+}
+
+/**
+ * Set the global Messages badge to an exact value.
+ */
+function setGlobalMessageBadge(count) {
+  const badge = document.getElementById('messages-badge');
+  if (!badge) return;
+  if (count > 0) {
+    badge.textContent = count > 9 ? '9+' : count;
+    badge.style.display = '';
+  } else {
+    badge.textContent = '';
+    badge.style.display = 'none';
+  }
+  badge.dataset.count = count;
+}
+
+/**
+ * Adjust the global Messages badge by a delta (+1 or -1).
+ */
+function updateGlobalMessageBadge(delta) {
+  const badge = document.getElementById('messages-badge');
+  if (!badge) return;
+  const current = parseInt(badge.dataset.count || '0', 10);
+  const newCount = Math.max(0, current + delta);
+  setGlobalMessageBadge(newCount);
 }
 
 // THÊM MỚI: Tự động collapse sidebar khi chuột rời khỏi
