@@ -104,8 +104,8 @@ window.EmojiUtils = {
      * Create and append the picker instance
      */
     createPicker: async function (container, onSelect, options = {}) {
-        // Show loading
-        container.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">Loading emoji picker...</div>';
+        // Show loading with fixed height to match final picker
+        container.innerHTML = '<div style="height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 13px;">Loading emoji picker...</div>';
         container.classList.add("show");
 
         // Load library if not loaded

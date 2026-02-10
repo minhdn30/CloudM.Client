@@ -112,8 +112,9 @@
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       const baseUrl = window.APP_CONFIG?.API_BASE || "http://localhost:5000/api";
-      // Hook into global loader
-      if (window.showGlobalLoader) window.showGlobalLoader(0);
+      // don't show global loader for chat messages (we use optimistic UI)
+      const isChatMessage = url.includes('/Messages/');
+      if (!isChatMessage && window.showGlobalLoader) window.showGlobalLoader(0);
 
       xhr.open(method, baseUrl + url);
       xhr.withCredentials = true;
@@ -132,7 +133,7 @@
 
       xhr.onreadystatechange = function () {
         if (xhr.readyState === 4) {
-          if (window.hideGlobalLoader) window.hideGlobalLoader();
+          if (!isChatMessage && window.hideGlobalLoader) window.hideGlobalLoader();
           const status = xhr.status;
           const text = xhr.responseText;
           const ok = status >= 200 && status < 300;
@@ -327,8 +328,13 @@
     },
 
     Messages: {
+      // send message in private chat (1:1) - lazy creates conversation if needed
       sendPrivate: (formData, onProgress) => 
         uploadFormDataWithProgress("/Messages/private-chat", formData, onProgress),
+      
+      // send message in group chat - conversation must exist
+      sendGroup: (conversationId, formData, onProgress) =>
+        uploadFormDataWithProgress(`/Messages/group/${conversationId}`, formData, onProgress),
     },
   };
 

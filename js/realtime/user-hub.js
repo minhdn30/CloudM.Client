@@ -203,6 +203,34 @@
                 }
             });
 
+            // Listen for global message notifications (Toasts/Badges)
+            connection.on("ReceiveMessageNotification", (data) => {
+                const { conversationId, message } = data;
+                const myId = localStorage.getItem("accountId");
+                
+                // Don't toast if we are the sender
+                if (message.sender?.accountId === myId) return;
+
+                // Don't toast if we already have this chat open in ChatPage
+                if (window.ChatPage && window.ChatPage.currentChatId === conversationId) return;
+
+                // Don't toast if we already have this chat open in ChatWindow
+                if (window.ChatWindow && window.ChatWindow.openChats && window.ChatWindow.openChats.has(conversationId)) return;
+
+                // Show toast
+                const senderName = message.sender?.fullName || message.sender?.username || "Someone";
+                const content = message.content || "Sent you a media message";
+                
+                if (window.toastInfo) {
+                    window.toastInfo(`💬 ${senderName}: ${content}`);
+                }
+
+                // Refresh sidebar unread counts
+                if (window.ChatSidebar && typeof window.ChatSidebar.loadConversations === 'function') {
+                    window.ChatSidebar.loadConversations();
+                }
+            });
+
             // 3. Start connection
             try {
                 await connection.start();
@@ -220,7 +248,7 @@
                     for (const pendingId of UserHub.pendingJoins) {
                         try {
                             await connection.invoke("JoinAccountGroup", pendingId);
-                            console.log(`✅ [UserHub] Joined pending group Account-${pendingId}`);
+                            console.log(`✅ Joined pending Account-${pendingId} group`);
                         } catch (err) {
                             console.error(`❌ [UserHub] Failed to join pending group Account-${pendingId}`, err);
                         }
@@ -256,9 +284,9 @@
                 if(UserHub.pendingJoins.has(accountId)) UserHub.pendingJoins.delete(accountId);
                 
                 await connection.invoke("JoinAccountGroup", accountId);
-                console.log(`✅ [UserHub] Joined group Account-${accountId}`);
+                console.log(`✅ Joined Account-${accountId} group`);
             } catch (err) {
-                console.error(`❌ [UserHub] Failed to join group Account-${accountId}`, err);
+                console.error(`❌ Failed to join group Account-${accountId}:`, err);
             }
         },
 
@@ -280,9 +308,9 @@
             if (!connection || connection.state !== "Connected") return;
             try {
                 await connection.invoke("LeaveAccountGroup", accountId);
-                console.log(`[UserHub] Left group Account-${accountId}`);
+                console.log(`👋 Left Account-${accountId} group`);
             } catch (err) {
-                console.error(`[UserHub] Failed to leave group`, err);
+                console.error(`❌ Failed to leave group Account-${accountId}:`, err);
             }
         },
 

@@ -24,4 +24,8 @@ window.APP_CONFIG = {
   CHATPAGE_MESSAGES_PAGE_SIZE: 20, // Số lượng tin nhắn load mỗi lần tại trang Chat Page
   CHATWINDOW_MESSAGES_PAGE_SIZE: 10, // Số lượng tin nhắn load mỗi lần tại cửa sổ Chat nhỏ (Floating)
   MAX_CHAT_MESSAGE_LENGTH: 1000, // Số ký tự tối đa cho mỗi tin nhắn chat
+  MAX_CHAT_FILE_SIZE_MB: 10, // Dung lượng tối đa mỗi file khi gửi chat (MB)
+  MAX_CHAT_MEDIA_FILES: 5, // Số lượng ảnh/video tối đa có thể gửi trong 1 tin nhắn chat
+  CHAT_TIME_SEPARATOR_GAP: 15 * 60 * 1000, // Gap (ms) to show time separator (15 mins)
+  CHAT_GROUPING_GAP: 2 * 60 * 1000, // Gap (ms) to break message grouping (2 mins)
 };
