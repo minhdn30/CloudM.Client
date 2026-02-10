@@ -12,6 +12,7 @@ const ChatSidebar = {
     isLoading: false,
     hasMore: true,
     pageSize: window.APP_CONFIG?.CONVERSATIONS_PAGE_SIZE || 20,
+    currentActiveId: null, // ID of the currently active chat (for highlighting)
 
     async init() {
         if (!document.getElementById('chat-panel')) {
@@ -38,6 +39,17 @@ const ChatSidebar = {
         if (window.location.hash.startsWith('#/messages')) {
             this.open();
         }
+
+        // Auto-highlight based on URL change
+        window.addEventListener('hashchange', () => {
+            if (window.location.hash.includes('?id=')) {
+                const id = window.location.hash.split('?id=')[1].split('&')[0];
+                this.updateActiveId(id);
+            } else if (!window.location.hash.startsWith('#/messages')) {
+                // Clear active if we left chat area
+                this.updateActiveId(null);
+            }
+        });
     },
 
     renderLayout() {
@@ -212,9 +224,14 @@ const ChatSidebar = {
             const time = conv.lastMessageSentAt ? PostUtils.timeAgo(conv.lastMessageSentAt, true) : '';
             const unread = conv.unreadCount > 0;
             const isOnline = !conv.isGroup && conv.otherMember && conv.otherMember.isActive;
+            
+            // Only highlight if on the Messages Page
+            const isChatPage = window.location.hash.startsWith('#/messages');
+            const isActive = isChatPage && conv.conversationId === this.currentActiveId;
 
             return `
-                <div class="chat-item ${unread ? 'unread' : ''}" onclick="ChatSidebar.openConversation('${conv.conversationId}')">
+                <div class="chat-item ${unread ? 'unread' : ''} ${isActive ? 'active' : ''}" 
+                     onclick="ChatSidebar.openConversation('${conv.conversationId}')">
                     <div class="chat-avatar-wrapper">
                         <img src="${avatar}" alt="${name}" class="chat-avatar" onerror="this.src='${APP_CONFIG.DEFAULT_AVATAR}'">
                         ${isOnline ? '<div class="chat-status-dot"></div>' : ''}
@@ -252,6 +269,28 @@ const ChatSidebar = {
             if (window.ChatPage && typeof window.ChatPage.selectConversation === 'function') {
                 window.ChatPage.selectConversation(id);
             }
+            this.updateActiveId(id);
+        }
+    },
+
+    updateActiveId(id, retryCount = 0) {
+        this.currentActiveId = id;
+        
+        // Update UI immediately if sidebar is rendered
+        const items = document.querySelectorAll('.chat-item');
+        
+        // If sidebar content hasn't fully loaded yet, retry a few times
+        if (items.length === 0 && retryCount < 5 && window.location.hash.startsWith('#/messages')) {
+            setTimeout(() => this.updateActiveId(id, retryCount + 1), 200);
+            return;
+        }
+
+        if (items.length > 0) {
+            const isChatPage = window.location.hash.startsWith('#/messages');
+            items.forEach(item => {
+                const isTarget = isChatPage && id && item.getAttribute('onclick')?.includes(id);
+                item.classList.toggle('active', !!isTarget);
+            });
         }
     }
 };

@@ -123,15 +123,38 @@
     };
 
     /**
-     * Format time for chat separators (e.g. "13:58 19/12/23")
+     * Format time for chat separators (e.g. "13:58 Today", "Mon 09:30")
      * @param {string|Date} dateVal 
      */
     PostUtils.formatChatSeparatorTime = function(dateVal) {
         const date = new Date(dateVal);
+        const now = new Date();
         const pad = (num) => num.toString().padStart(2, '0');
         
         const HH = pad(date.getHours());
         const mm = pad(date.getMinutes());
+        
+        const isToday = date.toDateString() === now.toDateString();
+        
+        const yesterday = new Date();
+        yesterday.setDate(now.getDate() - 1);
+        const isYesterday = date.toDateString() === yesterday.toDateString();
+        
+        const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+        
+        if (isToday) {
+            return `${HH}:${mm}`;
+        }
+        
+        if (isYesterday) {
+            return `${HH}:${mm} Yesterday`;
+        }
+        
+        if (diffInDays < 7) {
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            return `${HH}:${mm} ${days[date.getDay()]}`;
+        }
+
         const DD = pad(date.getDate());
         const MM = pad(date.getMonth() + 1);
         const YY = date.getFullYear().toString().slice(-2);

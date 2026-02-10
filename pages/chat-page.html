@@ -29,12 +29,19 @@
                 <div class="chat-input-expansion">
                     <button class="chat-toggle-actions"><i data-lucide="plus-circle"></i></button>
                     <div class="chat-view-input-actions">
-                        <button class="chat-icon-btn"><i data-lucide="smile"></i></button>
-                        <button class="chat-icon-btn"><i data-lucide="image"></i></button>
-                        <button class="chat-icon-btn"><i data-lucide="paperclip"></i></button>
+                        <!-- Emoji Picker Container -->
+                        <div id="chat-emoji-picker-container" class="chat-emoji-picker-container"></div>
+                        
+                        <button class="chat-icon-btn" id="chat-emoji-btn" title="Add emoji"><i data-lucide="smile"></i></button>
+                        
+                        <button class="chat-icon-btn" id="chat-upload-btn" title="Upload image/video"><i data-lucide="image"></i></button>
+                        <input type="file" id="chat-file-input" hidden accept="image/*,video/*" multiple>
+                        
+                        <button class="chat-icon-btn" id="chat-attachment-btn" title="Attach file"><i data-lucide="paperclip"></i></button>
                     </div>
                 </div>
                 <div class="chat-view-input-wrapper">
+                    <div id="chat-attachment-preview" class="chat-attachment-preview"></div>
                     <textarea id="chat-message-input" placeholder="Message..." rows="1"></textarea>
                 </div>
                 <button class="chat-send-btn" id="chat-page-send-btn" disabled>

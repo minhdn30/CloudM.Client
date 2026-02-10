@@ -1,0 +1,92 @@
+/* Message Status Indicator - positioned below message */
+.msg-status {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-secondary, #65676b);
+  text-align: right;
+  transition: opacity 0.2s ease;
+}
+
+/* Only hide on first and middle messages in a group */
+.msg-bubble-wrapper.msg-group-first .msg-status,
+.msg-bubble-wrapper.msg-group-middle .msg-status {
+  display: none;
+}
+
+/* Always show on single and last messages */
+.msg-bubble-wrapper.msg-group-single .msg-status,
+.msg-bubble-wrapper.msg-group-last .msg-status {
+  display: block !important;
+}
+
+/* Custom chat loading animation - 3 dots */
+.msg-loading-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.msg-loading-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: var(--text-secondary, #65676b);
+  animation: msg-dot-pulse 1.4s infinite ease-in-out;
+}
+
+.msg-loading-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.msg-loading-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.msg-loading-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes msg-dot-pulse {
+  0%, 60%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Status states */
+.msg-status-sending {
+  color: var(--text-secondary, #65676b);
+}
+
+.msg-status-sent {
+  color: var(--text-secondary, #65676b);
+}
+
+.msg-status-failed {
+  color: #f44336;
+  cursor: pointer;
+  user-select: none;
+}
+
+.msg-status-failed:hover {
+  text-decoration: underline;
+}
+
+/* Message bubble states */
+.msg-bubble-wrapper[data-status="pending"] .msg-bubble {
+  opacity: 0.85;
+}
+
+.msg-bubble-wrapper[data-status="failed"] .msg-bubble {
+  opacity: 0.6;
+  border-color: rgba(244, 67, 54, 0.3);
+}
+
+.msg-bubble-wrapper[data-status="sent"] .msg-bubble {
+  opacity: 1;
+}

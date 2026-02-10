@@ -57,7 +57,19 @@
 
         // Register state hooks for PageCache
         window.getPageData = window.ProfileState.getPageData;
-        window.setPageData = window.ProfileState.setPageData; // Optional, for completeness
+        window.setPageData = window.ProfileState.setPageData; 
+
+        // SignalR Clean up: Leave profile group when navigating away
+        window.leaveCurrentProfileGroup = function() {
+            if (window.UserHub && window._lastVisitedProfileId) {
+                const myId = localStorage.getItem("accountId");
+                // IMPORTANT: NEVER leave my own account group
+                if (window._lastVisitedProfileId !== myId) {
+                    UserHub.leaveGroup(window._lastVisitedProfileId);
+                }
+                window._lastVisitedProfileId = null;
+            }
+        };
 
         // 1. Restore from cache if available
         // CRITICAL FIX: Set currentProfileId BEFORE restore, because restore might trigger scroll/resize events 
@@ -78,12 +90,17 @@
              // Setup listeners again because DOM was replaced
              setupEditProfileListeners();
              
-             // Also need to join group
+             // SignalR: Bridge the gap for cached views
              if (window.UserHub) {
+                 const myId = localStorage.getItem("accountId");
                  if (window._lastVisitedProfileId && window._lastVisitedProfileId !== accountId) {
-                     UserHub.leaveGroup(window._lastVisitedProfileId);
+                     // Only leave if it wasn't my own group
+                     if (window._lastVisitedProfileId !== myId) {
+                        UserHub.leaveGroup(window._lastVisitedProfileId);
+                     }
                  }
-                 if (accountId !== localStorage.getItem("accountId")) {
+                 // Only join if it's someone else's profile
+                 if (accountId !== myId) {
                      UserHub.joinGroup(accountId);
                  }
                  window._lastVisitedProfileId = accountId;
@@ -94,12 +111,16 @@
 
         // Real-time: Join the profile's group to receive updates
         if (window.UserHub) {
+            const myId = localStorage.getItem("accountId");
             // Leave previous group if we switched profiles
             if (window._lastVisitedProfileId && window._lastVisitedProfileId !== accountId) {
-                UserHub.leaveGroup(window._lastVisitedProfileId);
+                // Only leave if it wasn't my own group
+                if (window._lastVisitedProfileId !== myId) {
+                    UserHub.leaveGroup(window._lastVisitedProfileId);
+                }
             }
-            // Join new group
-            if (accountId !== localStorage.getItem("accountId")) { // No need to join my own twice (already joined in init)
+            // Join new group ONLY if it's someone else
+            if (accountId !== myId) {
                 UserHub.joinGroup(accountId);
             }
             window._lastVisitedProfileId = accountId;
@@ -178,10 +199,14 @@
         
         // And ensure Group join
         if (window.UserHub && currentProfileId) {
+             const myId = localStorage.getItem("accountId");
              if (window._lastVisitedProfileId && window._lastVisitedProfileId !== currentProfileId) {
-                 UserHub.leaveGroup(window._lastVisitedProfileId);
+                 // Only leave if it wasn't my own group
+                 if (window._lastVisitedProfileId !== myId) {
+                    UserHub.leaveGroup(window._lastVisitedProfileId);
+                 }
              }
-             if (currentProfileId !== localStorage.getItem("accountId")) {
+             if (currentProfileId !== myId) {
                  UserHub.joinGroup(currentProfileId);
              }
              window._lastVisitedProfileId = currentProfileId;

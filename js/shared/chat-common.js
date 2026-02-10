@@ -29,10 +29,10 @@ const ChatCommon = {
         const sameSenderAsPrev = prevMsg && prevMsg.sender?.accountId === msg.sender?.accountId;
         const sameSenderAsNext = nextMsg && nextMsg.sender?.accountId === msg.sender?.accountId;
 
-        // Also break grouping if time gap > 2 minutes
-        const twoMin = 2 * 60 * 1000;
-        const closeTimePrev = prevMsg && (new Date(msg.sentAt) - new Date(prevMsg.sentAt) < twoMin);
-        const closeTimeNext = nextMsg && (new Date(nextMsg.sentAt) - new Date(msg.sentAt) < twoMin);
+        // Also break grouping if time gap > configured threshold (default 2 mins)
+        const gap = window.APP_CONFIG?.CHAT_GROUPING_GAP || 2 * 60 * 1000;
+        const closeTimePrev = prevMsg && (new Date(msg.sentAt) - new Date(prevMsg.sentAt) < gap);
+        const closeTimeNext = nextMsg && (new Date(nextMsg.sentAt) - new Date(msg.sentAt) < gap);
 
         const groupedWithPrev = sameSenderAsPrev && closeTimePrev;
         const groupedWithNext = sameSenderAsNext && closeTimeNext;
@@ -66,18 +66,32 @@ const ChatCommon = {
         const wrapperClass = isOwn ? 'sent' : 'received';
 
         // --- Media ---
-        const hasMedia = msg.medias && msg.medias.length > 0;
+        const allMedias = msg.medias || msg.Medias || [];
+        const hasMedia = allMedias.length > 0;
         let mediaHtml = '';
         if (hasMedia) {
+            // Only show up to 4 items in the grid
+            const displayMedias = allMedias.slice(0, 4);
+            const remainingCount = allMedias.length - 4;
+            const gridClass = `count-${Math.min(allMedias.length, 4)}`;
+
             mediaHtml = `
-                <div class="msg-media-grid ${msg.medias.length > 1 ? 'multiple' : 'single'}">
-                    ${msg.medias.map(m => {
+                <div class="msg-media-grid ${gridClass}">
+                    ${displayMedias.map((m, idx) => {
+                        const isLast = idx === 3 && remainingCount > 0;
+                        let inner = '';
                         if (m.mediaType === 0) {
-                            return `<div class="msg-media-item"><img src="${m.mediaUrl}" alt="image" loading="lazy" onclick="window.previewImage && window.previewImage('${m.mediaUrl}')"></div>`;
+                            inner = `<img src="${m.mediaUrl}" alt="image" loading="lazy" onclick="window.previewImage && window.previewImage('${m.mediaUrl}')">`;
                         } else if (m.mediaType === 1) {
-                            return `<div class="msg-media-item"><video src="${m.mediaUrl}" controls></video></div>`;
+                            inner = `<video src="${m.mediaUrl}"></video>`; // Removed controls for clean grid
                         }
-                        return '';
+
+                        return `
+                            <div class="msg-media-item" onclick="window.previewImage && window.previewImage('${m.mediaUrl}')">
+                                ${inner}
+                                ${isLast ? `<div class="msg-media-more-overlay">+${remainingCount}</div>` : ''}
+                            </div>
+                        `;
                     }).join('')}
                 </div>
             `;
