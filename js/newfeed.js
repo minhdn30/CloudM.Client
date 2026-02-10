@@ -323,14 +323,17 @@
 
     clearTimeout(scrollTimeout);
     scrollTimeout = setTimeout(() => {
-      const nearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 200;
+      const mc = document.querySelector('.main-content');
+      if (!mc) return;
+      const nearBottom = mc.scrollTop + mc.clientHeight >= mc.scrollHeight - 200;
       if (nearBottom && !isLoading && hasMore) {
         loadFeed();
       }
     }, 100);
   };
 
-  window.addEventListener("scroll", handleFeedScroll);
+  const mc = document.querySelector('.main-content');
+  if (mc) mc.addEventListener("scroll", handleFeedScroll);
 
   // Expose initFeed
   window.initFeed = initFeed;

@@ -76,7 +76,7 @@ const FollowListModule = (function () {
             
             // Show modal and lock scroll
             modal.classList.add("show");
-            document.body.style.overflow = "hidden";
+            if (window.lockScroll) lockScroll();
 
             // Update title
             const titleEl = modal.querySelector(".modal-header h3 span");
@@ -89,7 +89,7 @@ const FollowListModule = (function () {
             console.error(error);
             if (window.toastError) toastError("Could not load list");
             // Đảm bảo mở lại cuộn nếu load lỗi
-            document.body.style.overflow = "";
+            if (window.unlockScroll) unlockScroll();
         }
     }
 
@@ -278,7 +278,7 @@ const FollowListModule = (function () {
         const modal = document.getElementById(MODAL_ID);
         if (modal) {
             modal.classList.remove("show");
-            document.body.style.overflow = "";
+            if (window.unlockScroll) unlockScroll();
         }
     }
 

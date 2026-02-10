@@ -132,61 +132,59 @@
     padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 2px;
     background: var(--bg-primary);
 }
 
-.message-item {
-    display: flex;
-    flex-direction: column;
+/* Chat Window overrides for shared msg classes (smaller sizes) */
+.chat-box .msg-bubble-wrapper {
     max-width: 85%;
 }
 
-.message-item.received {
-    align-self: flex-start;
-}
-
-.message-item.sent {
-    align-self: flex-end;
-}
-
-.message-bubble {
-    padding: 8px 12px;
-    border-radius: 18px;
+.chat-box .msg-bubble {
+    padding: 6px 12px;
     font-size: 14px;
-    line-height: 1.4;
-    word-break: break-word;
 }
 
-.received .message-bubble {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-    border-bottom-left-radius: 4px;
+.chat-box .msg-avatar {
+    width: 24px;
+    height: 24px;
 }
 
-.sent .message-bubble {
-    background: var(--accent-primary, #3b82f6);
-    color: white;
-    border-bottom-right-radius: 4px;
+.chat-box .msg-avatar img {
+    width: 24px;
+    height: 24px;
 }
 
-.message-time {
-    font-size: 10px;
-    color: var(--text-tertiary);
-    margin-top: 2px;
-    padding: 0 4px;
+.chat-box .msg-avatar-spacer {
+    width: 24px;
 }
 
-.sent .message-time {
-    text-align: right;
-}
-
-/* Message with Group context */
-.message-author {
+.chat-box .msg-author {
     font-size: 11px;
-    color: var(--text-tertiary);
-    margin-bottom: 2px;
-    margin-left: 4px;
+    padding-left: 32px; /* 24px avatar + 8px gap */
+}
+
+.chat-box .msg-row {
+    gap: 6px;
+}
+
+.chat-box .chat-time-separator {
+    margin: 12px 0 6px;
+    font-size: 10px;
+}
+
+/* Media size overrides for compact chat window */
+.chat-box .msg-media-grid.single {
+    max-width: 200px;
+}
+
+.chat-box .msg-media-grid.multiple {
+    width: 200px;
+}
+
+.chat-box .msg-media-grid.single .msg-media-item {
+    max-height: 250px;
 }
 
 /* Input Area */

@@ -245,7 +245,7 @@ function showPreview(mouseEvent) {
     top = viewportHeight - popupHeight - offset;
   }
 
-  previewEl.style.top = top + window.scrollY + "px";
+  previewEl.style.top = top + "px";
   previewEl.style.left = left + "px";
 
   // Trigger animation bằng cách xóa class hidden
@@ -380,6 +380,13 @@ function initProfilePreview() {
 }
 
 window.initProfilePreview = initProfilePreview;
+
+// Auto-initialize once DOM is ready
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initProfilePreview);
+} else {
+  initProfilePreview();
+}
 
 /* ===== Follow/Unfollow ===== */
 /* ===== Follow/Unfollow ===== */

@@ -117,7 +117,13 @@ const ChatWindow = {
         container.appendChild(chatBox);
         setTimeout(() => chatBox.classList.add('show'), 10);
 
-        this.openChats.set(conv.conversationId, { element: chatBox, data: conv });
+        this.openChats.set(conv.conversationId, {
+            element: chatBox,
+            data: conv,
+            page: 1,
+            hasMore: true,
+            isLoading: false
+        });
         lucide.createIcons();
         this.loadInitialMessages(conv.conversationId);
     },
@@ -161,29 +167,156 @@ const ChatWindow = {
         const msgContainer = document.getElementById(`chat-messages-${id}`);
         if (!msgContainer) return;
 
-        // If it's a temp ID, there are no messages yet
         if (id.startsWith('new-')) {
             msgContainer.innerHTML = '<div style="padding:20px; font-size:12px; text-align:center; color:var(--text-tertiary);">Say hello!</div>';
             return;
         }
 
         const pageSize = window.APP_CONFIG?.CHATWINDOW_MESSAGES_PAGE_SIZE || 10;
-        
+        const chat = this.openChats.get(id);
+        const isGroup = chat?.data?.isGroup || false;
+        const myId = localStorage.getItem('accountId');
+
         try {
             const res = await window.API.Conversations.getMessages(id, 1, pageSize);
             if (res.ok) {
                 const data = await res.json();
                 msgContainer.innerHTML = '';
                 const messages = (data.messages?.items || []).reverse();
-                
-                messages.forEach(m => {
-                    const isOwn = m.sender?.accountId === localStorage.getItem('accountId');
-                    this.appendMessage(id, { ...m, isOwn });
+
+                let lastTime = null;
+
+                messages.forEach((m, idx) => {
+                    m.isOwn = m.sender?.accountId === myId;
+
+                    // Time separator (same logic as chat-page: 15 min gap)
+                    const currentTime = new Date(m.sentAt);
+                    if (!lastTime || (currentTime - lastTime > 15 * 60 * 1000)) {
+                        msgContainer.insertAdjacentHTML('beforeend', ChatCommon.renderChatSeparator(m.sentAt));
+                    }
+                    lastTime = currentTime;
+
+                    const prevMsg = idx > 0 ? messages[idx - 1] : null;
+                    const nextMsg = idx < messages.length - 1 ? messages[idx + 1] : null;
+                    const groupPos = ChatCommon.getGroupPosition(m, prevMsg, nextMsg);
+
+                    const senderAvatar = !m.isOwn ? (m.sender?.avatarUrl || '') : '';
+                    const authorName = isGroup && !m.isOwn
+                        ? (m.sender?.nickname || m.sender?.fullName || m.sender?.username || '')
+                        : '';
+
+                    const html = ChatCommon.renderMessageBubble(m, {
+                        isGroup,
+                        groupPos,
+                        senderAvatar,
+                        authorName
+                    });
+
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = html;
+                    const bubble = tempDiv.firstElementChild;
+                    bubble.dataset.sentAt = m.sentAt;
+                    bubble.dataset.senderId = m.sender?.accountId || myId;
+                    msgContainer.appendChild(bubble);
                 });
+
+                requestAnimationFrame(() => {
+                    msgContainer.scrollTop = msgContainer.scrollHeight;
+                });
+
+                // Update pagination state
+                const pageSize = window.APP_CONFIG?.CHATWINDOW_MESSAGES_PAGE_SIZE || 10;
+                chat.page = 2;
+                chat.hasMore = messages.length >= pageSize;
+
+                // Attach scroll listener for load-more
+                this.initScrollListener(id);
             }
         } catch (error) {
             console.error("Failed to load chat window messages:", error);
             msgContainer.innerHTML = '<div style="padding:10px; font-size:11px; text-align:center;">Error loading messages</div>';
+        }
+    },
+
+    initScrollListener(id) {
+        const msgContainer = document.getElementById(`chat-messages-${id}`);
+        if (!msgContainer) return;
+
+        msgContainer.onscroll = () => {
+            const chat = this.openChats.get(id);
+            if (!chat || chat.isLoading || !chat.hasMore) return;
+
+            // If scrolled near top (threshold 30px for compact window)
+            if (msgContainer.scrollTop <= 30) {
+                this.loadMoreMessages(id);
+            }
+        };
+    },
+
+    async loadMoreMessages(id) {
+        const chat = this.openChats.get(id);
+        const msgContainer = document.getElementById(`chat-messages-${id}`);
+        if (!chat || !msgContainer || chat.isLoading || !chat.hasMore) return;
+
+        chat.isLoading = true;
+        const pageSize = window.APP_CONFIG?.CHATWINDOW_MESSAGES_PAGE_SIZE || 10;
+        const isGroup = chat.data?.isGroup || false;
+        const myId = localStorage.getItem('accountId');
+        const oldScrollHeight = msgContainer.scrollHeight;
+
+        try {
+            const res = await window.API.Conversations.getMessages(id, chat.page, pageSize);
+            if (res.ok) {
+                const data = await res.json();
+                const messages = (data.messages?.items || []).reverse();
+
+                if (messages.length < pageSize) {
+                    chat.hasMore = false;
+                }
+
+                // Build HTML to prepend
+                let html = '';
+                let lastTime = null;
+
+                messages.forEach((m, idx) => {
+                    m.isOwn = m.sender?.accountId === myId;
+
+                    const currentTime = new Date(m.sentAt);
+                    if (!lastTime || (currentTime - lastTime > 15 * 60 * 1000)) {
+                        html += ChatCommon.renderChatSeparator(m.sentAt);
+                    }
+                    lastTime = currentTime;
+
+                    const prevMsg = idx > 0 ? messages[idx - 1] : null;
+                    const nextMsg = idx < messages.length - 1 ? messages[idx + 1] : null;
+                    const groupPos = ChatCommon.getGroupPosition(m, prevMsg, nextMsg);
+
+                    const senderAvatar = !m.isOwn ? (m.sender?.avatarUrl || '') : '';
+                    const authorName = isGroup && !m.isOwn
+                        ? (m.sender?.nickname || m.sender?.fullName || m.sender?.username || '')
+                        : '';
+
+                    html += ChatCommon.renderMessageBubble(m, {
+                        isGroup,
+                        groupPos,
+                        senderAvatar,
+                        authorName
+                    });
+                });
+
+                msgContainer.insertAdjacentHTML('afterbegin', html);
+
+                // Maintain scroll position
+                requestAnimationFrame(() => {
+                    msgContainer.scrollTop = msgContainer.scrollHeight - oldScrollHeight;
+                });
+
+                chat.page++;
+            }
+        } catch (error) {
+            console.error("Failed to load more messages:", error);
+        } finally {
+            chat.isLoading = false;
         }
     },
 
@@ -193,15 +326,59 @@ const ChatWindow = {
         if (!msgContainer || !chat) return;
 
         const isGroup = chat.data.isGroup;
-        const authorName = isGroup && !msg.isOwn && msg.sender ? (msg.sender.fullName || msg.sender.username) : '';
-        
+        const myId = localStorage.getItem('accountId');
+        if (msg.isOwn === undefined) {
+            msg.isOwn = msg.sender?.accountId === myId;
+        }
+
+        // Time separator
+        const lastMsgEl = msgContainer.querySelector('.msg-bubble-wrapper:last-of-type');
+        const prevTime = lastMsgEl ? new Date(lastMsgEl.dataset.sentAt) : null;
+        const currentTime = new Date(msg.sentAt);
+        if (!prevTime || (currentTime - prevTime > 15 * 60 * 1000)) {
+            msgContainer.insertAdjacentHTML('beforeend', ChatCommon.renderChatSeparator(msg.sentAt));
+        }
+
+        // Determine grouping with the last message in the container
+        const prevSenderId = lastMsgEl ? lastMsgEl.dataset.senderId : null;
+        const twoMin = 2 * 60 * 1000;
+        const sameSender = prevSenderId && prevSenderId === (msg.sender?.accountId || myId);
+        const closeTime = prevTime && (currentTime - prevTime < twoMin);
+        const groupedWithPrev = sameSender && closeTime;
+
+        const groupPos = groupedWithPrev ? 'last' : 'single';
+
+        // Update previous message
+        if (groupedWithPrev && lastMsgEl) {
+            if (lastMsgEl.classList.contains('msg-group-single')) {
+                lastMsgEl.classList.replace('msg-group-single', 'msg-group-first');
+            } else if (lastMsgEl.classList.contains('msg-group-last')) {
+                lastMsgEl.classList.replace('msg-group-last', 'msg-group-middle');
+            }
+            const prevAvatar = lastMsgEl.querySelector('.msg-avatar');
+            if (prevAvatar && !prevAvatar.classList.contains('msg-avatar-spacer')) {
+                prevAvatar.classList.add('msg-avatar-spacer');
+                prevAvatar.innerHTML = '';
+            }
+        }
+
+        const senderAvatar = !msg.isOwn ? (msg.sender?.avatarUrl || '') : '';
+        const authorName = isGroup && !msg.isOwn
+            ? (msg.sender?.nickname || msg.sender?.fullName || msg.sender?.username || '')
+            : '';
+        if (!msg.sender?.accountId) msg.senderId = myId;
+
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = ChatCommon.renderMessageBubble(msg, {
-            showAuthor: !!authorName,
-            authorName: authorName
+            isGroup,
+            groupPos,
+            senderAvatar,
+            authorName
         });
-        
+
         const bubble = tempDiv.firstElementChild;
+        bubble.dataset.sentAt = msg.sentAt;
+        bubble.dataset.senderId = msg.sender?.accountId || myId;
         msgContainer.appendChild(bubble);
         msgContainer.scrollTop = msgContainer.scrollHeight;
     },

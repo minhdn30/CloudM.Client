@@ -112,7 +112,8 @@
         isLoading = true;
 
         // Force scroll to top for fresh load to prevent any lingering scroll position
-        window.scrollTo(0, 0);
+        const mc = document.querySelector('.main-content');
+        if (mc) mc.scrollTop = 0;
         
         resetState();
         loadProfileData();
@@ -158,11 +159,14 @@
         if (!grid || !document.body.contains(grid)) return;
 
         if (isLoading || !hasMore) return;
-        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
+        const mc = document.querySelector('.main-content');
+        if (!mc) return;
+        if (mc.scrollTop + mc.clientHeight >= mc.scrollHeight - 500) {
             loadPosts();
         }
     };
-    window.addEventListener("scroll", handleProfileScroll);
+    const mc = document.querySelector('.main-content');
+    if (mc) mc.addEventListener("scroll", handleProfileScroll);
 
     // Global hook for app.js to trigger update after restore
     window.triggerProfileSilentUpdate = function() {

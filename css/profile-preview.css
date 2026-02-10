@@ -1,12 +1,12 @@
 .profile-preview {
-  position: absolute;
+  position: fixed; /* Chuyển sang fixed để tọa độ chuột khớp 100% với viewport */
   width: 320px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
   border-radius: 16px;
   box-shadow: var(--shadow-lg);
-  padding: 0; /* Remove padding for cover image */
-  z-index: 30000;
+  padding: 0; 
+  z-index: 99999; /* Đảm bảo cao hơn cả .main-content và các sidebar */
   transition: opacity var(--transition-normal), transform var(--transition-normal);
   color: var(--text-primary);
   opacity: 1;

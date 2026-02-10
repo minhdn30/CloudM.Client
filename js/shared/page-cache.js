@@ -8,17 +8,32 @@ const PageCache = (function() {
     let _snapshotScrollY = null;
 
     // Track scroll position continuously to avoid losing it during navigation/hashreset
-    window.addEventListener("scroll", () => {
-        // Only track if not currently within a transition or modal
-        if (document.body.style.overflow !== "hidden") {
-            _lastScrollY = window.scrollY;
+    const _getScrollContainer = () => document.querySelector('.main-content');
+    const _trackScroll = () => {
+        const mc = _getScrollContainer();
+        if (!mc) return;
+        // Only track if not locked by a modal
+        if (mc.style.overflow !== "hidden") {
+            _lastScrollY = mc.scrollTop;
         }
-    }, { passive: true });
+    };
+    const _trackScrollPassive = () => {
+        const mc = _getScrollContainer();
+        if (!mc) return;
+        if (mc.style.overflow !== "hidden") {
+            _snapshotScrollY = mc ? mc.scrollTop : 0;
+        }
+    };
+    // Attach to .main-content once DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+        const mc = _getScrollContainer();
+        if (mc) mc.addEventListener('scroll', _trackScroll, { passive: true });
+    });
 
     function snapshot() {
-        if (document.body.style.overflow !== "hidden") {
-            _snapshotScrollY = window.scrollY;
-            // console.log(`[PageCache] Snapshot taken: ${_snapshotScrollY}`);
+        const mc = _getScrollContainer();
+        if (mc && mc.style.overflow !== "hidden") {
+            _snapshotScrollY = mc ? mc.scrollTop : 0;
         }
     }
 
@@ -78,9 +93,11 @@ const PageCache = (function() {
 
         // Restore scroll position
         requestAnimationFrame(() => {
-            window.scrollTo(0, state.scrollY);
-            // Sync the internal tracker back to restored position
-            _lastScrollY = state.scrollY;
+            const mc = _getScrollContainer();
+            if (mc) {
+                mc.scrollTop = state.scrollY;
+                _lastScrollY = state.scrollY;
+            }
         });
 
         console.log(`[PageCache] Restored: ${key} (Scroll: ${state.scrollY})`);

@@ -6,7 +6,7 @@
             <div class="chat-view-header">
                 <div class="chat-view-user">
                     <div class="chat-view-avatar">
-                        <img src="" alt="" id="chat-view-img">
+                        <img alt="" id="chat-view-img">
                         <div class="chat-view-status hidden" id="chat-view-status-dot"></div>
                     </div>
                     <div class="chat-view-info">
@@ -26,10 +26,13 @@
             </div>
 
             <div class="chat-view-input-container">
-                <div class="chat-view-input-actions">
-                    <button class="chat-icon-btn"><i data-lucide="smile"></i></button>
-                    <button class="chat-icon-btn"><i data-lucide="image"></i></button>
-                    <button class="chat-icon-btn"><i data-lucide="paperclip"></i></button>
+                <div class="chat-input-expansion">
+                    <button class="chat-toggle-actions"><i data-lucide="plus-circle"></i></button>
+                    <div class="chat-view-input-actions">
+                        <button class="chat-icon-btn"><i data-lucide="smile"></i></button>
+                        <button class="chat-icon-btn"><i data-lucide="image"></i></button>
+                        <button class="chat-icon-btn"><i data-lucide="paperclip"></i></button>
+                    </div>
                 </div>
                 <div class="chat-view-input-wrapper">
                     <textarea id="chat-message-input" placeholder="Message..." rows="1"></textarea>
