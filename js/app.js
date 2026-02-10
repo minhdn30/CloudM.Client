@@ -79,6 +79,19 @@ function closeAllOverlayModals() {
   if (window.closeChatSidebar && !window.location.hash.startsWith('#/messages')) {
       window.closeChatSidebar();
   }
+
+  // SignalR Cleanup (Leave groups when navigating away)
+  if (!window.location.hash.startsWith('#/messages')) {
+      if (window.ChatPage && typeof window.ChatPage.leaveCurrentConversation === 'function') {
+          window.ChatPage.leaveCurrentConversation();
+      }
+  }
+
+  if (!window.location.hash.startsWith('#/profile')) {
+      if (typeof window.leaveCurrentProfileGroup === 'function') {
+          window.leaveCurrentProfileGroup();
+      }
+  }
   
   unlockScroll();
 }
@@ -160,6 +173,11 @@ function router() {
       
       PageCache.restore(nextKey, app);
       
+      // Fix: If returning to messages page, ensure we handle the URL (switch conversation if needed)
+      if (path === "/messages" && window.ChatPage && typeof window.ChatPage.handleUrlNavigation === 'function') {
+          window.ChatPage.handleUrlNavigation();
+      }
+
       if (path.startsWith("/profile") && window.triggerProfileSilentUpdate) {
           window.triggerProfileSilentUpdate();
       }

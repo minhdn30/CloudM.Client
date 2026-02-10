@@ -9,7 +9,7 @@
     backdrop-filter: blur(20px);
     z-index: 900;
     transform: translateX(-100%);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.2s ease; /* Sync with sidebar expansion */
+    transition: transform 0.4s ease-in-out, left 0.4s ease-in-out; /* Smooth sync with sidebar expansion */
     display: flex;
     flex-direction: column;
 
@@ -24,7 +24,7 @@
 /* Layout adjustments to push main content */
 .main-content {
     margin-left: 72px; /* Fixed base margin - sidebar expansion overlaps by default */
-    transition: margin-left 0.2s ease;
+    transition: margin-left 0.4s ease-in-out;
 }
 
 /* 
@@ -167,6 +167,31 @@ body.chat-sidebar-open #sidebar.expanded ~ .main-content {
 
 .chat-item:hover {
     background: var(--bg-hover);
+}
+
+/* Active conversation indicator */
+.chat-item.active {
+    background: linear-gradient(90deg, 
+        rgba(var(--accent-primary-rgb, 59, 130, 246), 0.1) 0%, 
+        rgba(var(--accent-primary-rgb, 59, 130, 246), 0.05) 100%);
+    border-left: 3px solid var(--accent-primary, #3b82f6);
+    padding-left: 13px; /* Compensate for border */
+}
+
+.chat-item.active:hover {
+    background: linear-gradient(90deg, 
+        rgba(var(--accent-primary-rgb, 59, 130, 246), 0.15) 0%, 
+        rgba(var(--accent-primary-rgb, 59, 130, 246), 0.08) 100%);
+}
+
+/* Active conversation text styling */
+.chat-item.active .chat-name {
+    color: var(--accent-primary, #3b82f6);
+    font-weight: 700;
+}
+
+.chat-item.active .chat-last-msg {
+    color: var(--text-primary);
 }
 
 .chat-avatar-wrapper {

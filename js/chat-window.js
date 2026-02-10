@@ -12,6 +12,41 @@ const ChatWindow = {
             container.className = 'chat-window-container'; // Better class name
             document.body.appendChild(container);
         }
+        this.listenForMessages();
+    },
+
+    listenForMessages() {
+        if (window.chatHubConnection) {
+            window.chatHubConnection.on('ReceiveNewMessage', (msg) => {
+                const convId = msg.conversationId;
+                if (this.openChats.has(convId)) {
+                    // De-duplication check
+                    if (msg.messageId && document.querySelector(`#chat-messages-${convId} [data-message-id="${msg.messageId}"]`)) {
+                        return;
+                    }
+
+                    // Try to merge with optimistic bubble
+                    const myId = localStorage.getItem('accountId');
+                    if (msg.sender?.accountId === myId) {
+                        const msgContainer = document.getElementById(`chat-messages-${convId}`);
+                        const optimisticMsg = msgContainer?.querySelector(`.msg-bubble-wrapper.sent[data-status="pending"], .msg-bubble-wrapper.sent[data-status="sent"]`);
+                        if (optimisticMsg) {
+                            const content = optimisticMsg.querySelector('.msg-bubble')?.innerText.trim();
+                            if (content === msg.content?.trim()) {
+                                optimisticMsg.dataset.messageId = msg.messageId;
+                                delete optimisticMsg.dataset.status;
+                                optimisticMsg.querySelector('.msg-status')?.remove();
+                                return;
+                            }
+                        }
+                    }
+
+                    this.appendMessage(convId, msg);
+                }
+            });
+        } else {
+            setTimeout(() => this.listenForMessages(), 1000);
+        }
     },
 
     openChat(conv) {
@@ -32,6 +67,16 @@ const ChatWindow = {
 
         this.renderChatBox(conv);
         this.loadInitialMessages(convId);
+
+        if (window.chatHubConnection && window.chatHubConnection.state === signalR.HubConnectionState.Connected) {
+            // Validate if convId is a real GUID before joining
+            const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(convId);
+            if (isGuid) {
+                window.chatHubConnection.invoke("JoinConversation", convId)
+                    .then(() => console.log(`✅ Joined Conv-${convId} group`))
+                    .catch(err => console.error("Error joining conversation group:", err));
+            }
+        }
     },
 
     async openByAccountId(accountId) {
@@ -136,6 +181,17 @@ const ChatWindow = {
     closeChat(id) {
         const chat = this.openChats.get(id);
         if (chat) {
+            // Leave the SignalR group
+            if (window.chatHubConnection && window.chatHubConnection.state === signalR.HubConnectionState.Connected) {
+                // Only leave if not open in ChatPage
+                const isOpenInPage = window.ChatPage && window.ChatPage.currentChatId === id;
+                if (!isOpenInPage) {
+                    window.chatHubConnection.invoke("LeaveConversation", id)
+                        .then(() => console.log(`👋 Left Conv-${id} group`))
+                        .catch(err => console.error("Error leaving conversation group:", err));
+                }
+            }
+
             chat.element.classList.remove('show');
             setTimeout(() => {
                 chat.element.remove();
@@ -191,7 +247,8 @@ const ChatWindow = {
 
                     // Time separator (same logic as chat-page: 15 min gap)
                     const currentTime = new Date(m.sentAt);
-                    if (!lastTime || (currentTime - lastTime > 15 * 60 * 1000)) {
+                    const gap = window.APP_CONFIG?.CHAT_TIME_SEPARATOR_GAP || 15 * 60 * 1000;
+                    if (!lastTime || (currentTime - lastTime > gap)) {
                         msgContainer.insertAdjacentHTML('beforeend', ChatCommon.renderChatSeparator(m.sentAt));
                     }
                     lastTime = currentTime;
@@ -282,7 +339,8 @@ const ChatWindow = {
                     m.isOwn = m.sender?.accountId === myId;
 
                     const currentTime = new Date(m.sentAt);
-                    if (!lastTime || (currentTime - lastTime > 15 * 60 * 1000)) {
+                    const gap = window.APP_CONFIG?.CHAT_TIME_SEPARATOR_GAP || 15 * 60 * 1000;
+                    if (!lastTime || (currentTime - lastTime > gap)) {
                         html += ChatCommon.renderChatSeparator(m.sentAt);
                     }
                     lastTime = currentTime;
@@ -335,15 +393,16 @@ const ChatWindow = {
         const lastMsgEl = msgContainer.querySelector('.msg-bubble-wrapper:last-of-type');
         const prevTime = lastMsgEl ? new Date(lastMsgEl.dataset.sentAt) : null;
         const currentTime = new Date(msg.sentAt);
-        if (!prevTime || (currentTime - prevTime > 15 * 60 * 1000)) {
+        const gap = window.APP_CONFIG?.CHAT_TIME_SEPARATOR_GAP || 15 * 60 * 1000;
+        if (!prevTime || (currentTime - prevTime > gap)) {
             msgContainer.insertAdjacentHTML('beforeend', ChatCommon.renderChatSeparator(msg.sentAt));
         }
 
         // Determine grouping with the last message in the container
         const prevSenderId = lastMsgEl ? lastMsgEl.dataset.senderId : null;
-        const twoMin = 2 * 60 * 1000;
+        const groupGap = window.APP_CONFIG?.CHAT_GROUPING_GAP || 2 * 60 * 1000;
         const sameSender = prevSenderId && prevSenderId === (msg.sender?.accountId || myId);
-        const closeTime = prevTime && (currentTime - prevTime < twoMin);
+        const closeTime = prevTime && (currentTime - prevTime < groupGap);
         const groupedWithPrev = sameSender && closeTime;
 
         const groupPos = groupedWithPrev ? 'last' : 'single';
@@ -379,6 +438,32 @@ const ChatWindow = {
         const bubble = tempDiv.firstElementChild;
         bubble.dataset.sentAt = msg.sentAt;
         bubble.dataset.senderId = msg.sender?.accountId || myId;
+        
+        // track temp id and status for optimistic UI
+        if (msg.tempId) {
+            bubble.dataset.tempId = msg.tempId;
+        }
+        if (msg.status) {
+            bubble.dataset.status = msg.status;
+            
+            // render initial status immediately
+            const statusEl = document.createElement('div');
+            statusEl.className = 'msg-status';
+            
+            if (msg.status === 'pending') {
+                statusEl.className += ' msg-status-sending';
+                statusEl.innerHTML = '<span class="msg-loading-dots"><span class="msg-loading-dot"></span><span class="msg-loading-dot"></span><span class="msg-loading-dot"></span></span>';
+            } else if (msg.status === 'sent') {
+                statusEl.className += ' msg-status-sent';
+                statusEl.textContent = 'Sent';
+            } else if (msg.status === 'failed') {
+                statusEl.className += ' msg-status-failed';
+                statusEl.textContent = 'Failed to send. Click to retry.';
+            }
+            
+            bubble.appendChild(statusEl);
+        }
+        
         msgContainer.appendChild(bubble);
         msgContainer.scrollTop = msgContainer.scrollHeight;
     },
@@ -392,8 +477,18 @@ const ChatWindow = {
         
         if (!content) return;
 
-        // Local UI feedback
-        this.appendMessage(id, { content, sentAt: new Date(), isOwn: true });
+        // generate temp message id for tracking
+        const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        // optimistic ui - show message immediately with pending state
+        this.appendMessage(id, { 
+            tempId,
+            content, 
+            sentAt: new Date(), 
+            isOwn: true,
+            status: 'pending'  // pending, sent, failed
+        });
+        
         inputField.innerText = '';
         inputField.focus();
         
@@ -403,48 +498,154 @@ const ChatWindow = {
         const formData = new FormData();
         formData.append('Content', content);
 
-        if (id.startsWith('new-')) {
-            const receiverId = id.replace('new-', '');
-            formData.append('ReceiverId', receiverId);
-        } else if (!chat.data.isGroup && chat.data.otherMember) {
-            formData.append('ReceiverId', chat.data.otherMember.accountId);
-        } else {
-            console.warn("Sending to group from window not yet fully supported or missing receiverId.");
-            return;
-        }
-
         try {
-            const res = await window.API.Messages.sendPrivate(formData);
+            let res;
+            
+            if (chat.data.isGroup) {
+                // group chat - use group API with conversationId
+                res = await window.API.Messages.sendGroup(id, formData);
+            } else {
+                // private chat (1:1) - use private API with receiverId
+                if (id.startsWith('new-')) {
+                    // new conversation - extract receiverId from temp ID
+                    const receiverId = id.replace('new-', '');
+                    formData.append('ReceiverId', receiverId);
+                } else if (chat.data.otherMember) {
+                    // existing conversation - use otherMember's accountId
+                    formData.append('ReceiverId', chat.data.otherMember.accountId);
+                } else {
+                    console.error("Cannot determine receiverId for private chat");
+                    this.updateMessageStatus(id, tempId, 'failed', content);
+                    return;
+                }
+                res = await window.API.Messages.sendPrivate(formData);
+            }
+            
             if (res.ok) {
                 const msg = await res.json();
                 
-                // If it was a 'new-' chat, we now have a real conversationId
+                // update message to sent status
+                this.updateMessageStatus(id, tempId, 'sent', content, msg.messageId);
+                
+                // if it was a 'new-' chat, update to real conversationId
                 if (id.startsWith('new-')) {
                     const realId = msg.conversationId;
                     
-                    // Update mapping
+                    // update mapping
                     this.openChats.delete(id);
                     chat.data.conversationId = realId;
                     this.openChats.set(realId, chat);
                     
-                    // Update DOM
+                    // update DOM
                     chat.element.id = `chat-box-${realId}`;
                     const msgContainer = chat.element.querySelector('.chat-messages');
                     if (msgContainer) msgContainer.id = `chat-messages-${realId}`;
                     
                     if (sendBtn) sendBtn.id = `send-btn-${realId}`;
                     
-                    // Update handlers
+                    // update handlers
                     chat.element.querySelector('.chat-box-header').onclick = () => this.toggleMinimize(realId);
                     chat.element.querySelector('.chat-input-field').onkeydown = (e) => this.handleKeyDown(e, realId);
                     chat.element.querySelector('.chat-input-field').oninput = (e) => this.handleInput(e, realId);
                     chat.element.querySelector('.chat-send-btn').onclick = () => this.sendMessage(realId);
 
-                    // Re-render header to remove any temp state if needed (though metadata should be same)
+                    // Join the SignalR group for the newly created conversation
+                    if (window.chatHubConnection && window.chatHubConnection.state === signalR.HubConnectionState.Connected) {
+                        window.chatHubConnection.invoke("JoinConversation", realId)
+                            .then(() => console.log(`✅ Joined Conv-${realId} group`))
+                            .catch(err => console.error("Error joining conversation group:", err));
+                    }
                 }
+            } else {
+                // failed to send
+                this.updateMessageStatus(id, tempId, 'failed', content);
             }
         } catch (error) {
             console.error("Failed to send message from window:", error);
+            this.updateMessageStatus(id, tempId, 'failed', content);
+        }
+    },
+
+    updateMessageStatus(chatId, tempId, status, content, realMessageId = null) {
+        const msgContainer = document.getElementById(`chat-messages-${chatId}`);
+        if (!msgContainer) return;
+        
+        const msgEl = msgContainer.querySelector(`[data-temp-id="${tempId}"]`);
+        if (!msgEl) return;
+        
+        msgEl.dataset.status = status;
+        
+        if (realMessageId) {
+            msgEl.dataset.messageId = realMessageId;
+        }
+        
+        // remove any existing status
+        const existingStatus = msgEl.querySelector('.msg-status');
+        if (existingStatus) existingStatus.remove();
+        
+        // create status element below bubble
+        const statusEl = document.createElement('div');
+        statusEl.className = 'msg-status';
+        
+        if (status === 'pending') {
+            statusEl.className += ' msg-status-sending';
+            statusEl.innerHTML = '<span class="msg-loading-dots"><span class="msg-loading-dot"></span><span class="msg-loading-dot"></span><span class="msg-loading-dot"></span></span>';
+        } else if (status === 'sent') {
+            statusEl.className += ' msg-status-sent';
+            statusEl.textContent = 'Sent';
+        } else if (status === 'failed') {
+            statusEl.className += ' msg-status-failed';
+            statusEl.textContent = 'Failed to send. Click to retry.';
+            statusEl.onclick = () => this.retryMessage(chatId, tempId, content);
+        }
+        
+        msgEl.appendChild(statusEl);
+    },
+
+    async retryMessage(chatId, tempId, content) {
+        const msgContainer = document.getElementById(`chat-messages-${chatId}`);
+        if (!msgContainer) return;
+        
+        const msgEl = msgContainer.querySelector(`[data-temp-id="${tempId}"]`);
+        if (!msgEl) return;
+        
+        // update to pending
+        this.updateMessageStatus(chatId, tempId, 'pending', content);
+        
+        // retry sending
+        const chat = this.openChats.get(chatId);
+        if (!chat) return;
+        
+        const formData = new FormData();
+        formData.append('Content', content);
+        
+        try {
+            let res;
+            
+            if (chat.data.isGroup) {
+                res = await window.API.Messages.sendGroup(chatId, formData);
+            } else {
+                if (chatId.startsWith('new-')) {
+                    const receiverId = chatId.replace('new-', '');
+                    formData.append('ReceiverId', receiverId);
+                } else if (chat.data.otherMember) {
+                    formData.append('ReceiverId', chat.data.otherMember.accountId);
+                } else {
+                    this.updateMessageStatus(chatId, tempId, 'failed', content);
+                    return;
+                }
+                res = await window.API.Messages.sendPrivate(formData);
+            }
+            
+            if (res.ok) {
+                const msg = await res.json();
+                this.updateMessageStatus(chatId, tempId, 'sent', content, msg.messageId);
+            } else {
+                this.updateMessageStatus(chatId, tempId, 'failed', content);
+            }
+        } catch (error) {
+            console.error("Failed to retry message:", error);
+            this.updateMessageStatus(chatId, tempId, 'failed', content);
         }
     }
 };
