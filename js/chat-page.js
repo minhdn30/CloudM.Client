@@ -14,10 +14,6 @@ const ChatPage = {
     pendingSeenByConv: new Map(),
 
     async init() {
-        // Close all roaming chat windows when entering Chat Page to avoid redundancy
-        if (window.ChatWindow && typeof window.ChatWindow.closeAll === 'function') {
-            window.ChatWindow.closeAll();
-        }
 
         // Cleanup old group if exists (prevent leaks across re-initializations)
         if (this.currentChatId) {
@@ -561,9 +557,7 @@ const ChatPage = {
 
         // Join the SignalR group for this conversation
         if (window.ChatRealtime && typeof window.ChatRealtime.joinConversation === 'function') {
-            window.ChatRealtime.joinConversation(conversationId)
-                .then(() => console.log(`✅ Joined Conv-${conversationId} group`))
-                .catch(err => console.error("Error joining conversation group:", err));
+            window.ChatRealtime.joinConversation(conversationId);
         }
     },
 
