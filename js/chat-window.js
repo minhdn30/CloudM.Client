@@ -128,17 +128,27 @@ const ChatWindow = {
             const state = JSON.parse(saved);
             if (!Array.isArray(state)) return;
 
-            // Sort state if we want to maintain order (though openChats is already an ordered Map)
             state.forEach(item => {
-                // Transfer saved unread count to data for renderChatBox/renderBubble
-                if (item.unreadCount) {
-                    item.data.unreadCount = item.unreadCount;
+                if (!item.id || !item.data) return;
+
+                // Defensive: Ensure we don't restore temporary/broken ID states
+                const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.id);
+                if (!isGuid) return;
+
+                // Sync with Sidebar if possible to fix "poisoned" localStorage data
+                let freshData = item.data;
+                if (window.ChatSidebar && window.ChatSidebar.conversations) {
+                    const realConv = window.ChatSidebar.conversations.find(c => c.conversationId === item.id);
+                    if (realConv) {
+                        // Merge saved state (unread) with fresh metadata (names, avatars)
+                        freshData = { ...realConv, unreadCount: item.unreadCount || realConv.unreadCount || 0 };
+                    }
                 }
 
                 if (item.minimized) {
-                    this.renderBubble(item.id, item.data);
+                    this.renderBubble(item.id, freshData);
                 } else {
-                    this.openChat(item.data, false); // Do not focus on restore
+                    this.openChat(freshData, false); // Do not focus on restore
                 }
             });
         } catch (e) {
@@ -576,16 +586,19 @@ const ChatWindow = {
         const convId = conv.conversationId;
 
         if (this.openChats.has(convId)) {
+            const chat = this.openChats.get(convId);
+            
+            // Always refresh data to ensure consistency (fix for "header showing own info" if stale)
+            if (conv) chat.data = conv;
+
             // Move to last position (leftmost) if requested even if already open
             if (priorityLeft) {
-                const entry = this.openChats.get(convId);
                 this.openChats.delete(convId);
-                this.openChats.set(convId, entry);
+                this.openChats.set(convId, chat);
                 this.reorderWindowsDOM();
                 this.reorderBubblesDOM();
             }
 
-            const chat = this.openChats.get(convId);
             if (chat.minimized) {
                 this.toggleMinimize(convId);
             } else if (shouldFocus) {
@@ -809,9 +822,14 @@ const ChatWindow = {
             chatBox.classList.remove('drag-target');
         });
 
+        const otherAccountId = conv.otherMember?.accountId || conv.otherMemberId || '';
+        const canNav = !conv.isGroup && otherAccountId;
+
         chatBox.innerHTML = `
             <div class="chat-box-header">
-                <div class="chat-header-info">
+                <div class="chat-header-info" 
+                     ${canNav ? `onclick="window.location.hash = '#/profile/${otherAccountId}';"` : ''} 
+                     style="${canNav ? 'cursor: pointer;' : 'cursor: grab;'}">
                     <div class="chat-header-avatar">
                         <img src="${avatar}" alt="${name}" onerror="this.src='${APP_CONFIG.DEFAULT_AVATAR}'">
                         ${!conv.isGroup && conv.otherMember?.isActive ? '<div class="chat-header-status"></div>' : ''}
@@ -911,7 +929,7 @@ const ChatWindow = {
             setTimeout(() => this.focusChat(conv.conversationId), 100);
         }
 
-        const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.conversationId);
+        const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.conversationId);
         if (isGuid && window.ChatRealtime) window.ChatRealtime.joinConversation(conv.conversationId);
     },
 
@@ -1048,9 +1066,7 @@ const ChatWindow = {
             // Leave the SignalR group
             const isOpenInPage = window.ChatPage && window.ChatPage.currentChatId === id;
             if (!isOpenInPage && window.ChatRealtime && typeof window.ChatRealtime.leaveConversation === 'function') {
-                window.ChatRealtime.leaveConversation(id)
-                    .then(() => console.log(`👋 Left Conv-${id} group`))
-                    .catch(err => console.error("Error leaving conversation group:", err));
+                window.ChatRealtime.leaveConversation(id);
             }
 
             if (chat.element) {
@@ -1437,8 +1453,22 @@ const ChatWindow = {
                 // DO NOT mark as seen immediately on load. 
                 // Wait for interaction.
 
-                // Initial render for seen indicators
+                // Update header and metadata with fresh data from server (fix for "stale header" issue)
                 if (data.metaData) {
+                    const chat = this.openChats.get(id);
+                    if (chat) {
+                        chat.data = data.metaData;
+                        // If window is open (not bubble), refresh its header UI
+                        if (chat.element) {
+                            const nameEl = chat.element.querySelector('.chat-header-name');
+                            const subtextEl = chat.element.querySelector('.chat-header-subtext');
+                            const imgEl = chat.element.querySelector('.chat-header-avatar img');
+                            
+                            if (nameEl) nameEl.textContent = ChatCommon.getDisplayName(data.metaData);
+                            if (subtextEl) subtextEl.textContent = data.metaData.isGroup ? 'Group Chat' : (data.metaData.otherMember?.isActive ? 'Online' : 'Offline');
+                            if (imgEl) imgEl.src = ChatCommon.getAvatar(data.metaData);
+                        }
+                    }
                     setTimeout(() => this.updateMemberSeenStatuses(id, data.metaData), 50);
                 }
             }

@@ -422,18 +422,28 @@ body.is-dragging-chat #chat-windows-stack {
     gap: 6px;
 }
 
-/* Media size overrides for compact chat window */
+/* Media size overrides for compact chat window (Smart Aspect Ratio) */
 .chat-box .msg-media-grid {
-    max-width: 200px;
+    max-width: 100%; /* Fill up to parent container (85%) */
 }
 
+/* Handle Single Media (Image/Video) specifically */
 .chat-box .msg-media-grid.count-1 .msg-media-item {
-    max-height: 200px;
+    width: fit-content;
+    max-width: 100%;
+    max-height: 300px; /* Limit height for portrait images */
+    aspect-ratio: auto;
+    border-radius: 12px;
 }
 
-.chat-box .msg-video-container.playing .msg-video-overlay .play-icon {
-    width: 32px;
-    height: 32px;
+.chat-box .msg-media-grid.count-1 .msg-media-item img,
+.chat-box .msg-media-grid.count-1 .msg-media-item video {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 300px;
+    object-fit: cover; /* Cover for extreme ratios, but keeps proportions for standard ones */
+    display: block;
 }
 
 

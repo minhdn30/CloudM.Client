@@ -17,7 +17,7 @@
 .msg-bubble-wrapper {
   display: flex;
   flex-direction: column;
-  max-width: 65%; /* Default for chat page */
+  max-width: 75%; /* Default for chat page */
 }
 
 .msg-bubble-wrapper.sent {

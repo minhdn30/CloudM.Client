@@ -10,11 +10,18 @@ const ChatCommon = {
         return conv.displayAvatar || APP_CONFIG.DEFAULT_AVATAR;
     },
 
-    /**
-     * Helper to get display name (Username for private, DisplayName for group)
-     */
     getDisplayName(conv) {
-        return conv.displayName || 'Unknown';
+        if (!conv) return 'Chat';
+        if (conv.isGroup) return conv.displayName || 'Group Chat';
+        
+        // Defensive check: ensure we prioritize the OTHER member's info
+        const other = conv.otherMember;
+        if (other) {
+            return other.nickname || other.username || other.fullName || 'Chat';
+        }
+
+        // Fallback for cases where otherMember might be temporarily missing from the object
+        return conv.displayName || 'Chat';
     },
 
     /**
@@ -263,6 +270,7 @@ const ChatCommon = {
         if (conv.lastMessagePreview) return conv.lastMessagePreview;
         return conv.isGroup ? 'Group created' : 'Started a conversation';
     },
+
 
     /**
      * Sync the boundary between two consecutive message bubbles in the DOM.

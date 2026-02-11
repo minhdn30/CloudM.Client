@@ -142,23 +142,35 @@
   aspect-ratio: 16/9;
 }
 
-/* Page specific Chat Media Grid Overrides (if any) */
-.msg-media-grid.count-1 .msg-media-item {
-  aspect-ratio: auto;
-  max-height: 400px;
+/* Page specific Chat Media Grid Overrides (Smart Aspect Ratio) */
+.msg-media-grid {
+  max-width: 100%; /* Fill up to parent container (75%) */
 }
 
+.msg-media-grid.count-1 .msg-media-item {
+  width: fit-content;
+  max-width: 100%;
+  max-height: 500px; /* Higher limit for the larger chat page */
+  aspect-ratio: auto;
+  border-radius: 12px;
+}
+
+.msg-media-grid.count-1 .msg-media-item img,
+.msg-media-grid.count-1 .msg-media-item video {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 500px;
+  object-fit: cover;
+  display: block;
+}
+
+/* Grids for multiple items: expand slightly but keep reasonable for clarity */
 .msg-media-grid.count-2,
 .msg-media-grid.count-3,
 .msg-media-grid.count-4 {
-  width: 400px;
-}
-
-
-/* Constraints for single items */
-.msg-media-grid.single .msg-media-item {
-  max-height: 450px;
-  border-radius: 12px;
+  width: 500px;
+  max-width: 100%;
 }
 
 /* Ensure video covers even with controls */
