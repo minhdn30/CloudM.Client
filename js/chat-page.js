@@ -506,9 +506,7 @@ const ChatPage = {
             const isOpenInWindow = window.ChatWindow && window.ChatWindow.openChats && window.ChatWindow.openChats.has(oldId);
             
             if (!isOpenInWindow && window.ChatRealtime && typeof window.ChatRealtime.leaveConversation === 'function') {
-                window.ChatRealtime.leaveConversation(oldId)
-                    .then(() => console.log(`👋 Left Conv-${oldId} group`))
-                    .catch(err => console.error("Error leaving conversation group:", err));
+                window.ChatRealtime.leaveConversation(oldId);
             }
             this.currentChatId = null;
         }
@@ -590,6 +588,21 @@ const ChatPage = {
         }
         if (nameEl) nameEl.innerText = ChatCommon.getDisplayName(meta) || 'Chat';
         
+        // --- Profile Navigation Support ---
+        const headerUser = document.querySelector('.chat-view-user');
+        if (headerUser) {
+            headerUser.onclick = () => {
+                const targetId = meta.otherMember?.accountId || meta.otherMemberId;
+                if (!meta.isGroup && targetId) {
+                    this.minimizeToBubble();
+                    window.location.hash = `#/profile/${targetId}`;
+                }
+            };
+            // Style hint
+            if (!meta.isGroup) headerUser.style.cursor = 'pointer';
+            else headerUser.style.cursor = 'default';
+        }
+
         if (statusText) {
             if (!meta.isGroup && meta.otherMember) {
                 statusText.innerText = meta.otherMember.isActive ? 'Active now' : 'Offline';
@@ -598,6 +611,13 @@ const ChatPage = {
                 statusText.innerText = 'Group chat';
                 if (statusDot) statusDot.classList.add('hidden');
             }
+        }
+    },
+
+    minimizeToBubble() {
+        if (window.ChatWindow && this.currentChatId && this.currentMetaData && !this.currentMetaData.isGroup) {
+            ChatWindow.renderBubble(this.currentChatId, this.currentMetaData);
+            ChatWindow.saveState();
         }
     },
 
@@ -626,7 +646,7 @@ const ChatPage = {
             </div>
 
             <div class="chat-info-quick-actions">
-                <button class="chat-info-quick-btn" onclick="window.toastInfo('Profile feature coming soon')">
+                <button class="chat-info-quick-btn" onclick="${(!isGroup && (meta.otherMember?.accountId || meta.otherMemberId)) ? `ChatPage.minimizeToBubble(); window.location.hash = '#/profile/${meta.otherMember?.accountId || meta.otherMemberId}'` : "window.toastInfo('Profile only available for private chats')" }">
                     <div class="chat-info-quick-icon"><i data-lucide="user"></i></div>
                     <span>Profile</span>
                 </button>

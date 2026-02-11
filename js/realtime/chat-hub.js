@@ -137,7 +137,11 @@
             if (count === 1) {
                 // Last joiner, actually tell server
                 groupRefCount.delete(conversationId);
-                return invokeOrQueue('LeaveConversation', [conversationId], `leave:${conversationId}`);
+                return invokeOrQueue('LeaveConversation', [conversationId], `leave:${conversationId}`)
+                    .then(res => {
+                        console.log(`👋 [Realtime] Left Conv-${conversationId} group`);
+                        return res;
+                    });
             } else {
                 groupRefCount.set(conversationId, count - 1);
                 return Promise.resolve(true);
