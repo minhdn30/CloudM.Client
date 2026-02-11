@@ -14,6 +14,56 @@ const ChatSidebar = {
     pageSize: window.APP_CONFIG?.CONVERSATIONS_PAGE_SIZE || 20,
     currentActiveId: null, // ID of the currently active chat (for highlighting)
 
+    handleDragStart(e, conversationId) {
+        // Disable drag-drop to open floating windows if we are on the dedicated Chat Page
+        if (document.body.classList.contains('is-chat-page')) {
+            e.preventDefault();
+            return;
+        }
+
+        e.dataTransfer.setData('text/plain', conversationId);
+        e.dataTransfer.setData('application/x-social-chat-external', 'true');
+        e.dataTransfer.effectAllowed = 'move';
+        
+        document.body.classList.add('is-dragging-chat');
+
+        // Better Drag Image (Ghost Card)
+        const item = e.target.closest('.chat-item');
+        const name = item.querySelector('.chat-name').textContent;
+        const avatarSrc = item.querySelector('.chat-avatar').src;
+
+        const ghost = document.createElement('div');
+        ghost.style.cssText = `
+            position: absolute; top: -1000px;
+            width: 200px; padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            display: flex; align-items: center; gap: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            pointer-events: none;
+            color: white; font-weight: 600;
+        `;
+        ghost.innerHTML = `
+            <img src="${avatarSrc}" style="width: 32px; height: 32px; border-radius: 50%;">
+            <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${name}</div>
+        `;
+        document.body.appendChild(ghost);
+        e.dataTransfer.setDragImage(ghost, 100, 25);
+        setTimeout(() => ghost.remove(), 0);
+
+        // Background sync if it's already open
+        const existing = document.getElementById(`chat-box-${conversationId}`);
+        if (existing) existing.classList.add('is-dragging-external');
+    },
+
+    handleDragEnd() {
+        document.body.classList.remove('is-dragging-chat');
+        document.querySelectorAll('.is-dragging-external').forEach(el => el.classList.remove('is-dragging-external'));
+    },
+
     async init() {
         if (!document.getElementById('chat-panel')) {
             const panel = document.createElement('div');
@@ -24,17 +74,8 @@ const ChatSidebar = {
             this.initScrollListener();
         }
 
-        document.addEventListener('click', (e) => {
-            const isMessagesPage = window.location.hash.startsWith('#/messages');
-            if (isMessagesPage) return; 
-            
-            const panel = document.getElementById('chat-panel');
-            if (this.isOpen && 
-                !panel.contains(e.target) && 
-                !e.target.closest('[data-route="/messages"]')) {
-                this.close();
-            }
-        });
+        // Removed: Auto-close on click outside. 
+        // Logic moved to explicit close button for better persistence.
 
         if (window.location.hash.startsWith('#/messages')) {
             this.open();
@@ -58,10 +99,15 @@ const ChatSidebar = {
 
         panel.innerHTML = `
             <div class="chat-sidebar-header">
-                <h2>${username} <i data-lucide="chevron-down" size="18"></i></h2>
+                <div class="chat-header-title-area">
+                    <h2>${username}</h2>
+                    <button class="chat-icon-btn" title="New Message" style="margin-left: 4px; padding: 4px;">
+                        <i data-lucide="square-pen" size="18"></i>
+                    </button>
+                </div>
                 <div class="chat-header-actions">
-                    <button class="chat-icon-btn" title="New Message">
-                        <i data-lucide="square-pen" size="22"></i>
+                    <button class="chat-icon-btn chat-sidebar-close-btn" onclick="window.closeChatSidebar()" title="Close Sidebar">
+                        <i data-lucide="x" size="22"></i>
                     </button>
                 </div>
             </div>
@@ -265,7 +311,10 @@ const ChatSidebar = {
             return `
                 <div class="chat-item ${unread ? 'unread' : ''} ${isActive ? 'active' : ''}" 
                      data-conversation-id="${conv.conversationId}"
-                     onclick="ChatSidebar.openConversation('${conv.conversationId}')">
+                     draggable="true"
+                     onclick="ChatSidebar.openConversation('${conv.conversationId}')"
+                     ondragstart="ChatSidebar.handleDragStart(event, '${conv.conversationId}')"
+                     ondragend="ChatSidebar.handleDragEnd()">
                     <div class="chat-avatar-wrapper">
                         <img src="${avatar}" alt="${name}" class="chat-avatar" onerror="this.src='${APP_CONFIG.DEFAULT_AVATAR}'">
                         ${isOnline ? '<div class="chat-status-dot"></div>' : ''}
@@ -333,7 +382,7 @@ const ChatSidebar = {
      * Increment unread badge for a specific conversation.
      * Updates preview text, time, moves item to top. Like Facebook/Instagram.
      */
-    incrementUnread(conversationId, message) {
+    incrementUnread(conversationId, message, skipBadgeIncrement = false) {
         const listContainer = document.getElementById('chat-conversation-list');
         if (!listContainer) return;
 
@@ -344,7 +393,7 @@ const ChatSidebar = {
         // Update in-memory data
         const conv = this.conversations.find(c => c.conversationId === conversationId);
         if (conv) {
-            if (!isMe) {
+            if (!isMe && !skipBadgeIncrement) {
                 conv.unreadCount = (conv.unreadCount || 0) + 1;
             }
             if (message) {
@@ -361,20 +410,26 @@ const ChatSidebar = {
 
         if (item) {
             // Update unread styling
-            if (!isMe) {
+            if (!isMe && !skipBadgeIncrement) {
                 item.classList.add('unread');
             }
 
             // Update or create badge
             let badge = item.querySelector('.chat-unread-badge');
-            const newCount = conv?.unreadCount || 1;
-            if (badge) {
-                badge.textContent = newCount > 9 ? '9+' : newCount;
-            } else {
-                badge = document.createElement('div');
-                badge.className = 'chat-unread-badge';
-                badge.textContent = newCount > 9 ? '9+' : newCount;
-                item.appendChild(badge);
+            const newCount = (conv ? conv.unreadCount : 0);
+            if (newCount > 0) {
+                if (badge) {
+                    badge.textContent = newCount > 9 ? '9+' : newCount;
+                } else {
+                    badge = document.createElement('div');
+                    badge.className = 'chat-unread-badge';
+                    badge.textContent = newCount > 9 ? '9+' : newCount;
+                    item.appendChild(badge);
+                }
+            } else if (badge && !isMe) {
+                // If count is zero but badge exists, remove it (sender is not me, so it was unread)
+                badge.remove();
+                item.classList.remove('unread');
             }
 
         // Update preview text

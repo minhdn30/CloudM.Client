@@ -28,4 +28,6 @@ window.APP_CONFIG = {
   MAX_CHAT_MEDIA_FILES: 5, // Số lượng ảnh/video tối đa có thể gửi trong 1 tin nhắn chat
   CHAT_TIME_SEPARATOR_GAP: 15 * 60 * 1000, // Gap (ms) to show time separator (15 mins)
   CHAT_GROUPING_GAP: 2 * 60 * 1000, // Gap (ms) to break message grouping (2 mins)
+  MAX_OPEN_CHAT_WINDOWS: 3, // Số lượng cửa sổ chat được mở tối đa cùng lúc
+  MAX_TOTAL_CHAT_WINDOWS: 8, // Tổng số lượng chat (cả cửa sổ và bong bóng) tối đa được phép duy trì
 };
