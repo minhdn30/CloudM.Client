@@ -80,10 +80,8 @@ function closeAllOverlayModals() {
       window.closeChatSidebar();
   }
 
-  // Chat Windows (Floating) - Close all if entering Chat Page
-  if (window.location.hash.startsWith('#/messages') && window.ChatWindow && typeof window.ChatWindow.closeAll === 'function') {
-      window.ChatWindow.closeAll();
-  }
+  // Chat Windows (Floating) logic is now handled in router() via CSS hiding
+  // and ChatWindow.minimizeAll().
 
   // SignalR Cleanup (Leave groups when navigating away)
   if (!window.location.hash.startsWith('#/messages')) {
@@ -158,6 +156,16 @@ function router() {
       }
   }
 
+  // Update body class for chat-page UI hiding roaming windows
+  if (path === "/messages") {
+      document.body.classList.add('is-chat-page');
+      if (window.ChatWindow && typeof window.ChatWindow.minimizeAll === 'function') {
+          window.ChatWindow.minimizeAll();
+      }
+  } else {
+      document.body.classList.remove('is-chat-page');
+  }
+
   if (PageCache.has(nextKey)) {
       if (prevKey === nextKey) {
           if (path === "/messages" && window.ChatPage && typeof window.ChatPage.handleUrlNavigation === 'function') {
@@ -178,7 +186,6 @@ function router() {
       
       PageCache.restore(nextKey, app);
       
-      // Fix: If returning to messages page, ensure we handle the URL (switch conversation if needed)
       if (path === "/messages" && window.ChatPage && typeof window.ChatPage.handleUrlNavigation === 'function') {
           window.ChatPage.handleUrlNavigation();
       }

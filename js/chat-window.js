@@ -3,17 +3,62 @@
  * Handles floating chat windows for quick conversations.
  */
 const ChatWindow = {
-    openChats: new Map(), // conversationId -> DOM elements
-    maxOpenChats: 3,
+    openChats: new Map(), // conversationId -> { element, bubbleElement, data, minimized, unreadCount, ... }
+    maxOpenWindows: window.APP_CONFIG?.MAX_OPEN_CHAT_WINDOWS || 3,
+    maxTotalWindows: window.APP_CONFIG?.MAX_TOTAL_CHAT_WINDOWS || 8,
     retryFiles: new Map(), // tempId -> File[]
     pendingSeenByConv: new Map(),
     
     init() {
-        if (!document.getElementById('chat-container')) {
-            const container = document.createElement('div');
-            container.id = 'chat-container';
-            container.className = 'chat-window-container';
-            document.body.appendChild(container);
+        if (!document.getElementById('chat-window-wrapper')) {
+            const wrapper = document.createElement('div');
+            wrapper.id = 'chat-window-wrapper';
+            wrapper.className = 'chat-window-container'; // Main wrapper
+            
+            const windowsStack = document.createElement('div');
+            windowsStack.id = 'chat-windows-stack';
+            
+            const bubblesStack = document.createElement('div');
+            bubblesStack.id = 'chat-bubbles-stack';
+            
+            wrapper.appendChild(bubblesStack);
+            wrapper.appendChild(windowsStack);
+            document.body.appendChild(wrapper);
+
+            // Stack Drop handling (Specific Position)
+            windowsStack.addEventListener('dragover', (e) => {
+                if (e.dataTransfer.types.includes('application/x-social-chat-external')) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    windowsStack.classList.add('drag-over-stack');
+                }
+            });
+
+            windowsStack.addEventListener('dragleave', () => {
+                windowsStack.classList.remove('drag-over-stack');
+            });
+
+            windowsStack.addEventListener('drop', (e) => {
+                windowsStack.classList.remove('drag-over-stack');
+                const isExternal = e.dataTransfer.getData('application/x-social-chat-external');
+                if (isExternal) {
+                    e.preventDefault();
+                    const convId = e.dataTransfer.getData('text/plain');
+                    if (convId) {
+                        // Determine drop position relative to existing windows
+                        const children = Array.from(windowsStack.children);
+                        let targetId = null;
+                        for (const child of children) {
+                            const rect = child.getBoundingClientRect();
+                            if (e.clientX < rect.left + rect.width / 2) {
+                                targetId = child.dataset.id;
+                                break;
+                            }
+                        }
+                        this.openByIdAtPosition(convId, targetId);
+                    }
+                }
+            });
         }
 
         // Setup global click-outside for ALL chat window emoji pickers
@@ -23,12 +68,83 @@ const ChatWindow = {
 
         // Click outside to lose focus
         document.addEventListener('mousedown', (e) => {
-            if (!e.target.closest('.chat-box')) {
+            if (!e.target.closest('.chat-box') && !e.target.closest('.chat-bubble')) {
                 document.querySelectorAll('.chat-box.is-focused').forEach(b => b.classList.remove('is-focused'));
             }
         });
 
         this.registerRealtimeHandlers();
+
+        // Global Drag & Drop handling for External (Sidebar) items
+        document.body.addEventListener('dragover', (e) => {
+            if (document.body.classList.contains('is-chat-page')) return;
+            
+            if (e.dataTransfer.types.includes('application/x-social-chat-external')) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            }
+        });
+
+        document.body.addEventListener('drop', (e) => {
+            if (document.body.classList.contains('is-chat-page')) return;
+
+            const isExternal = e.dataTransfer.getData('application/x-social-chat-external');
+            if (isExternal) {
+                e.preventDefault();
+                const convId = e.dataTransfer.getData('text/plain');
+                if (convId) {
+                    // If target is the stack, let the stack listener handle it
+                    if (e.target.closest('#chat-windows-stack')) return;
+                    
+                    // Otherwise, open at default position (left-most / end of map)
+                    this.openById(convId, true); 
+                }
+            }
+        });
+
+        // Restore open chats from previous session/navigation
+        this.restoreState();
+    },
+
+    saveState() {
+        try {
+            const state = Array.from(this.openChats.entries()).map(([id, chat]) => ({
+                id,
+                minimized: chat.minimized || false,
+                data: chat.data,
+                unreadCount: chat.unreadCount || 0
+            }));
+            localStorage.setItem('SOCIAL_NETWORK_OPEN_CHATS', JSON.stringify(state));
+        } catch (e) {
+            console.error("Failed to save ChatWindow state:", e);
+        }
+    },
+
+    restoreState() {
+        try {
+            const saved = localStorage.getItem('SOCIAL_NETWORK_OPEN_CHATS');
+            if (!saved) return;
+            
+            const state = JSON.parse(saved);
+            if (!Array.isArray(state)) return;
+
+            // Sort state if we want to maintain order (though openChats is already an ordered Map)
+            state.forEach(item => {
+                // Transfer saved unread count to data for renderChatBox/renderBubble
+                if (item.unreadCount) {
+                    item.data.unreadCount = item.unreadCount;
+                }
+
+                if (item.minimized) {
+                    this.renderBubble(item.id, item.data);
+                } else {
+                    this.openChat(item.data, false); // Do not focus on restore
+                }
+            });
+        } catch (e) {
+            console.error("Failed to restore ChatWindow state:", e);
+            localStorage.removeItem('SOCIAL_NETWORK_OPEN_CHATS');
+        }
     },
 
     registerRealtimeHandlers() {
@@ -89,15 +205,45 @@ const ChatWindow = {
 
     handleRealtimeMessage(msg) {
         const convIdRaw = msg.ConversationId || msg.conversationId;
-        const convId = this.getOpenChatId(convIdRaw);
-        if (!convId) return;
-
         const messageIdRaw = msg.MessageId || msg.messageId;
         const messageId = messageIdRaw ? messageIdRaw.toString().toLowerCase() : null;
         const tempId = msg.TempId || msg.tempId;
         const rawSenderId = msg.Sender?.AccountId || msg.sender?.accountId || msg.SenderId || msg.senderId || '';
         const senderId = rawSenderId.toLowerCase();
+        const myId = (localStorage.getItem('accountId') || '').toLowerCase();
         const content = (msg.Content || msg.content || '').trim();
+
+        const convId = this.getOpenChatId(convIdRaw);
+        const chat = convId ? this.openChats.get(convId) : null;
+
+        // 1. GLOBAL UI UPDATE (Sidebar & Global Badge)
+        // We do this REGARDLESS of whether a floating window is open.
+        if (senderId !== myId) {
+            const isActiveInPage = window.ChatPage && window.ChatPage.currentChatId?.toLowerCase() === convIdRaw.toLowerCase();
+            const isActiveInWindow = chat && !chat.minimized && document.getElementById(`chat-box-${convId}`)?.classList.contains('is-focused');
+            const isActuallyActive = isActiveInPage || isActiveInWindow;
+
+            if (window.ChatSidebar && typeof window.ChatSidebar.incrementUnread === 'function') {
+                window.ChatSidebar.incrementUnread(convIdRaw, msg, isActuallyActive);
+            }
+
+            if (!isActuallyActive && typeof window.scheduleGlobalUnreadRefresh === 'function') {
+                window.scheduleGlobalUnreadRefresh();
+            }
+
+            // Floating chat specific unread UI (if open)
+            if (!isActuallyActive && chat) {
+                chat.unreadCount = (chat.unreadCount || 0) + 1;
+                if (chat.minimized) {
+                    this.incrementBubbleUnread(convId, true); // true = skip incrementing (already done)
+                } else if (chat.element) {
+                    chat.element.classList.add('has-unread');
+                }
+                this.saveState(); // Save the new unread count
+            }
+        }
+
+        if (!convId) return;
 
         // De-duplication check
         if (messageId && document.querySelector(`#chat-messages-${convId} [data-message-id="${messageId}"]`)) {
@@ -107,7 +253,6 @@ const ChatWindow = {
             return;
         }
 
-        const myId = (localStorage.getItem('accountId') || '').toLowerCase();
         const incomingMedias = msg.Medias || msg.medias || [];
         if (senderId === myId) {
             const msgContainer = document.getElementById(`chat-messages-${convId}`);
@@ -170,6 +315,9 @@ const ChatWindow = {
         if (messageId) {
             this.applyPendingSeenForMessage(convId, messageId);
         }
+        if (!chat.minimized) this.scrollToBottom(convId);
+
+        // Manage unread state (moved up to be global)
 
         // DO NOT mark as seen immediately. Only when focused/clicked.
         const chatBox = document.getElementById(`chat-box-${convId}`);
@@ -177,11 +325,32 @@ const ChatWindow = {
             if (chatBox.classList.contains('is-focused')) {
                 const lastId = messageId || this.getLastMessageId(convId);
                 if (lastId) this.markConversationSeen(convId, lastId);
-            } else if (senderId !== myId) {
-                // If not focused and received from others, mark as unread visually
-                chatBox.classList.add('has-unread');
             }
         }
+    },
+
+    incrementBubbleUnread(id, alreadyIncremented = false) {
+        const chat = this.openChats.get(id);
+        if (!chat || !chat.bubbleElement) return;
+        
+        if (!alreadyIncremented) {
+            chat.unreadCount = (chat.unreadCount || 0) + 1;
+        }
+        let badge = chat.bubbleElement.querySelector('.chat-bubble-unread');
+        if (!badge) {
+            badge = document.createElement('div');
+            badge.className = 'chat-bubble-unread';
+            chat.bubbleElement.appendChild(badge);
+        }
+        badge.textContent = chat.unreadCount > 9 ? '9+' : chat.unreadCount;
+    },
+
+    clearBubbleUnread(id) {
+        const chat = this.openChats.get(id);
+        if (!chat) return;
+        chat.unreadCount = 0;
+        const badge = chat.bubbleElement?.querySelector('.chat-bubble-unread');
+        if (badge) badge.remove();
     },
 
     handleMemberSeen(data) {
@@ -380,29 +549,130 @@ const ChatWindow = {
         });
     },
 
-    openChat(conv) {
+    /**
+     * Open a chat window.
+     * @param {Object} conv The conversation data
+     * @param {Boolean} shouldFocus Whether to focus the window
+     * @param {Boolean} priorityLeft Whether to move to the left-most position (end of map)
+     */
+    openChat(conv, shouldFocus = true, priorityLeft = false) {
         if (!conv) return;
         const convId = conv.conversationId;
 
         if (this.openChats.has(convId)) {
-            const chatBox = this.openChats.get(convId).element;
-            chatBox.classList.add('show');
-            this.focusChat(convId);
+            // Move to last position (leftmost) if requested even if already open
+            if (priorityLeft) {
+                const entry = this.openChats.get(convId);
+                this.openChats.delete(convId);
+                this.openChats.set(convId, entry);
+                this.reorderWindowsDOM();
+                this.reorderBubblesDOM();
+            }
+
+            const chat = this.openChats.get(convId);
+            if (chat.minimized) {
+                this.toggleMinimize(convId);
+            } else if (shouldFocus) {
+                this.focusChat(convId);
+            }
             return;
         }
 
-        if (this.openChats.size >= this.maxOpenChats) {
-            const firstId = this.openChats.keys().next().value;
-            this.closeChat(firstId);
+        // Check Total Limit before opening a NEW one
+        if (this.openChats.size >= this.maxTotalWindows) {
+            const oldestId = Array.from(this.openChats.keys())[0];
+            if (oldestId) this.closeChat(oldestId);
         }
 
-        this.renderChatBox(conv);
+        const openWindowsCount = Array.from(this.openChats.values()).filter(c => !c.minimized).length;
+        if (openWindowsCount >= this.maxOpenWindows) {
+            const oldestWindowId = Array.from(this.openChats.entries()).find(([id, c]) => !c.minimized)?.[0];
+            if (oldestWindowId) this.toggleMinimize(oldestWindowId);
+        }
+
+        this.renderChatBox(conv, shouldFocus);
+
+        // Adjust internal Map order if opening at start
+        if (priorityLeft) {
+            const entry = this.openChats.get(convId);
+            this.openChats.delete(convId);
+            this.openChats.set(convId, entry);
+            this.reorderWindowsDOM();
+            this.reorderBubblesDOM();
+        }
 
         const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(convId);
         if (isGuid && window.ChatRealtime && typeof window.ChatRealtime.joinConversation === 'function') {
-            window.ChatRealtime.joinConversation(convId)
-                .then(() => console.log(`✅ Joined Conv-${convId} group`))
-                .catch(err => console.error("Error joining conversation group:", err));
+            window.ChatRealtime.joinConversation(convId);
+        }
+
+        // Save state after opening
+        this.saveState();
+    },
+
+    async openById(convId, priorityLeft = false) {
+        if (!convId) return;
+        
+        let convData = null;
+        if (window.ChatSidebar && window.ChatSidebar.conversations) {
+            convData = window.ChatSidebar.conversations.find(c => c.conversationId === convId);
+        }
+
+        if (convData) {
+            this.openChat(convData, true, priorityLeft);
+        } else {
+            try {
+                const res = await window.API.Conversations.getConversation(convId);
+                if (res.ok) {
+                    const data = await res.json();
+                    this.openChat(data, true, priorityLeft);
+                }
+            } catch (err) {
+                console.error("Failed to fetch conversation for drag-drop:", err);
+            }
+        }
+    },
+
+    async openByIdAtPosition(convId, referenceId) {
+        if (!convId) return;
+
+        let convData = null;
+        if (window.ChatSidebar && window.ChatSidebar.conversations) {
+            convData = window.ChatSidebar.conversations.find(c => c.conversationId === convId);
+        }
+
+        if (!convData) {
+            try {
+                const res = await window.API.Conversations.getConversation(convId);
+                if (res.ok) convData = await res.json();
+            } catch (err) {
+                console.error("Failed to fetch conversation for drag-drop:", err);
+            }
+        }
+
+        if (convData) {
+            // First open it normally (if not already open)
+            this.openChat(convData, true, false);
+
+            // Now precisely reorder it in the Map based on the referenceId
+            const ids = Array.from(this.openChats.keys());
+            const oldIdx = ids.indexOf(convId);
+            if (oldIdx !== -1) ids.splice(oldIdx, 1);
+            
+            const targetIdx = referenceId ? ids.indexOf(referenceId) : ids.length;
+            ids.splice(targetIdx, 0, convId);
+
+            const newMap = new Map();
+            const existingMap = new Map(this.openChats);
+            ids.forEach(id => {
+                const obj = existingMap.get(id);
+                if (obj) newMap.set(id, obj);
+            });
+
+            this.openChats = newMap;
+            this.reorderWindowsDOM();
+            this.reorderBubblesDOM();
+            this.saveState();
         }
     },
 
@@ -435,8 +705,9 @@ const ChatWindow = {
         }
     },
 
-    renderChatBox(conv) {
-        const container = document.getElementById('chat-container');
+    renderChatBox(conv, shouldFocus = true) {
+        const stack = document.getElementById('chat-windows-stack');
+        if (!stack) return;
         const avatar = ChatCommon.getAvatar(conv);
         const name = escapeHtml(ChatCommon.getDisplayName(conv));
         const subtext = conv.isGroup ? 'Group Chat' : (conv.otherMember?.isActive ? 'Online' : 'Offline');
@@ -444,10 +715,86 @@ const ChatWindow = {
         const chatBox = document.createElement('div');
         chatBox.className = 'chat-box';
         chatBox.id = `chat-box-${conv.conversationId}`;
-        chatBox.onclick = () => this.focusChat(conv.conversationId);
+        chatBox.dataset.id = conv.conversationId;
+
+        // Initial unread state (for restore)
+        if (conv.unreadCount > 0 && !shouldFocus) {
+            chatBox.classList.add('has-unread');
+        }
+        
+        // Drag Handle Management & Focus
+        chatBox.addEventListener('mousedown', (e) => {
+            const isHeader = e.target.closest('.chat-box-header');
+            const isButton = e.target.closest('.chat-btn');
+            
+            // Only allow dragging if clicking on the header but NOT on buttons
+            if (isHeader && !isButton) {
+                chatBox.draggable = true;
+            } else {
+                chatBox.draggable = false;
+            }
+
+            // Focus logic: Don't focus when clicking the header (avoid inadvertent "seen" while dragging/sorting)
+            if (!isButton && !isHeader) {
+                this.focusChat(conv.conversationId);
+            }
+        }, true);
+
+        // Drag and Drop listeners
+        chatBox.addEventListener('dragstart', (e) => {
+            chatBox.classList.add('is-dragging');
+            e.dataTransfer.setData('text/plain', conv.conversationId);
+            e.dataTransfer.effectAllowed = 'move';
+            
+            // Set a drag image offset if needed (optional)
+        });
+
+        chatBox.addEventListener('dragend', () => {
+            chatBox.classList.remove('is-dragging');
+            chatBox.draggable = false; // Reset
+            this.syncChatOrderFromWindows();
+        });
+
+        // Internal Sorting (when dragging another box over this one)
+        chatBox.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const dragging = document.querySelector('.chat-box.is-dragging');
+            if (!dragging || dragging === chatBox) return;
+
+            const stack = document.getElementById('chat-windows-stack');
+            const children = Array.from(stack.children);
+            const dragIdx = children.indexOf(dragging);
+            const targetIdx = children.indexOf(chatBox);
+
+            // Throttle swap to prevent flicker
+            if (dragIdx < targetIdx) {
+                stack.insertBefore(dragging, chatBox.nextSibling);
+            } else {
+                stack.insertBefore(dragging, chatBox);
+            }
+            
+            // Re-scrolling after DOM move
+            if (dragging.dataset.id) this.scrollToBottom(dragging.dataset.id);
+        });
+
+        chatBox.addEventListener('dragenter', (e) => {
+            const dragging = document.querySelector('.chat-box.is-dragging');
+            if (dragging && dragging !== chatBox) {
+                chatBox.classList.add('drag-target');
+            }
+        });
+
+        chatBox.addEventListener('dragleave', () => {
+            chatBox.classList.remove('drag-target');
+        });
+
+        // Add drop listener to box just in case
+        chatBox.addEventListener('drop', () => {
+            chatBox.classList.remove('drag-target');
+        });
 
         chatBox.innerHTML = `
-            <div class="chat-box-header" onclick="event.stopPropagation(); ChatWindow.toggleMinimize('${conv.conversationId}')">
+            <div class="chat-box-header">
                 <div class="chat-header-info">
                     <div class="chat-header-avatar">
                         <img src="${avatar}" alt="${name}" onerror="this.src='${APP_CONFIG.DEFAULT_AVATAR}'">
@@ -511,20 +858,24 @@ const ChatWindow = {
             </div>
         `;
 
-        container.appendChild(chatBox);
+        stack.appendChild(chatBox);
         setTimeout(() => chatBox.classList.add('show'), 10);
         
         // Render Lucide icons for the new box
         if (window.lucide) window.lucide.createIcons();
 
-        this.openChats.set(conv.conversationId, {
+        const chatObj = {
             element: chatBox,
+            bubbleElement: null,
             data: conv,
+            minimized: false,
+            unreadCount: 0,
             page: 1,
             hasMore: true,
             isLoading: false,
             pendingFiles: []
-        });
+        };
+        this.openChats.set(conv.conversationId, chatObj);
 
         const fileInput = chatBox.querySelector(`#chat-file-input-${conv.conversationId}`);
         if (fileInput) {
@@ -536,32 +887,123 @@ const ChatWindow = {
                 }
             };
         }
+        
         lucide.createIcons();
         this.loadInitialMessages(conv.conversationId);
-        // Initial focus
-        setTimeout(() => this.focusChat(conv.conversationId), 100);
+        // Initial focus - only if requested
+        if (shouldFocus) {
+            setTimeout(() => this.focusChat(conv.conversationId), 100);
+        }
+
+        const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.conversationId);
+        if (isGuid && window.ChatRealtime) window.ChatRealtime.joinConversation(conv.conversationId);
+    },
+
+    renderBubble(id, data) {
+        const stack = document.getElementById('chat-bubbles-stack');
+        if (!stack) return;
+
+        const avatar = ChatCommon.getAvatar(data);
+        const name = ChatCommon.getDisplayName(data);
+        
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-bubble';
+        bubble.id = `chat-bubble-${id}`;
+        bubble.dataset.id = id;
+        bubble.onclick = () => this.toggleMinimize(id);
+        
+        const escapedName = escapeHtml(name);
+
+        bubble.innerHTML = `
+            <img src="${avatar}" alt="${escapedName}" onerror="this.src='${APP_CONFIG.DEFAULT_AVATAR}'">
+            <div class="chat-bubble-name">${escapedName}</div>
+            ${!data.isGroup && data.otherMember?.isActive ? '<div class="chat-bubble-status"></div>' : ''}
+            <button class="chat-bubble-close" title="Close" onclick="event.stopPropagation(); ChatWindow.closeChat('${id}')">
+                <i data-lucide="x"></i>
+            </button>
+        `;
+        
+        // Add unread badge if exists
+        const chatObj = this.openChats.get(id);
+        if (chatObj && chatObj.unreadCount > 0) {
+            const badge = document.createElement('div');
+            badge.className = 'chat-bubble-unread';
+            badge.textContent = chatObj.unreadCount > 9 ? '9+' : chatObj.unreadCount;
+            bubble.appendChild(badge);
+        }
+        
+        stack.appendChild(bubble);
+        if (window.lucide) window.lucide.createIcons();
+
+        let chat = this.openChats.get(id);
+        if (!chat) {
+            chat = {
+                element: null, bubbleElement: bubble, data: data, minimized: true,
+                unreadCount: 0, page: 1, hasMore: true, isLoading: false, pendingFiles: []
+            };
+            this.openChats.set(id, chat);
+            const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+            if (isGuid && window.ChatRealtime) window.ChatRealtime.joinConversation(id);
+        } else {
+            chat.bubbleElement = bubble;
+            chat.minimized = true;
+        }
     },
 
     toggleMinimize(id) {
         const chat = this.openChats.get(id);
-        if (chat) {
-            chat.element.classList.toggle('minimized');
-            if (!chat.element.classList.contains('minimized')) {
-                this.focusChat(id);
-            } else {
-                // If minimized, explicitly remove focus
-                chat.element.classList.remove('is-focused');
+        if (!chat) return;
+
+        if (!chat.minimized) {
+            // Into bubble
+            if (chat.element) {
+                chat.element.classList.remove('show');
+                setTimeout(() => {
+                    chat.element.style.display = 'none';
+                    this.renderBubble(id, chat.data);
+                }, 300);
             }
+            chat.minimized = true;
+            chat.element?.classList.remove('is-focused');
+        } else {
+            // Out of bubble (Become Window)
+            // If we are at window limit, minimize the oldest window first
+            const openWindowsCount = Array.from(this.openChats.values()).filter(c => !c.minimized).length;
+            if (openWindowsCount >= this.maxOpenWindows) {
+                const oldestWindowId = Array.from(this.openChats.entries()).find(([id, c]) => !c.minimized)?.[0];
+                if (oldestWindowId) this.toggleMinimize(oldestWindowId);
+            }
+
+            if (chat.bubbleElement) {
+                chat.bubbleElement.remove();
+                chat.bubbleElement = null;
+            }
+            if (chat.element) {
+                chat.element.style.display = 'flex';
+                setTimeout(() => {
+                    chat.element.classList.add('show');
+                    this.focusChat(id);
+                }, 10);
+            } else {
+                this.renderChatBox(chat.data);
+                // focusChat is already inside renderChatBox's loadInitialMessages / timeout
+            }
+            chat.minimized = false;
         }
+        this.saveState();
     },
 
     focusChat(id) {
         const chat = this.openChats.get(id);
-        if (!chat) return;
+        if (!chat || chat.minimized) return;
         const chatBox = chat.element;
         
         // Remove unread state
         chatBox.classList.remove('has-unread');
+        if (chat.unreadCount > 0) {
+            chat.unreadCount = 0;
+            this.saveState();
+        }
         
         // Remove focus from all others
         document.querySelectorAll('.chat-box.is-focused').forEach(b => {
@@ -588,7 +1030,6 @@ const ChatWindow = {
         if (chat) {
             this.pendingSeenByConv.delete(id.toLowerCase());
             // Leave the SignalR group
-            // Only leave if not open in ChatPage
             const isOpenInPage = window.ChatPage && window.ChatPage.currentChatId === id;
             if (!isOpenInPage && window.ChatRealtime && typeof window.ChatRealtime.leaveConversation === 'function') {
                 window.ChatRealtime.leaveConversation(id)
@@ -596,11 +1037,27 @@ const ChatWindow = {
                     .catch(err => console.error("Error leaving conversation group:", err));
             }
 
-            chat.element.classList.remove('show');
-            setTimeout(() => {
-                chat.element.remove();
+            if (chat.element) {
+                chat.element.classList.remove('show');
+                setTimeout(() => {
+                    chat.element.remove();
+                    if (chat.bubbleElement) chat.bubbleElement.remove();
+                    this.openChats.delete(id);
+                    this.saveState();
+                }, 300);
+            } else {
+                if (chat.bubbleElement) chat.bubbleElement.remove();
                 this.openChats.delete(id);
-            }, 300);
+                this.saveState();
+            }
+        }
+    },
+
+    minimizeAll() {
+        for (const [id, chat] of this.openChats.entries()) {
+            if (!chat.minimized) {
+                this.toggleMinimize(id);
+            }
         }
     },
 
@@ -608,6 +1065,83 @@ const ChatWindow = {
         for (const id of Array.from(this.openChats.keys())) {
             this.closeChat(id);
         }
+        localStorage.removeItem('SOCIAL_NETWORK_OPEN_CHATS');
+    },
+
+    /**
+     * Synchronize the internal openChats Map order with the DOM order of Windows.
+     * This keeps the internal state and the bubble stack in sync.
+     */
+    syncChatOrderFromWindows() {
+        const windowsStack = document.getElementById('chat-windows-stack');
+        if (!windowsStack) return;
+
+        const windowIds = Array.from(windowsStack.children).map(c => c.dataset.id);
+        const newMap = new Map();
+        const existingMap = new Map(this.openChats);
+
+        // 1. Add windows in their new DOM order
+        windowIds.forEach(id => {
+            const chatObj = existingMap.get(id);
+            if (chatObj) {
+                newMap.set(id, chatObj);
+                existingMap.delete(id);
+            }
+        });
+
+        // 2. Add remaining (bubbles that might not be in the windows stack yet)
+        for (const [id, chatObj] of existingMap.entries()) {
+            newMap.set(id, chatObj);
+        }
+
+        this.openChats = newMap;
+        this.saveState();
+        this.reorderBubblesDOM();
+    },
+
+    /**
+     * Re-orders the chat windows in the DOM to match the insertion order of openChats.
+     */
+    reorderWindowsDOM() {
+        const stack = document.getElementById('chat-windows-stack');
+        if (!stack) return;
+
+        const children = Array.from(stack.children);
+        const order = Array.from(this.openChats.keys());
+
+        children.sort((a, b) => {
+            const idA = a.dataset.id;
+            const idB = b.dataset.id;
+            return order.indexOf(idA) - order.indexOf(idB);
+        });
+
+        // Append in sorted order (Right-to-Left due to row-reverse flex)
+        children.forEach(child => {
+            stack.appendChild(child);
+            const id = child.dataset.id;
+            if (id) this.scrollToBottom(id);
+        });
+    },
+
+    /**
+     * Re-orders the bubbles in the DOM to match the insertion order of openChats.
+     * Maps in JS preserve insertion order.
+     */
+    reorderBubblesDOM() {
+        const stack = document.getElementById('chat-bubbles-stack');
+        if (!stack) return;
+
+        const children = Array.from(stack.children);
+        const order = Array.from(this.openChats.keys());
+
+        children.sort((a, b) => {
+            const idA = a.dataset.id;
+            const idB = b.dataset.id;
+            return order.indexOf(idA) - order.indexOf(idB);
+        });
+
+        // Append in sorted order
+        children.forEach(child => stack.appendChild(child));
     },
 
     handleInput(field, id) {
@@ -1135,6 +1669,7 @@ const ChatWindow = {
         // Clear pending files and preview
         chat.pendingFiles = [];
         this.updateAttachmentPreview(id);
+        this.saveState();
 
         const formData = new FormData();
         if (hasText) formData.append('Content', content);
@@ -1234,12 +1769,19 @@ const ChatWindow = {
 
                     if (sendBtn) sendBtn.onclick = () => this.sendMessage(realId);
 
+                    // Update onclick for bubble if it somehow exists (unlikely here but for safety)
+                    if (chat.bubbleElement) {
+                        chat.bubbleElement.id = `chat-bubble-${realId}`;
+                        chat.bubbleElement.onclick = () => this.toggleMinimize(realId);
+                    }
+
                     // Join the SignalR group for the newly created conversation
                     if (window.ChatRealtime && typeof window.ChatRealtime.joinConversation === 'function') {
                         window.ChatRealtime.joinConversation(realId)
                             .then(() => console.log(`✅ Joined Conv-${realId} group`))
                             .catch(err => console.error("Error joining conversation group:", err));
                     }
+                    this.saveState();
                 }
             } else {
                 // failed to send

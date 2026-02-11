@@ -217,15 +217,7 @@
                 const isActiveInPage = window.ChatPage && window.ChatPage.currentChatId?.toLowerCase() === convId;
                 
                 // Case-insensitive check for ChatWindow Map keys
-                let isActiveInWindow = false;
-                if (window.ChatWindow && window.ChatWindow.openChats) {
-                    for (let openId of window.ChatWindow.openChats.keys()) {
-                        if (openId.toLowerCase() === convId) {
-                            isActiveInWindow = true;
-                            break;
-                        }
-                    }
-                }
+                let isActiveInWindow = false; if (window.ChatWindow && window.ChatWindow.openChats) { const chatObj = window.ChatWindow.openChats.get(convId) || Array.from(window.ChatWindow.openChats.values()).find(c => (c.data?.conversationId || "").toLowerCase() === convId); if (chatObj) { const chatBox = document.getElementById("chat-box-" + chatObj.data.conversationId); if (chatBox && chatBox.classList.contains("is-focused") && !chatObj.minimized) { isActiveInWindow = true; } } }
 
                 // Show toast if chat is NOT active
                 if (!isActiveInPage && !isActiveInWindow) {
@@ -244,10 +236,7 @@
 
                 // Update sidebar item (preview, badge, move to top) — always
                 if (window.ChatSidebar && typeof window.ChatSidebar.incrementUnread === 'function') {
-                    // Only increment unread badge if chat is NOT active
-                    if (!isActiveInPage && !isActiveInWindow) {
-                        window.ChatSidebar.incrementUnread(convId, message);
-                    }
+                    window.ChatSidebar.incrementUnread(convId, message, (isActiveInPage || isActiveInWindow));
                 }
             });
 

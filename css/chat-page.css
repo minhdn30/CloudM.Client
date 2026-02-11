@@ -164,7 +164,6 @@
 /* --- Bubble base --- */
 .msg-bubble {
   padding: 8px 14px;
-  border-radius: 18px;
   font-size: 15px;
   line-height: 1.4;
   word-break: break-word;
@@ -187,16 +186,65 @@
   margin-top: 8px;
 }
 
-/* --- Border-radius: 4 corners rounded always --- */
-.msg-bubble {
-  border-radius: 18px !important;
+/* --- Messenger-Style Dynamic Border Radius --- */
+
+/* Base Logic for Received (Tail on bottom-left) */
+.received .msg-bubble,
+.received .msg-content-container {
+  border-radius: 18px 18px 18px 4px;
+}
+
+/* Base Logic for Sent (Tail on bottom-right) */
+.sent .msg-bubble,
+.sent .msg-content-container {
+  border-radius: 18px 18px 4px 18px;
+}
+
+/* Grouping: Single (Rounded on all 4 corners for modern look) */
+.msg-group-single.received .msg-bubble,
+.msg-group-single.received .msg-content-container {
+  border-radius: 18px;
+}
+.msg-group-single.sent .msg-bubble,
+.msg-group-single.sent .msg-content-container {
+  border-radius: 18px;
+}
+
+/* Grouping: First (Flat bottom-left for received, flat bottom-right for sent) 
+   Actually, First should have flat bottom corner to mate with Middle/Last */
+.msg-group-first.received .msg-bubble,
+.msg-group-first.received .msg-content-container {
+  border-radius: 18px 18px 18px 4px;
+}
+.msg-group-first.sent .msg-bubble,
+.msg-group-first.sent .msg-content-container {
+  border-radius: 18px 18px 4px 18px;
+}
+
+/* Grouping: Middle (Flat both top and bottom on the side of origin) */
+.msg-group-middle.received .msg-bubble,
+.msg-group-middle.received .msg-content-container {
+  border-radius: 4px 18px 18px 4px;
+}
+.msg-group-middle.sent .msg-bubble,
+.msg-group-middle.sent .msg-content-container {
+  border-radius: 18px 4px 4px 18px;
+}
+
+/* Grouping: Last (Flat top on side of origin, rounded bottom) */
+.msg-group-last.received .msg-bubble,
+.msg-group-last.received .msg-content-container {
+  border-radius: 4px 18px 18px 18px;
+}
+.msg-group-last.sent .msg-bubble,
+.msg-group-last.sent .msg-content-container {
+  border-radius: 18px 4px 18px 18px;
 }
 
 .msg-content-container {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  border-radius: 18px;
   overflow: hidden;
 }
 

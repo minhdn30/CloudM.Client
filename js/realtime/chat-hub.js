@@ -6,6 +6,7 @@
 (function (global) {
     const messageHandlers = new Set();
     const seenHandlers = new Set();
+    const groupRefCount = new Map(); // conversationId -> count
     let currentConnection = null;
     const pendingInvokes = new Map(); // key -> { method, args, resolve, timeoutId }
 
@@ -113,11 +114,34 @@
         },
         joinConversation(conversationId) {
             if (!isGuid(conversationId)) return Promise.reject(new Error('Invalid conversationId'));
-            return invokeOrQueue('JoinConversation', [conversationId], `join:${conversationId}`);
+            
+            const count = groupRefCount.get(conversationId) || 0;
+            groupRefCount.set(conversationId, count + 1);
+
+            if (count === 0) {
+                // First joiner, actually tell server
+                return invokeOrQueue('JoinConversation', [conversationId], `join:${conversationId}`)
+                    .then(res => {
+                        console.log(`✅ [Realtime] Joined Conv-${conversationId} group`);
+                        return res;
+                    });
+            }
+            return Promise.resolve(true);
         },
         leaveConversation(conversationId) {
             if (!isGuid(conversationId)) return Promise.reject(new Error('Invalid conversationId'));
-            return invokeOrQueue('LeaveConversation', [conversationId], `leave:${conversationId}`);
+            
+            const count = groupRefCount.get(conversationId) || 0;
+            if (count <= 0) return Promise.resolve(true);
+
+            if (count === 1) {
+                // Last joiner, actually tell server
+                groupRefCount.delete(conversationId);
+                return invokeOrQueue('LeaveConversation', [conversationId], `leave:${conversationId}`);
+            } else {
+                groupRefCount.set(conversationId, count - 1);
+                return Promise.resolve(true);
+            }
         },
         seenConversation(conversationId, messageId) {
             if (!isGuid(conversationId) || !messageId) return Promise.reject(new Error('Invalid seen payload'));

@@ -65,32 +65,57 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.2);
-  transition: background 0.3s;
+  background: rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
   z-index: 2;
   cursor: pointer;
 }
 
 .msg-video-overlay:hover {
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.play-button-wrapper {
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.msg-video-overlay:hover .play-button-wrapper {
+  transform: scale(1.1);
+  background: rgba(255, 255, 255, 0.3);
+  border-color: #fff;
 }
 
 .msg-video-overlay .play-icon {
-  width: 44px;
-  height: 44px;
+  width: 28px;
+  height: 28px;
   color: #fff;
-  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
-  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s;
+  fill: #fff; /* Make it solid play icon */
+  margin-left: 4px; /* Fix visual centering for triangle */
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  transition: all 0.2s ease;
+}
+
+.msg-video-container.playing .play-button-wrapper {
+  opacity: 0;
+  transform: scale(0.8);
   pointer-events: none;
 }
 
-.msg-video-container.playing .msg-video-overlay .play-icon {
-  opacity: 0;
-}
-
-.msg-video-container.playing .msg-video-overlay:hover .play-icon {
-  opacity: 0.8;
-  color: #fff;
+.msg-video-container.playing .msg-video-overlay:hover .play-button-wrapper {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
 }
 
 .msg-video-container.playing .msg-video-overlay {

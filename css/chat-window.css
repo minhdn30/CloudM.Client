@@ -1,39 +1,119 @@
-/* Chat Box - Floating Messenger UI */
+/* Chat Container - Main wrapper for floating stacks */
 .chat-window-container {
     position: fixed;
-    bottom: 0;
+    bottom: 20px;
     right: 20px;
+    z-index: 11000;
+    pointer-events: none;
     display: flex;
-    flex-direction: row-reverse; /* Stack chats from right to left */
+    flex-direction: column-reverse;
     align-items: flex-end;
     gap: 15px;
-    z-index: 1000;
-    pointer-events: none; /* Allow clicking through background but not the children */
 }
 
+/* Hide ALL roaming chat elements when on the dedicated Chat Page to avoid double UI */
+body.is-chat-page .chat-window-container {
+    display: none !important;
+}
+
+/* Windows Stack - Horizontal stack for open windows */
+#chat-windows-stack {
+    position: fixed;
+    bottom: 0;
+    right: 80px; /* Space for the bubble stack */
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: flex-end;
+    gap: 15px;
+    pointer-events: none;
+    z-index: 11000;
+    min-width: 150px;
+    min-height: 80px;
+    transition: all 0.2s ease;
+}
+
+/* Enable pointer events on the stack when dragging from outside to capture the drop */
+body.is-dragging-chat #chat-windows-stack {
+    pointer-events: auto;
+    background: rgba(var(--accent-primary-rgb, 59, 130, 246), 0.03);
+    border: 2px dashed var(--border-primary);
+    border-radius: 12px 12px 0 0;
+    margin-right: -10px;
+    padding: 0 10px;
+}
+
+#chat-windows-stack.drag-over-stack {
+    background: rgba(var(--accent-primary-rgb, 59, 130, 246), 0.08);
+    border-color: var(--accent-primary);
+}
+
+/* Bubbles Stack - Vertical stack for minimized chat heads */
+#chat-bubbles-stack {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: flex-end;
+    gap: 10px;
+    pointer-events: none;
+    z-index: 11001;
+}
+
+/* Individual Chat Box (Open state) */
 .chat-box {
-    width: 340px;
-    height: 480px;
+    width: 328px;
+    height: 450px;
     background: var(--bg-primary);
     border-radius: 12px 12px 0 0;
-    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-xl);
     display: flex;
     flex-direction: column;
-    overflow: visible; /* Change from hidden to allow emoji picker to stick out */
+    overflow: visible;
     pointer-events: auto;
     border: 1px solid var(--border-primary);
-    transition: transform 0.4s ease-in-out;
-    transform: translateY(100%); /* Initial state hidden */
+    transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                opacity 0.3s ease, 
+                box-shadow 0.3s ease;
+    transform: translateY(20px);
+    opacity: 0;
+}
+
+/* State when being dragged or moved */
+.chat-box.is-dragging {
+    opacity: 0.6;
+    transform: scale(0.96) translateY(5px);
+    box-shadow: var(--shadow-md);
+    cursor: grabbing;
+}
+
+/* Highlight the destination when dragging over other boxes */
+.chat-box.drag-target {
+    border: 2px solid var(--accent-primary);
+    transform: scale(1.02);
+}
+
+/* Placeholder for the item being dragged */
+.chat-box.placeholder {
+    opacity: 0.2;
+    border: 2px dashed var(--border-primary);
+    background: transparent;
+    pointer-events: none;
 }
 
 .chat-box.show {
     transform: translateY(0);
+    opacity: 1;
+}
+
+.chat-box.minimized {
+    display: none; /* We will use separate bubble elements for minimized state */
 }
 
 .chat-box.has-unread .chat-box-header {
     background: var(--accent-primary, #3b82f6);
     border-bottom: none;
-    border-radius: 11px 11px 0 0; /* Maintain rounding when background changes */
+    border-radius: 11px 11px 0 0;
 }
 
 .chat-box.has-unread .chat-header-name,
@@ -53,10 +133,6 @@
     border-color: var(--accent-primary);
 }
 
-.chat-box.minimized {
-    height: 48px;
-}
-
 /* Header */
 .chat-box-header {
     padding: 10px 12px;
@@ -66,8 +142,13 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    cursor: pointer;
+    cursor: grab;
     user-select: none;
+}
+
+.chat-box.is-dragging {
+    opacity: 0.5;
+    cursor: grabbing;
 }
 
 .chat-header-info {
@@ -150,6 +231,141 @@
     color: #ef4444;
 }
 
+/* Bubble Styling (Chat Heads) */
+.chat-bubble {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    position: relative;
+    pointer-events: auto;
+    cursor: pointer;
+    background: var(--bg-primary);
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border-primary);
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    animation: bubbleAppear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes bubbleAppear {
+    from { transform: scale(0); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.chat-bubble:hover {
+    transform: scale(1.1);
+}
+
+.chat-bubble-name {
+    position: absolute;
+    right: 58px; /* 48px bubble + 10px gap */
+    top: 50%;
+    transform: translateY(-50%) translateX(10px);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border-primary);
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 100;
+}
+
+.chat-bubble-name::after {
+    content: '';
+    position: absolute;
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    width: 10px;
+    height: 10px;
+    background: var(--bg-primary);
+    border-right: 1px solid var(--border-primary);
+    border-top: 1px solid var(--border-primary);
+}
+
+.chat-bubble:hover .chat-bubble-name {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-50%) translateX(0);
+}
+
+.chat-bubble img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.chat-bubble-close {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 20px;
+    height: 20px;
+    background: var(--bg-secondary);
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s;
+    z-index: 2;
+    box-shadow: var(--shadow-sm);
+}
+
+.chat-bubble:hover .chat-bubble-close {
+    opacity: 1;
+}
+
+.chat-bubble-close:hover {
+    background: #ef4444;
+    color: white !important;
+    transform: scale(1.1);
+}
+
+.chat-bubble-close:hover i, .chat-bubble-close:hover svg {
+    color: white !important;
+}
+
+.chat-bubble-unread {
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    background: #ef4444;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border: 2px solid var(--bg-primary);
+    z-index: 1;
+}
+
+.chat-bubble-status {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 12px;
+    height: 12px;
+    background: var(--success);
+    border-radius: 50%;
+    border: 2px solid var(--bg-primary);
+}
+
 /* Messages Area */
 .chat-messages {
     flex: 1;
@@ -173,15 +389,65 @@
 }
 
 .chat-box .msg-bubble {
-    padding: 6px 12px;
+    padding: 8px 14px;
     font-size: 14px;
-    border-radius: 16px !important;
+}
+
+/* Base Radius - Standard Messenger Style */
+.chat-box .msg-bubble-wrapper.received .msg-bubble,
+.chat-box .msg-bubble-wrapper.received .msg-content-container {
+    border-radius: 18px 18px 18px 4px;
+}
+
+.chat-box .msg-bubble-wrapper.sent .msg-bubble,
+.chat-box .msg-bubble-wrapper.sent .msg-content-container {
+    border-radius: 18px 18px 4px 18px;
+}
+
+/* Grouping Logic: Single */
+.chat-box .msg-group-single.received .msg-bubble,
+.chat-box .msg-group-single.received .msg-content-container {
+    border-radius: 18px;
+}
+.chat-box .msg-group-single.sent .msg-bubble,
+.chat-box .msg-group-single.sent .msg-content-container {
+    border-radius: 18px;
+}
+
+/* Grouping Logic: First */
+.chat-box .msg-group-first.received .msg-bubble,
+.chat-box .msg-group-first.received .msg-content-container {
+    border-radius: 18px 18px 18px 4px;
+}
+.chat-box .msg-group-first.sent .msg-bubble,
+.chat-box .msg-group-first.sent .msg-content-container {
+    border-radius: 18px 18px 4px 18px;
+}
+
+/* Grouping Logic: Middle */
+.chat-box .msg-group-middle.received .msg-bubble,
+.chat-box .msg-group-middle.received .msg-content-container {
+    border-radius: 4px 18px 18px 4px;
+}
+.chat-box .msg-group-middle.sent .msg-bubble,
+.chat-box .msg-group-middle.sent .msg-content-container {
+    border-radius: 18px 4px 4px 18px;
+}
+
+/* Grouping Logic: Last */
+.chat-box .msg-group-last.received .msg-bubble,
+.chat-box .msg-group-last.received .msg-content-container {
+    border-radius: 4px 18px 18px 18px;
+}
+.chat-box .msg-group-last.sent .msg-bubble,
+.chat-box .msg-group-last.sent .msg-content-container {
+    border-radius: 18px 4px 18px 18px;
 }
 
 .chat-box .msg-content-container {
-    border-radius: 16px;
     overflow: hidden;
 }
+
 
 .chat-box .msg-avatar {
     width: 24px;

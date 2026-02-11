@@ -99,7 +99,9 @@ const ChatCommon = {
                                 <div class="msg-video-container">
                                     <video src="${m.mediaUrl}" loop muted playsinline></video>
                                     <div class="msg-video-overlay" onclick="ChatCommon.toggleChatVideo(event, this)">
-                                        <i data-lucide="play" class="play-icon"></i>
+                                        <div class="play-button-wrapper">
+                                            <i data-lucide="play" class="play-icon"></i>
+                                        </div>
                                     </div>
                                 </div>
                             `;
