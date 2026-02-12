@@ -121,6 +121,8 @@ const ChatWindow = {
     },
 
     restoreState() {
+        if (this._restored) return;
+        this._restored = true;
         try {
             const saved = localStorage.getItem('SOCIAL_NETWORK_OPEN_CHATS');
             if (!saved) return;
@@ -621,6 +623,11 @@ const ChatWindow = {
 
         this.renderChatBox(conv, shouldFocus);
 
+        const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(convId);
+        if (isGuid && window.ChatRealtime && typeof window.ChatRealtime.joinConversation === 'function') {
+            window.ChatRealtime.joinConversation(convId);
+        }
+
         // Adjust internal Map order if opening at start
         if (priorityLeft) {
             const entry = this.openChats.get(convId);
@@ -630,12 +637,6 @@ const ChatWindow = {
             this.reorderBubblesDOM();
         }
 
-        const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(convId);
-        if (isGuid && window.ChatRealtime && typeof window.ChatRealtime.joinConversation === 'function') {
-            window.ChatRealtime.joinConversation(convId);
-        }
-
-        // Save state after opening
         this.saveState();
     },
 
@@ -707,10 +708,12 @@ const ChatWindow = {
 
     async openByAccountId(accountId) {
         if (!accountId) return;
+        const targetAccountId = accountId.toString().toLowerCase();
         
-        // Find if already open
+        // Find if already open (check normalized IDs/data)
         for (const [id, chat] of this.openChats) {
-            if (chat.data.otherMember?.accountId === accountId) {
+            const existingId = chat.data.otherMember?.accountId?.toString().toLowerCase();
+            if (existingId === targetAccountId) {
                 this.openChat(chat.data);
                 return;
             }
@@ -737,6 +740,14 @@ const ChatWindow = {
     renderChatBox(conv, shouldFocus = true) {
         const stack = document.getElementById('chat-windows-stack');
         if (!stack) return;
+
+        // Prevent duplicates in DOM
+        const existing = document.getElementById(`chat-box-${conv.conversationId}`);
+        if (existing) {
+            if (shouldFocus) this.focusChat(conv.conversationId);
+            return;
+        }
+
         const avatar = ChatCommon.getAvatar(conv);
         const name = escapeHtml(ChatCommon.getDisplayName(conv));
         const subtext = conv.isGroup ? 'Group Chat' : (conv.otherMember?.isActive ? 'Online' : 'Offline');
@@ -930,12 +941,25 @@ const ChatWindow = {
         }
 
         const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.conversationId);
-        if (isGuid && window.ChatRealtime) window.ChatRealtime.joinConversation(conv.conversationId);
+        // REMOVED: joinConversation from here. It's now handled by the caller (openChat/restoreState) 
+        // to ensure it only happens ONCE when added to openChats map.
     },
 
     renderBubble(id, data) {
         const stack = document.getElementById('chat-bubbles-stack');
         if (!stack) return;
+
+        // Prevent duplicates in DOM
+        const existing = document.getElementById(`chat-bubble-${id}`);
+        if (existing) {
+            // Already there, just ensure Map is in sync
+            let chat = this.openChats.get(id);
+            if (chat) {
+                chat.bubbleElement = existing;
+                chat.minimized = true;
+            }
+            return;
+        }
 
         const avatar = ChatCommon.getAvatar(data);
         const name = ChatCommon.getDisplayName(data);
@@ -971,6 +995,12 @@ const ChatWindow = {
 
         let chat = this.openChats.get(id);
         if (!chat) {
+            // Check Total Limit before adding a NEW one (even as a bubble)
+            if (this.openChats.size >= this.maxTotalWindows) {
+                const oldestId = Array.from(this.openChats.keys())[0];
+                if (oldestId) this.closeChat(oldestId);
+            }
+
             chat = {
                 element: null, bubbleElement: bubble, data: data, minimized: true,
                 unreadCount: 0, page: 1, hasMore: true, isLoading: false, pendingFiles: []
@@ -1064,8 +1094,7 @@ const ChatWindow = {
         if (chat) {
             this.pendingSeenByConv.delete(id.toLowerCase());
             // Leave the SignalR group
-            const isOpenInPage = window.ChatPage && window.ChatPage.currentChatId === id;
-            if (!isOpenInPage && window.ChatRealtime && typeof window.ChatRealtime.leaveConversation === 'function') {
+            if (window.ChatRealtime && typeof window.ChatRealtime.leaveConversation === 'function') {
                 window.ChatRealtime.leaveConversation(id);
             }
 

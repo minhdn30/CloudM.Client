@@ -116,17 +116,20 @@
             if (!isGuid(conversationId)) return Promise.reject(new Error('Invalid conversationId'));
             
             const count = groupRefCount.get(conversationId) || 0;
-            groupRefCount.set(conversationId, count + 1);
+            const newCount = count + 1;
+            groupRefCount.set(conversationId, newCount);
 
             if (count === 0) {
                 // First joiner, actually tell server
                 return invokeOrQueue('JoinConversation', [conversationId], `join:${conversationId}`)
                     .then(res => {
-                        console.log(`✅ [Realtime] Joined Conv-${conversationId} group`);
+                        console.log(`✅ [SignalR] Network Join: ${conversationId}`);
                         return res;
                     });
+            } else {
+                console.log(`📡 [Realtime] Session Added: ${conversationId} (Total: ${newCount})`);
+                return Promise.resolve(true);
             }
-            return Promise.resolve(true);
         },
         leaveConversation(conversationId) {
             if (!isGuid(conversationId)) return Promise.reject(new Error('Invalid conversationId'));
@@ -134,16 +137,18 @@
             const count = groupRefCount.get(conversationId) || 0;
             if (count <= 0) return Promise.resolve(true);
 
-            if (count === 1) {
+            const newCount = count - 1;
+            if (newCount === 0) {
                 // Last joiner, actually tell server
                 groupRefCount.delete(conversationId);
                 return invokeOrQueue('LeaveConversation', [conversationId], `leave:${conversationId}`)
                     .then(res => {
-                        console.log(`👋 [Realtime] Left Conv-${conversationId} group`);
+                        console.log(`👋 [SignalR] Network Leave: ${conversationId}`);
                         return res;
                     });
             } else {
-                groupRefCount.set(conversationId, count - 1);
+                groupRefCount.set(conversationId, newCount);
+                console.log(`🚪 [Realtime] Session Removed: ${conversationId} (Remaining: ${newCount})`);
                 return Promise.resolve(true);
             }
         },

@@ -378,7 +378,6 @@
   height: 12px;
 }
 
-
 .chat-preview-add-btn {
   width: 64px;
   height: 64px;
@@ -399,7 +398,6 @@
   border-color: var(--accent-primary);
   background: var(--bg-hover);
 }
-
 
 /* Custom Horizontal Scrollbar Styling (Match ChatWindow) */
 .chat-attachment-preview::-webkit-scrollbar {
@@ -700,8 +698,8 @@
 
 .chat-info-encrypted i,
 .chat-info-encrypted svg {
-    width: 11px;
-    height: 11px;
+  width: 11px;
+  height: 11px;
 }
 
 /* --- Quick Actions --- */
