@@ -354,6 +354,11 @@ const ChatWindow = {
             });
         }
 
+        // If it's an own message from another device, mark it as 'sent'
+        if (senderId === myId && !msg.status) {
+            msg.status = 'sent';
+        }
+
         this.appendMessage(convId, msg);
         if (messageId) {
             this.applyPendingSeenForMessage(convId, messageId);
@@ -1482,7 +1487,7 @@ const ChatWindow = {
         const pageSize = window.APP_CONFIG?.CHATWINDOW_MESSAGES_PAGE_SIZE || 10;
         const chat = this.openChats.get(id);
         const isGroup = chat?.data?.isGroup || false;
-        const myId = localStorage.getItem('accountId');
+        const myId = (localStorage.getItem('accountId') || sessionStorage.getItem('accountId') || window.APP_CONFIG?.CURRENT_USER_ID || '').toLowerCase();
 
         try {
             const res = await window.API.Conversations.getMessages(id, 1, pageSize);
@@ -1494,9 +1499,17 @@ const ChatWindow = {
                 let lastTime = null;
 
                 messages.forEach((m, idx) => {
-                    if (!m.messageId && m.MessageId) m.messageId = m.MessageId.toString().toLowerCase();
-                    if (!m.sentAt && m.SentAt) m.sentAt = m.SentAt;
-                    m.isOwn = m.sender?.accountId === myId;
+                    ChatCommon.normalizeMessage(m, myId);
+
+                    // Set 'sent' status for the last message if it's ours
+                    if (idx === messages.length - 1 && m.isOwn) {
+                        m.status = 'sent';
+                    }
+
+                    // Set 'sent' status for the last message if it's ours
+                    if (idx === messages.length - 1 && m.isOwn) {
+                        m.status = 'sent';
+                    }
 
                     // Time separator (same logic as chat-page: 15 min gap)
                     const currentTime = new Date(m.sentAt);
@@ -1597,7 +1610,7 @@ const ChatWindow = {
         chat.isLoading = true;
         const pageSize = window.APP_CONFIG?.CHATWINDOW_MESSAGES_PAGE_SIZE || 10;
         const isGroup = chat.data?.isGroup || false;
-        const myId = localStorage.getItem('accountId');
+        const myId = (localStorage.getItem('accountId') || sessionStorage.getItem('accountId') || window.APP_CONFIG?.CURRENT_USER_ID || '').toLowerCase();
         const oldScrollHeight = msgContainer.scrollHeight;
 
         try {
@@ -1684,6 +1697,12 @@ const ChatWindow = {
         const msgContainer = document.getElementById(`chat-messages-${id}`);
         if (!msgContainer || !chat) return;
 
+        // Clear ANY existing "Sent" indicators in this chat before adding a new message
+        msgContainer.querySelectorAll('.msg-bubble-wrapper[data-status="sent"]').forEach(el => {
+            el.removeAttribute('data-status');
+            el.querySelector('.msg-status')?.remove();
+        });
+
         const isGroup = chat.data.isGroup;
         const myId = (localStorage.getItem('accountId') || '').toLowerCase();
         
@@ -1738,20 +1757,6 @@ const ChatWindow = {
 
         if (msg.status) {
             bubble.dataset.status = msg.status;
-            const statusEl = document.createElement('div');
-            statusEl.className = 'msg-status';
-            
-            if (msg.status === 'pending') {
-                statusEl.className += ' msg-status-sending';
-                statusEl.innerHTML = '<span class="msg-loading-dots"><span class="msg-loading-dot"></span><span class="msg-loading-dot"></span><span class="msg-loading-dot"></span></span>';
-            } else if (msg.status === 'sent') {
-                statusEl.className += ' msg-status-sent';
-                statusEl.textContent = 'Sent';
-            } else if (msg.status === 'failed') {
-                statusEl.className += ' msg-status-failed';
-                statusEl.textContent = 'Failed to send. Click to retry.';
-            }
-            bubble.appendChild(statusEl);
         }
         
         msgContainer.appendChild(bubble);
