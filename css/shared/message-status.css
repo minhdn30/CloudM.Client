@@ -14,9 +14,9 @@
   display: none;
 }
 
-/* Always show on single and last messages */
-.msg-bubble-wrapper.msg-group-single .msg-status,
-.msg-bubble-wrapper.msg-group-last .msg-status {
+/* Always show on single and last messages, but ONLY if it's the absolute last message in the container */
+.msg-bubble-wrapper.msg-group-single:last-of-type .msg-status,
+.msg-bubble-wrapper.msg-group-last:last-of-type .msg-status {
   display: block !important;
 }
 
