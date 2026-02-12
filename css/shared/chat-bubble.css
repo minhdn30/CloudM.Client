@@ -80,6 +80,7 @@
   color: var(--text-primary);
 }
 
+
 /* --- Grouping Gap --- */
 .msg-bubble-wrapper.msg-group-single,
 .msg-bubble-wrapper.msg-group-first {
@@ -169,7 +170,8 @@
   flex-shrink: 0;
 }
 
-.msg-bubble-wrapper:hover .msg-actions {
+.msg-bubble-wrapper:hover .msg-actions,
+.msg-bubble-wrapper.menu-active .msg-actions {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
@@ -491,4 +493,72 @@
 
 .sent .seen-avatar-wrapper:hover .seen-avatar-name {
   transform: translateX(0) translateY(0);
+}
+
+/* --- Custom Message Time Tooltip --- */
+/* Match seen-avatar-name style exactly as requested */
+.msg-time-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-primary);
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 1000;
+}
+
+/* Tooltip Arrow (Match seen-avatar-name rotate style) */
+.msg-time-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 8px;
+  height: 8px;
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border-primary);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+/* Positioning for Sent messages */
+.sent .msg-time-tooltip {
+  right: 0;
+}
+.sent .msg-time-tooltip::after {
+  left: auto;
+  right: 14px;
+}
+
+/* Positioning for Received messages */
+.received .msg-time-tooltip {
+  left: 36px;
+}
+.received .msg-time-tooltip::after {
+  left: 14px;
+}
+
+/* Show on hover of the content container */
+.msg-content-container:hover + .msg-time-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-4px);
+}
+
+/* Chat window tweaks (compact) */
+.chat-box .msg-time-tooltip {
+  padding: 3px 8px;
+  font-size: 10px;
+}
+.chat-box .received .msg-time-tooltip {
+    left: 30px;
 }

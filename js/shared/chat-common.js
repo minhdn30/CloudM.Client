@@ -172,9 +172,10 @@ const ChatCommon = {
         }
 
         // --- Author name (Group chat only, received only, first or single in group) ---
+        const senderId = msg.sender?.accountId || msg.senderId || '';
         const showAuthor = isGroup && isReceived && (groupPos === 'first' || groupPos === 'single');
         const authorHtml = showAuthor && authorName
-            ? `<div class="msg-author">${escapeHtml(authorName)}</div>`
+            ? `<div class="msg-author" onclick="window.ChatCommon.goToProfile('${senderId}')">${escapeHtml(authorName)}</div>`
             : '';
 
         // --- Avatar (Received messages only) ---
@@ -184,7 +185,7 @@ const ChatCommon = {
         let avatarSrc = senderAvatar || msg.sender?.avatarUrl || msg.sender?.AvatarUrl || APP_CONFIG.DEFAULT_AVATAR;
         const avatarHtml = isReceived
             ? `<div class="msg-avatar ${showAvatar ? '' : 'msg-avatar-spacer'}">
-                ${showAvatar ? `<img src="${avatarSrc}" alt="" onerror="this.src='${APP_CONFIG.DEFAULT_AVATAR}'">` : ''}
+                ${showAvatar ? `<img src="${avatarSrc}" alt="" onclick="window.ChatCommon.goToProfile('${senderId}')" style="cursor: pointer;" onerror="this.src='${APP_CONFIG.DEFAULT_AVATAR}'">` : ''}
                </div>`
             : '';
 
@@ -225,6 +226,7 @@ const ChatCommon = {
                         ${mediaHtml}
                         ${msg.content ? `<div class="msg-bubble">${linkify(escapeHtml(msg.content))}</div>` : ''}
                     </div>
+                    <span class="msg-time-tooltip">${this.formatTime(msg.sentAt)}</span>
                     ${msgActionsHtml}
                 </div>
                 ${seenRowHtml}
@@ -255,12 +257,56 @@ const ChatCommon = {
     },
 
     /**
+     * Format time for chat separators (e.g. "13:58", "13:58 Yesterday", "Feb 12, 10:35")
+     */
+    formatTime(dateVal) {
+        if (!dateVal) return '';
+        const date = new Date(dateVal);
+        const now = new Date();
+        const pad = (num) => num.toString().padStart(2, '0');
+        
+        const HH = pad(date.getHours());
+        const mm = pad(date.getMinutes());
+        const timeStr = `${HH}:${mm}`;
+        
+        const isToday = date.toDateString() === now.toDateString();
+        
+        const yesterday = new Date();
+        yesterday.setDate(now.getDate() - 1);
+        const isYesterday = date.toDateString() === yesterday.toDateString();
+        
+        if (isToday) return timeStr;
+        if (isYesterday) return `${timeStr} Yesterday`;
+        
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const month = monthNames[date.getMonth()];
+        const day = date.getDate();
+        const isSameYear = date.getFullYear() === now.getFullYear();
+
+        if (isSameYear) {
+            return `${month} ${day}, ${timeStr}`;
+        }
+
+        const year = date.getFullYear();
+        return `${month} ${day}, ${year}, ${timeStr}`;
+    },
+
+    /**
      * Render a centered time separator
      * @param {string|Date} date
      */
     renderChatSeparator(date) {
-        const timeStr = PostUtils.formatChatSeparatorTime(date);
+        const timeStr = this.formatTime(date);
         return `<div class="chat-time-separator">${timeStr}</div>`;
+    },
+
+    goToProfile(accountId) {
+        if (!accountId) return;
+        // If we are leaving chat-page, ensure we minimize the current chat session
+        if (window.ChatPage && typeof window.ChatPage.minimizeToBubble === 'function') {
+            window.ChatPage.minimizeToBubble();
+        }
+        window.location.hash = `#/profile/${accountId}`;
     },
 
     /**

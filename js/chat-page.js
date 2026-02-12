@@ -499,13 +499,16 @@ const ChatPage = {
 
     leaveCurrentConversation() {
         if (this.currentChatId) {
+            // Automatically minimize to bubble when leaving page (requested feature)
+            this.minimizeToBubble();
+
             const oldId = this.currentChatId;
             this.pendingSeenByConv.delete(oldId.toLowerCase());
             
             // Only leave if not open in any floating ChatWindow
             const isOpenInWindow = window.ChatWindow && window.ChatWindow.openChats && window.ChatWindow.openChats.has(oldId);
             
-            if (!isOpenInWindow && window.ChatRealtime && typeof window.ChatRealtime.leaveConversation === 'function') {
+            if (window.ChatRealtime && typeof window.ChatRealtime.leaveConversation === 'function') {
                 window.ChatRealtime.leaveConversation(oldId);
             }
             this.currentChatId = null;
@@ -533,9 +536,11 @@ const ChatPage = {
         const msgContainer = document.getElementById('chat-view-messages');
         if (msgContainer) msgContainer.innerHTML = '';
         
-        if (this.currentChatId && window.ChatRealtime && typeof window.ChatRealtime.leaveConversation === 'function') {
-            console.log("🚪 Leaving group", this.currentChatId);
-            window.ChatRealtime.leaveConversation(this.currentChatId).catch(err => console.error("Error leaving conversation group:", err));
+        // Optimization: Leave PREVIOUS conversation if it's different
+        if (this.currentChatId && this.currentChatId !== conversationId) {
+            if (window.ChatRealtime && typeof window.ChatRealtime.leaveConversation === 'function') {
+                window.ChatRealtime.leaveConversation(this.currentChatId);
+            }
         }
 
         this.currentChatId = conversationId;
@@ -545,12 +550,19 @@ const ChatPage = {
         this.hasMore = true;
         this.isLoading = false;
         
+        // 4. Optimization: Join target FIRST to maintain session during handoff from Bubble
+        if (window.ChatRealtime && typeof window.ChatRealtime.joinConversation === 'function') {
+            window.ChatRealtime.joinConversation(conversationId);
+        }
 
-        // Visual update in Sidebar anyway
+        // 5. Cleanup overlapping floating windows for THIS conversationId
+        if (window.ChatWindow && typeof window.ChatWindow.closeChat === 'function') {
+            window.ChatWindow.closeChat(conversationId);
+        }
+
+        // 6. Visual update in Sidebar and Header pre-load
         if (window.ChatSidebar) {
             window.ChatSidebar.updateActiveId(conversationId);
-            
-            // PRE-LOAD MetaData from Sidebar if available (improves fast-clicking send experience)
             if (window.ChatSidebar.conversations) {
                 const sidebarConv = window.ChatSidebar.conversations.find(c => c.conversationId === conversationId);
                 if (sidebarConv) {
@@ -562,14 +574,6 @@ const ChatPage = {
         }
 
         await this.loadMessages(conversationId, false, gen);
-
-        // Stale check: if user already navigated away, don't join group
-        if (this._loadGeneration !== gen) return;
-
-        // Join the SignalR group for this conversation
-        if (window.ChatRealtime && typeof window.ChatRealtime.joinConversation === 'function') {
-            window.ChatRealtime.joinConversation(conversationId);
-        }
     },
 
     renderHeader(meta) {
@@ -592,9 +596,11 @@ const ChatPage = {
         const headerUser = document.querySelector('.chat-view-user');
         if (headerUser) {
             headerUser.onclick = () => {
+                // When moving to ANY profile from chat-page, minimize the current chat
+                this.minimizeToBubble();
+                
                 const targetId = meta.otherMember?.accountId || meta.otherMemberId;
                 if (!meta.isGroup && targetId) {
-                    this.minimizeToBubble();
                     window.location.hash = `#/profile/${targetId}`;
                 }
             };
@@ -615,7 +621,7 @@ const ChatPage = {
     },
 
     minimizeToBubble() {
-        if (window.ChatWindow && this.currentChatId && this.currentMetaData && !this.currentMetaData.isGroup) {
+        if (window.ChatWindow && this.currentChatId && this.currentMetaData) {
             ChatWindow.renderBubble(this.currentChatId, this.currentMetaData);
             ChatWindow.saveState();
         }
