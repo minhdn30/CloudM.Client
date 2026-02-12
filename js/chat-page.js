@@ -421,14 +421,15 @@ const ChatPage = {
         let bubbleWrapper = normMessageId ? document.querySelector(`.msg-bubble-wrapper[data-message-id="${normMessageId}"]`) : null;
         let targetRow = bubbleWrapper?.querySelector('.msg-seen-row') || null;
 
-        // If target isn't our message (or row missing), move to latest previous message sent by us
-        if (!bubbleWrapper || (bubbleWrapper.dataset.senderId || '').toLowerCase() !== myId) {
-            let cursor = bubbleWrapper ? bubbleWrapper.previousElementSibling : null;
-            // If bubbleWrapper is null, start from LAST element in container
-            if (!cursor && !bubbleWrapper) {
-                const msgContainer = document.getElementById('chat-view-messages');
-                cursor = msgContainer?.lastElementChild;
-            }
+        // If target message isn't loaded yet (pagination), defer until that message appears in DOM.
+        if (normMessageId && !bubbleWrapper) {
+            this.queuePendingSeen(this.currentChatId, normMessageId, accountId, memberInfo);
+            return;
+        }
+
+        // If target exists but isn't our message, move to nearest previous message sent by us.
+        if (bubbleWrapper && (bubbleWrapper.dataset.senderId || '').toLowerCase() !== myId) {
+            let cursor = bubbleWrapper.previousElementSibling;
             while (cursor) {
                 if (cursor.classList?.contains('msg-bubble-wrapper')) {
                     const senderId = (cursor.dataset.senderId || '').toLowerCase();
@@ -813,6 +814,14 @@ const ChatPage = {
                 const oldFirstMsg = msgContainer.querySelector('.msg-bubble-wrapper');
                 
                 msgContainer.insertAdjacentHTML('afterbegin', html);
+
+                // Resolve queued seen markers for messages that were just loaded via scroll.
+                chatItems.forEach(m => {
+                    const loadedMsgId = (m.messageId || m.MessageId)?.toString().toLowerCase();
+                    if (loadedMsgId) {
+                        this.applyPendingSeenForMessage(id, loadedMsgId);
+                    }
+                });
                 
                 // If there was an existing first message, sync it with its new predecessor
                 if (oldFirstMsg) {
