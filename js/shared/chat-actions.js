@@ -29,6 +29,12 @@ const ChatActions = {
         this.closeAllMenus();
 
         const btn = e.currentTarget;
+        const wrapper = btn.closest('.msg-bubble-wrapper');
+        
+        // Mark as active so CSS can keep buttons visible
+        if (wrapper) wrapper.classList.add('menu-active');
+        btn.classList.add('active');
+
         const rect = btn.getBoundingClientRect();
 
         const menu = document.createElement('div');
@@ -115,6 +121,11 @@ const ChatActions = {
             this.currentMenu.remove();
             this.currentMenu = null;
         }
+        
+        // Remove active state from any buttons or wrappers
+        document.querySelectorAll('.msg-bubble-wrapper.menu-active').forEach(w => w.classList.remove('menu-active'));
+        document.querySelectorAll('.msg-action-btn.active').forEach(b => b.classList.remove('active'));
+
         window.removeEventListener('click', this.handleOutsideClick);
     },
 
