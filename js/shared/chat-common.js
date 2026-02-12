@@ -118,6 +118,7 @@ const ChatCommon = {
         const wrapperClass = isOwn ? 'sent' : 'received';
         const rawMessageId = msg.messageId || msg.MessageId || '';
         const messageId = rawMessageId ? rawMessageId.toString().toLowerCase() : '';
+
         const dataMessageIdAttr = messageId ? ` data-message-id="${messageId}"` : '';
 
         // --- Media ---
@@ -230,6 +231,11 @@ const ChatCommon = {
                     ${msgActionsHtml}
                 </div>
                 ${seenRowHtml}
+                ${msg.status ? `
+                    <div class="msg-status ${msg.status === 'pending' ? 'msg-status-sending' : (msg.status === 'sent' ? 'msg-status-sent' : 'msg-status-failed')}">
+                        ${msg.status === 'pending' ? '<span class="msg-loading-dots"><span class="msg-loading-dot"></span><span class="msg-loading-dot"></span><span class="msg-loading-dot"></span></span>' : (msg.status === 'sent' ? 'Sent' : 'Failed to send. Click to retry.')}
+                    </div>
+                ` : ''}
             </div>
         `;
     },
