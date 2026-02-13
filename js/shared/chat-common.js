@@ -24,6 +24,105 @@ const ChatCommon = {
         return conv.displayName || 'Chat';
     },
 
+    getConversationThemeOptions() {
+        const raw = window.APP_CONFIG?.CHAT_THEME_OPTIONS;
+        if (!Array.isArray(raw) || raw.length === 0) {
+            return [
+                { key: 'default', label: 'Default', color: '#ff416c', hover: '#e43c60', active: '#e63960' }
+            ];
+        }
+
+        return raw
+            .map(opt => ({
+                key: (opt?.key || '').toString().trim().toLowerCase(),
+                label: (opt?.label || opt?.name || opt?.key || 'Theme').toString().trim(),
+                color: (opt?.color || '').toString().trim(),
+                hover: (opt?.hover || '').toString().trim(),
+                active: (opt?.active || '').toString().trim(),
+                bg: (opt?.bg || '').toString().trim()
+            }))
+            .filter(opt => opt.key && opt.color);
+    },
+
+    normalizeConversationTheme(theme) {
+        if (typeof theme !== 'string') return null;
+        const normalized = theme.trim().toLowerCase();
+        if (!normalized.length || normalized === 'default') return null;
+        return normalized;
+    },
+
+    resolveConversationTheme(theme) {
+        const normalized = this.normalizeConversationTheme(theme);
+        if (!normalized) return null;
+
+        const options = this.getConversationThemeOptions();
+        const exists = options.some(opt => opt.key === normalized);
+        return exists ? normalized : null;
+    },
+
+    getConversationThemeByKey(theme) {
+        const options = this.getConversationThemeOptions();
+        const normalized = this.resolveConversationTheme(theme);
+        if (!normalized) return null;
+        return options.find(opt => opt.key === normalized) || null;
+    },
+
+    getConversationThemeLabel(theme, options = {}) {
+        const fallbackToDefault = !!options.fallbackToDefault;
+        const normalized = this.normalizeConversationTheme(theme);
+        if (!normalized) return 'Default';
+
+        const option = this.getConversationThemeByKey(normalized);
+        if (option?.label) return option.label;
+        if (fallbackToDefault) return 'Default';
+        return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+    },
+
+    _hexToRgbString(hexColor) {
+        const raw = (hexColor || '').toString().trim().replace(/^#/, '');
+        if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(raw)) return null;
+        const normalized = raw.length === 3
+            ? raw.split('').map(ch => ch + ch).join('')
+            : raw;
+        const intVal = parseInt(normalized, 16);
+        if (!Number.isFinite(intVal)) return null;
+        const r = (intVal >> 16) & 255;
+        const g = (intVal >> 8) & 255;
+        const b = intVal & 255;
+        return `${r}, ${g}, ${b}`;
+    },
+
+    applyConversationTheme(targetElement, theme) {
+        if (!targetElement || !targetElement.style) return null;
+
+        const option = this.getConversationThemeByKey(theme);
+        if (!option) {
+            targetElement.style.removeProperty('--accent-primary');
+            targetElement.style.removeProperty('--accent-hover');
+            targetElement.style.removeProperty('--accent-active');
+            targetElement.style.removeProperty('--accent-primary-rgb');
+            targetElement.style.removeProperty('--chat-theme-bg');
+            return null;
+        }
+
+        targetElement.style.setProperty('--accent-primary', option.color);
+        if (option.hover) targetElement.style.setProperty('--accent-hover', option.hover);
+        if (option.active) targetElement.style.setProperty('--accent-active', option.active);
+        const rgb = this._hexToRgbString(option.color);
+        if (rgb) {
+            targetElement.style.setProperty('--accent-primary-rgb', rgb);
+        } else {
+            targetElement.style.removeProperty('--accent-primary-rgb');
+        }
+        if (option.bg) {
+            targetElement.style.setProperty('--chat-theme-bg', option.bg);
+        } else {
+            targetElement.style.removeProperty('--chat-theme-bg');
+        }
+
+        return option.key;
+    },
+
     getMessageType(msg) {
         if (!msg) return null;
 
@@ -89,8 +188,18 @@ const ChatCommon = {
                 const parsed = JSON.parse(systemDataRaw);
                 const actor = this.toMentionUsername(parsed?.actorUsername || parsed?.actorDisplayName || '');
                 const target = this.toMentionUsername(parsed?.targetUsername || parsed?.targetDisplayName || '');
+                const actionRaw = parsed?.action ?? parsed?.Action;
+                const action = Number(actionRaw);
                 const hasNicknameField = Object.prototype.hasOwnProperty.call(parsed || {}, 'nickname');
                 const nickname = this.normalizeNickname(parsed?.nickname);
+
+                if (actor && Number.isFinite(action) && action === 9) {
+                    const normalizedTheme = this.normalizeConversationTheme(parsed?.theme);
+                    if (normalizedTheme) {
+                        return `${actor} changed the chat theme to "${this.getConversationThemeLabel(normalizedTheme)}".`;
+                    }
+                    return `${actor} reset the chat theme.`;
+                }
 
                 if (actor && target && hasNicknameField) {
                     return nickname
@@ -119,6 +228,19 @@ const ChatCommon = {
                 const actor = this.toMentionUsername(removeNicknameMatch[1]);
                 const target = this.toMentionUsername(removeNicknameMatch[2]);
                 return `${actor} removed nickname for ${target}.`;
+            }
+
+            const themeChangedMatch = content.match(/^@?([^\s@]+)\s+changed the chat theme to\s+"([\s\S]*)"\.$/i);
+            if (themeChangedMatch) {
+                const actor = this.toMentionUsername(themeChangedMatch[1]);
+                const themeLabel = this.getConversationThemeLabel(themeChangedMatch[2]);
+                return `${actor} changed the chat theme to "${themeLabel}".`;
+            }
+
+            const themeResetMatch = content.match(/^@?([^\s@]+)\s+reset the chat theme\.$/i);
+            if (themeResetMatch) {
+                const actor = this.toMentionUsername(themeResetMatch[1]);
+                return `${actor} reset the chat theme.`;
             }
 
             return content;
@@ -677,11 +799,31 @@ const ChatCommon = {
      * Format last message preview
      */
     getLastMsgPreview(conv) {
-        if (conv?.lastMessage?.isRecalled || conv?.lastMessage?.IsRecalled) {
+        const lastMessage = conv?.lastMessage || conv?.LastMessage || null;
+
+        if (lastMessage?.isRecalled || lastMessage?.IsRecalled) {
             return 'Message recalled';
         }
-        if (conv.lastMessagePreview) return conv.lastMessagePreview;
-        return conv.isGroup ? 'Group created' : 'Started a conversation';
+
+        if (lastMessage && this.isSystemMessage(lastMessage)) {
+            return this.getSystemMessageText(lastMessage);
+        }
+
+        if (conv?.lastMessagePreview) return conv.lastMessagePreview;
+
+        const rawContent = lastMessage?.content ?? lastMessage?.Content ?? '';
+        if (typeof rawContent === 'string' && rawContent.trim().length) {
+            return rawContent.trim();
+        }
+
+        const medias = lastMessage?.medias || lastMessage?.Medias || [];
+        if (Array.isArray(medias) && medias.length > 0) {
+            const first = medias[0] || {};
+            const mediaType = Number(first.mediaType ?? first.MediaType);
+            return mediaType === 1 ? '[Video]' : '[Image]';
+        }
+
+        return conv?.isGroup ? 'Group created' : 'Started a conversation';
     },
 
 
@@ -911,6 +1053,83 @@ const ChatCommon = {
         };
     },
 
+    showThemePicker(options = {}) {
+        const {
+            title = 'Change theme',
+            currentTheme = null,
+            onSelect = null,
+            onCancel = null
+        } = options;
+
+        const themeOptions = this.getConversationThemeOptions();
+        const currentKey = this.resolveConversationTheme(currentTheme);
+        const selectedTheme = currentKey || 'default';
+
+        const overlay = document.createElement('div');
+        overlay.className = 'chat-common-confirm-overlay';
+
+        const popup = document.createElement('div');
+        popup.className = 'chat-common-confirm-popup chat-theme-picker-popup';
+
+        popup.innerHTML = `
+            <div class="chat-nicknames-header">
+                <h3>${escapeHtml(title)}</h3>
+                <div class="chat-nicknames-close" id="themePickerCloseBtn">
+                    <i data-lucide="x"></i>
+                </div>
+            </div>
+            <div class="chat-theme-picker-list">
+                ${themeOptions.map(opt => {
+                    const key = opt.key || 'default';
+                    const isActive = selectedTheme === key;
+                    return `
+                        <button class="chat-theme-option ${isActive ? 'active' : ''}" data-theme-key="${key}">
+                            <span class="chat-theme-swatch" style="background:${escapeHtml(opt.color)}"></span>
+                            <span class="chat-theme-label">${escapeHtml(opt.label || key)}</span>
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+        `;
+
+        overlay.appendChild(popup);
+        document.body.appendChild(overlay);
+
+        if (window.lockScroll) lockScroll();
+        if (window.lucide) lucide.createIcons({ props: { size: 18 }, container: popup });
+        requestAnimationFrame(() => overlay.classList.add('show'));
+
+        const close = () => {
+            overlay.classList.remove('show');
+            if (window.unlockScroll) unlockScroll();
+            setTimeout(() => overlay.remove(), 200);
+        };
+
+        const closeBtn = popup.querySelector('#themePickerCloseBtn');
+        if (closeBtn) {
+            closeBtn.onclick = () => {
+                if (onCancel) onCancel();
+                close();
+            };
+        }
+
+        popup.querySelectorAll('.chat-theme-option').forEach(btn => {
+            btn.onclick = () => {
+                const rawKey = (btn.dataset.themeKey || '').toLowerCase();
+                const nextTheme = rawKey === 'default' ? null : rawKey;
+                if (onSelect) onSelect(nextTheme);
+                close();
+            };
+        });
+
+        overlay.onclick = (e) => {
+            if (e.target === overlay) {
+                if (onCancel) onCancel();
+                close();
+            }
+        };
+    },
+
     /**
      * Show a modal to manage nicknames of all members in a conversation.
      * @param {Object} options - { title, members, conversationId, onNicknameUpdated }
@@ -1053,7 +1272,8 @@ const ChatCommon = {
 
             const input = inputWrapper.querySelector('input');
             input.focus();
-            input.select();
+            const valLen = input.value.length;
+            input.setSelectionRange(valLen, valLen);
 
             // Replace pencil with checkmark
             editBtn.innerHTML = '<i data-lucide="check"></i>';

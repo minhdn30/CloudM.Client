@@ -61,9 +61,12 @@
         const convId = (data.ConversationId || data.conversationId || '').toLowerCase();
         const message = data.Message || data.message;
         const isMuted = data.IsMuted ?? data.isMuted ?? false;
+        const targetAccountId = (data.TargetAccountId || data.targetAccountId || '').toLowerCase();
         const myId = (localStorage.getItem("accountId") || '').toLowerCase();
         const senderId = (message?.sender?.accountId || message?.Sender?.AccountId || '').toLowerCase();
 
+        // Safety guard: ignore notifications not explicitly targeted to this account.
+        if (targetAccountId && myId && targetAccountId !== myId) return;
         if (!convId || senderId === myId) return;
 
         const isChatPage = document.body.classList.contains('is-chat-page');
@@ -288,6 +291,9 @@
             });
 
             connection.on("ReceiveMessageHidden", (data) => {
+                const targetAccountId = (data?.TargetAccountId || data?.targetAccountId || '').toString().toLowerCase();
+                const myId = (localStorage.getItem("accountId") || '').toLowerCase();
+                if (targetAccountId && myId && targetAccountId !== myId) return;
                 console.log("🙈 [UserHub] Message hidden (realtime):", data);
                 if (window.ChatActions && typeof window.ChatActions.hideFromRealtime === 'function') {
                     window.ChatActions.hideFromRealtime(data);
@@ -299,6 +305,9 @@
             });
 
             connection.on("ReceiveConversationMuteUpdated", (data) => {
+                const targetAccountId = (data?.TargetAccountId || data?.targetAccountId || '').toString().toLowerCase();
+                const myId = (localStorage.getItem("accountId") || '').toLowerCase();
+                if (targetAccountId && myId && targetAccountId !== myId) return;
                 const conversationId = (data?.ConversationId || data?.conversationId || '').toString().toLowerCase();
                 const isMuted = !!(data?.IsMuted ?? data?.isMuted);
                 if (!conversationId) return;
@@ -315,6 +324,9 @@
             });
 
             connection.on("ReceiveConversationRemoved", (data) => {
+                const targetAccountId = (data?.TargetAccountId || data?.targetAccountId || '').toString().toLowerCase();
+                const myId = (localStorage.getItem("accountId") || '').toLowerCase();
+                if (targetAccountId && myId && targetAccountId !== myId) return;
                 const conversationId = (data?.ConversationId || data?.conversationId || '').toString().toLowerCase();
                 const reason = (data?.Reason || data?.reason || '').toString().toLowerCase();
                 if (!conversationId) return;
@@ -331,6 +343,9 @@
             });
 
             connection.on("ReceiveConversationNicknameUpdated", (data) => {
+                const targetAccountId = (data?.TargetAccountId || data?.targetAccountId || '').toString().toLowerCase();
+                const myId = (localStorage.getItem("accountId") || '').toLowerCase();
+                if (targetAccountId && myId && targetAccountId !== myId) return;
                 const conversationId = (data?.ConversationId || data?.conversationId || '').toString().toLowerCase();
                 const accountId = (data?.AccountId || data?.accountId || '').toString().toLowerCase();
                 const nicknameRaw = data?.Nickname ?? data?.nickname;

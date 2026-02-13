@@ -377,7 +377,7 @@ body.is-dragging-chat #chat-windows-stack {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    background: var(--bg-primary);
+    background: var(--chat-theme-bg, var(--bg-primary));
     min-height: 0;
     overflow-x: hidden;
 }
