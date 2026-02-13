@@ -55,6 +55,12 @@
   const hubBaseCandidates = isLoopbackHost ? localHubBaseCandidates : [remoteHubBase];
   const apiBase = apiBaseCandidates[0];
   const hubBase = hubBaseCandidates[0];
+  const fallbackChatThemeOptions = [
+    { key: "default", label: "Default", color: "#ff416c", hover: "#e43c60", active: "#e63960", bg: "#0a1317" }
+  ];
+  const chatThemeOptions = (Array.isArray(global.CHAT_THEME_OPTIONS) && global.CHAT_THEME_OPTIONS.length)
+    ? global.CHAT_THEME_OPTIONS
+    : fallbackChatThemeOptions;
 
   global.APP_CONFIG = {
   API_BASE: apiBase, // API
@@ -90,6 +96,7 @@
   CHAT_RECALLED_MESSAGE_TEXT: "Message was recalled", // Text shown when a message is recalled
   CHAT_TIME_SEPARATOR_GAP: 15 * 60 * 1000, // Gap (ms) to show time separator (15 mins)
   CHAT_GROUPING_GAP: 2 * 60 * 1000, // Gap (ms) to break message grouping (2 mins)
+  CHAT_THEME_OPTIONS: chatThemeOptions, // Theme options per conversation (affects chat bubble + accent controls)
   MAX_OPEN_CHAT_WINDOWS: 3, // Số lượng cửa sổ chat được mở tối đa cùng lúc
   MAX_TOTAL_CHAT_WINDOWS: 8, // Tổng số lượng chat (cả cửa sổ và bong bóng) tối đa được phép duy trì
   };

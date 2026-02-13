@@ -7,6 +7,7 @@
     const messageHandlers = new Set();
     const seenHandlers = new Set();
     const typingHandlers = new Set();
+    const themeHandlers = new Set();
     const groupRefCount = new Map(); // conversationId -> count
     let currentConnection = null;
     const pendingInvokes = new Map(); // key -> { method, args, resolve, timeoutId }
@@ -23,6 +24,7 @@
             conn.off('MemberSeen');
             conn.off('Typing');
             conn.off('ReceiveMessageRecalled');
+            conn.off('ReceiveConversationThemeUpdated');
         } catch (err) {
             console.warn('[ChatRealtime] Failed to clear handlers:', err);
         }
@@ -74,6 +76,25 @@
             } catch (err) {
                 console.error('[ChatRealtime] Recall handler error:', err);
             }
+        });
+
+        conn.on('ReceiveConversationThemeUpdated', (data) => {
+            const rawTheme = data?.Theme ?? data?.theme;
+            const normalized = {
+                conversationId: (data?.ConversationId || data?.conversationId || '').toString().toLowerCase(),
+                theme: (typeof rawTheme === 'string' && rawTheme.trim().length > 0)
+                    ? rawTheme.trim().toLowerCase()
+                    : null,
+                updatedBy: (data?.UpdatedBy || data?.updatedBy || '').toString().toLowerCase()
+            };
+
+            themeHandlers.forEach((handler) => {
+                try {
+                    handler(normalized);
+                } catch (err) {
+                    console.error('[ChatRealtime] Theme handler error:', err);
+                }
+            });
         });
     }
 
@@ -182,6 +203,13 @@
             typingHandlers.add(handler);
             return () => {
                 typingHandlers.delete(handler);
+            };
+        },
+        onTheme(handler) {
+            if (typeof handler !== 'function') return () => { };
+            themeHandlers.add(handler);
+            return () => {
+                themeHandlers.delete(handler);
             };
         },
         joinConversation(conversationId) {
