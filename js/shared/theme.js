@@ -1,5 +1,6 @@
 // ===== Theme Management =====
 const THEME_KEY = "theme";
+const THEME_CHANGED_EVENT = "app:theme-changed";
 
 // Get saved theme or default to dark
 function getTheme() {
@@ -23,6 +24,11 @@ function setTheme(theme) {
 
   // Update UI elements (icons, toggle switch)
   updateThemeUI(theme);
+
+  // Notify modules that depend on dark/light mode-specific tokens.
+  window.dispatchEvent(new CustomEvent(THEME_CHANGED_EVENT, {
+    detail: { theme }
+  }));
 }
 
 // Toggle between dark and light theme
@@ -94,6 +100,7 @@ if (document.readyState === "loading") {
 
 // Export for use in other scripts
 window.themeManager = {
+  EVENT: THEME_CHANGED_EVENT,
   getTheme,
   setTheme,
   toggleTheme,

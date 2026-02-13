@@ -28,20 +28,133 @@ const ChatCommon = {
         const raw = window.APP_CONFIG?.CHAT_THEME_OPTIONS;
         if (!Array.isArray(raw) || raw.length === 0) {
             return [
-                { key: 'default', label: 'Default', color: '#ff416c', hover: '#e43c60', active: '#e63960' }
+                {
+                    key: 'default',
+                    label: 'Default',
+                    preview: 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)',
+                    dark: {
+                        accent: '#ff416c',
+                        accentHover: '#e43c60',
+                        accentActive: '#d7335a',
+                        surface: '#0a1317',
+                        surfaceAlt: '#121d24',
+                        border: '#25323a',
+                        ownBubbleBg: '#ff416c',
+                        ownBubbleText: '#ffffff',
+                        otherBubbleBg: '#1a252d',
+                        otherBubbleText: '#f3f6f9',
+                        systemText: '#9ca7b0',
+                        actionColor: '#b7c2cb',
+                        actionHover: '#ffffff',
+                        actionHoverBg: 'rgba(255,255,255,0.08)',
+                        scrollbarThumb: 'rgba(255,255,255,0.24)',
+                        scrollbarHover: '#ff416c',
+                        inputWrapperBg: 'rgba(255,255,255,0.08)',
+                        inputBorder: 'rgba(255,255,255,0.14)'
+                    },
+                    light: {
+                        accent: '#f72567',
+                        accentHover: '#de1e5b',
+                        accentActive: '#c7184f',
+                        surface: 'linear-gradient(160deg, #ffe3ec 0%, #ffd0df 52%, #ffd7c9 100%)',
+                        surfaceAlt: '#ffc6da',
+                        border: '#f58eb0',
+                        ownBubbleBg: '#f72567',
+                        ownBubbleText: '#ffffff',
+                        otherBubbleBg: '#ffb9d2',
+                        otherBubbleText: '#3d1123',
+                        systemText: '#7d2848',
+                        actionColor: '#6f1e3f',
+                        actionHover: '#3f1024',
+                        actionHoverBg: 'rgba(0,0,0,0.06)',
+                        scrollbarThumb: 'rgba(116,26,60,0.42)',
+                        scrollbarHover: '#f72567',
+                        inputWrapperBg: '#ffc6da',
+                        inputBorder: '#f58eb0'
+                    }
+                }
             ];
         }
 
         return raw
-            .map(opt => ({
-                key: (opt?.key || '').toString().trim().toLowerCase(),
-                label: (opt?.label || opt?.name || opt?.key || 'Theme').toString().trim(),
-                color: (opt?.color || '').toString().trim(),
-                hover: (opt?.hover || '').toString().trim(),
-                active: (opt?.active || '').toString().trim(),
-                bg: (opt?.bg || '').toString().trim()
-            }))
-            .filter(opt => opt.key && opt.color);
+            .map(opt => {
+                const key = (opt?.key || '').toString().trim().toLowerCase();
+                if (!key) return null;
+
+                const label = (opt?.label || opt?.name || opt?.key || 'Theme').toString().trim();
+                const legacyAccent = (opt?.color || opt?.accent || '').toString().trim();
+                const legacyHover = (opt?.hover || opt?.accentHover || '').toString().trim();
+                const legacyActive = (opt?.active || opt?.accentActive || '').toString().trim();
+                const legacySurface = (opt?.bg || opt?.surface || '').toString().trim();
+                const darkRaw = opt?.dark || opt?.modes?.dark || null;
+                const lightRaw = opt?.light || opt?.modes?.light || null;
+                const preview = (opt?.preview || opt?.previewGradient || '').toString().trim();
+                const aliasesRaw = Array.isArray(opt?.aliases)
+                    ? opt.aliases
+                    : (typeof opt?.alias === 'string' ? [opt.alias] : []);
+                const aliases = aliasesRaw
+                    .map(a => (a || '').toString().trim().toLowerCase())
+                    .filter(Boolean);
+
+                const normalizeMode = (modeRaw) => {
+                    const mode = modeRaw || {};
+                    const accent = (mode?.accent || mode?.color || legacyAccent || '').toString().trim();
+                    const accentHover = (mode?.accentHover || mode?.hover || legacyHover || '').toString().trim();
+                    const accentActive = (mode?.accentActive || mode?.active || legacyActive || '').toString().trim();
+                    const surface = (mode?.surface || mode?.bg || legacySurface || '').toString().trim();
+                    const surfaceAlt = (mode?.surfaceAlt || mode?.panel || mode?.panelBg || '').toString().trim();
+                    const border = (mode?.border || mode?.borderColor || '').toString().trim();
+                    const ownBubbleBg = (mode?.ownBubbleBg || mode?.bubbleOwn || accent || '').toString().trim();
+                    const ownBubbleText = (mode?.ownBubbleText || mode?.bubbleOwnText || '').toString().trim();
+                    const otherBubbleBg = (mode?.otherBubbleBg || mode?.bubbleOther || '').toString().trim();
+                    const otherBubbleText = (mode?.otherBubbleText || mode?.bubbleOtherText || '').toString().trim();
+                    const systemText = (mode?.systemText || mode?.mutedText || '').toString().trim();
+                    const actionColor = (mode?.actionColor || mode?.buttonColor || '').toString().trim();
+                    const actionHover = (mode?.actionHover || mode?.buttonHover || '').toString().trim();
+                    const actionHoverBg = (mode?.actionHoverBg || mode?.buttonHoverBg || '').toString().trim();
+                    const scrollbarThumb = (mode?.scrollbarThumb || mode?.scrollbar || '').toString().trim();
+                    const scrollbarHover = (mode?.scrollbarHover || ownBubbleBg || accent || '').toString().trim();
+                    const inputWrapperBg = (mode?.inputWrapperBg || mode?.composerBg || '').toString().trim();
+                    const inputBorder = (mode?.inputBorder || mode?.composerBorder || '').toString().trim();
+
+                    return {
+                        accent,
+                        accentHover,
+                        accentActive,
+                        surface,
+                        surfaceAlt,
+                        border,
+                        ownBubbleBg,
+                        ownBubbleText,
+                        otherBubbleBg,
+                        otherBubbleText,
+                        systemText,
+                        actionColor,
+                        actionHover,
+                        actionHoverBg,
+                        scrollbarThumb,
+                        scrollbarHover,
+                        inputWrapperBg,
+                        inputBorder
+                    };
+                };
+
+                const dark = normalizeMode(darkRaw);
+                const light = normalizeMode(lightRaw);
+                const hasPalette =
+                    !!dark.accent || !!light.accent || !!legacyAccent || key === 'default';
+                if (!hasPalette) return null;
+
+                return {
+                    key,
+                    label,
+                    aliases,
+                    preview,
+                    dark,
+                    light
+                };
+            })
+            .filter(Boolean);
     },
 
     normalizeConversationTheme(theme) {
@@ -56,8 +169,10 @@ const ChatCommon = {
         if (!normalized) return null;
 
         const options = this.getConversationThemeOptions();
-        const exists = options.some(opt => opt.key === normalized);
-        return exists ? normalized : null;
+        const matched = options.find(opt =>
+            opt.key === normalized || (Array.isArray(opt.aliases) && opt.aliases.includes(normalized))
+        );
+        return matched ? matched.key : null;
     },
 
     getConversationThemeByKey(theme) {
@@ -78,6 +193,19 @@ const ChatCommon = {
         return normalized.charAt(0).toUpperCase() + normalized.slice(1);
     },
 
+    getCurrentAppThemeMode() {
+        return document.body?.classList?.contains('light-mode') ? 'light' : 'dark';
+    },
+
+    getConversationThemePreview(option, mode = null) {
+        if (!option) return '';
+        const activeMode = mode || this.getCurrentAppThemeMode();
+        const palette = option?.[activeMode] || option?.dark || option?.light || null;
+        if (option.preview) return option.preview;
+        if (palette?.accent) return palette.accent;
+        return '';
+    },
+
     _hexToRgbString(hexColor) {
         const raw = (hexColor || '').toString().trim().replace(/^#/, '');
         if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(raw)) return null;
@@ -92,33 +220,176 @@ const ChatCommon = {
         return `${r}, ${g}, ${b}`;
     },
 
+    _reverseGradientDirection(direction) {
+        const rawDirection = (direction || '').toString().trim();
+        if (!rawDirection.length) return '';
+
+        const normalized = rawDirection.toLowerCase();
+        if (normalized.startsWith('to ')) {
+            const oppositeMap = {
+                top: 'bottom',
+                bottom: 'top',
+                left: 'right',
+                right: 'left'
+            };
+
+            const reversedParts = normalized
+                .slice(3)
+                .trim()
+                .split(/\s+/)
+                .map(part => oppositeMap[part] || part);
+
+            return `to ${reversedParts.join(' ')}`;
+        }
+
+        const angleMatch = normalized.match(/^([-+]?\d*\.?\d+)(deg|rad|turn|grad)$/i);
+        if (!angleMatch) {
+            return rawDirection;
+        }
+
+        const angleValue = Number(angleMatch[1]);
+        const angleUnit = angleMatch[2].toLowerCase();
+        if (!Number.isFinite(angleValue)) {
+            return rawDirection;
+        }
+
+        let reversedValue = angleValue;
+        if (angleUnit === 'deg') {
+            reversedValue = ((angleValue + 180) % 360 + 360) % 360;
+        } else if (angleUnit === 'turn') {
+            reversedValue = ((angleValue + 0.5) % 1 + 1) % 1;
+        } else if (angleUnit === 'rad') {
+            const full = Math.PI * 2;
+            reversedValue = ((angleValue + Math.PI) % full + full) % full;
+        } else if (angleUnit === 'grad') {
+            reversedValue = ((angleValue + 200) % 400 + 400) % 400;
+        }
+
+        const roundedValue = Math.round(reversedValue * 1000) / 1000;
+        return `${roundedValue}${angleUnit}`;
+    },
+
+    _getReversedLinearGradient(gradientValue) {
+        const rawGradient = (gradientValue || '').toString().trim();
+        if (!rawGradient.length) return '';
+        if (!/^linear-gradient\(/i.test(rawGradient)) return rawGradient;
+
+        const startIndex = rawGradient.indexOf('(');
+        if (startIndex < 0 || !rawGradient.endsWith(')')) return rawGradient;
+        const inner = rawGradient.slice(startIndex + 1, -1).trim();
+        if (!inner.length) return rawGradient;
+
+        let commaIndex = -1;
+        let depth = 0;
+        for (let i = 0; i < inner.length; i += 1) {
+            const ch = inner[i];
+            if (ch === '(') depth += 1;
+            else if (ch === ')' && depth > 0) depth -= 1;
+            else if (ch === ',' && depth === 0) {
+                commaIndex = i;
+                break;
+            }
+        }
+
+        if (commaIndex < 0) return rawGradient;
+
+        const firstPart = inner.slice(0, commaIndex).trim();
+        const restParts = inner.slice(commaIndex + 1).trim();
+        if (!restParts.length) return rawGradient;
+
+        const hasExplicitDirection = /^(to\s+.+|[-+]?\d*\.?\d+(deg|rad|turn|grad))$/i.test(firstPart);
+        if (!hasExplicitDirection) {
+            return `linear-gradient(to top, ${inner})`;
+        }
+
+        const reversedDirection = this._reverseGradientDirection(firstPart);
+        if (!reversedDirection) return rawGradient;
+        return `linear-gradient(${reversedDirection}, ${restParts})`;
+    },
+
+    _clearConversationThemeVars(targetElement) {
+        if (!targetElement || !targetElement.style) return;
+        [
+            '--accent-primary',
+            '--accent-hover',
+            '--accent-active',
+            '--accent-primary-rgb',
+            '--chat-theme-bg',
+            '--chat-theme-surface',
+            '--chat-theme-footer-surface',
+            '--chat-theme-surface-alt',
+            '--chat-theme-border',
+            '--chat-theme-own-bubble-bg',
+            '--chat-theme-own-bubble-text',
+            '--chat-theme-other-bubble-bg',
+            '--chat-theme-other-bubble-text',
+            '--chat-theme-system-text',
+            '--chat-theme-action-color',
+            '--chat-theme-action-hover',
+            '--chat-theme-action-hover-bg',
+            '--chat-theme-scrollbar-thumb',
+            '--chat-theme-scrollbar-hover',
+            '--chat-theme-header-unread-bg',
+            '--chat-theme-input-wrapper-bg',
+            '--chat-theme-input-border'
+        ].forEach((prop) => targetElement.style.removeProperty(prop));
+    },
+
     applyConversationTheme(targetElement, theme) {
         if (!targetElement || !targetElement.style) return null;
 
         const option = this.getConversationThemeByKey(theme);
         if (!option) {
-            targetElement.style.removeProperty('--accent-primary');
-            targetElement.style.removeProperty('--accent-hover');
-            targetElement.style.removeProperty('--accent-active');
-            targetElement.style.removeProperty('--accent-primary-rgb');
-            targetElement.style.removeProperty('--chat-theme-bg');
+            this._clearConversationThemeVars(targetElement);
             return null;
         }
 
-        targetElement.style.setProperty('--accent-primary', option.color);
-        if (option.hover) targetElement.style.setProperty('--accent-hover', option.hover);
-        if (option.active) targetElement.style.setProperty('--accent-active', option.active);
-        const rgb = this._hexToRgbString(option.color);
+        const mode = this.getCurrentAppThemeMode();
+        const palette = option?.[mode] || option?.dark || option?.light || null;
+        if (!palette) {
+            this._clearConversationThemeVars(targetElement);
+            return null;
+        }
+
+        this._clearConversationThemeVars(targetElement);
+
+        const accent = palette.accent || '';
+        if (accent) targetElement.style.setProperty('--accent-primary', accent);
+        if (palette.accentHover) targetElement.style.setProperty('--accent-hover', palette.accentHover);
+        if (palette.accentActive) targetElement.style.setProperty('--accent-active', palette.accentActive);
+
+        const rgb = this._hexToRgbString(accent);
         if (rgb) {
             targetElement.style.setProperty('--accent-primary-rgb', rgb);
-        } else {
-            targetElement.style.removeProperty('--accent-primary-rgb');
         }
-        if (option.bg) {
-            targetElement.style.setProperty('--chat-theme-bg', option.bg);
-        } else {
-            targetElement.style.removeProperty('--chat-theme-bg');
+
+        if (palette.surface) {
+            targetElement.style.setProperty('--chat-theme-bg', palette.surface);
+            targetElement.style.setProperty('--chat-theme-surface', palette.surface);
+            const footerSurface = palette.surfaceReverse || this._getReversedLinearGradient(palette.surface);
+            if (footerSurface) {
+                targetElement.style.setProperty('--chat-theme-footer-surface', footerSurface);
+            }
         }
+        if (palette.surfaceAlt) targetElement.style.setProperty('--chat-theme-surface-alt', palette.surfaceAlt);
+        if (palette.border) targetElement.style.setProperty('--chat-theme-border', palette.border);
+        if (palette.ownBubbleBg) {
+            targetElement.style.setProperty('--chat-theme-own-bubble-bg', palette.ownBubbleBg);
+            targetElement.style.setProperty('--chat-theme-header-unread-bg', palette.ownBubbleBg);
+            targetElement.style.setProperty('--chat-theme-scrollbar-hover', palette.ownBubbleBg);
+        }
+        if (palette.ownBubbleText) targetElement.style.setProperty('--chat-theme-own-bubble-text', palette.ownBubbleText);
+        if (palette.otherBubbleBg) targetElement.style.setProperty('--chat-theme-other-bubble-bg', palette.otherBubbleBg);
+        if (palette.otherBubbleText) targetElement.style.setProperty('--chat-theme-other-bubble-text', palette.otherBubbleText);
+        if (palette.systemText) targetElement.style.setProperty('--chat-theme-system-text', palette.systemText);
+        if (palette.actionColor) targetElement.style.setProperty('--chat-theme-action-color', palette.actionColor);
+        if (palette.actionHover) targetElement.style.setProperty('--chat-theme-action-hover', palette.actionHover);
+        // Keep hover clean: no background flash on icon/buttons.
+        targetElement.style.setProperty('--chat-theme-action-hover-bg', 'transparent');
+        if (palette.scrollbarThumb) targetElement.style.setProperty('--chat-theme-scrollbar-thumb', palette.scrollbarThumb);
+        if (palette.scrollbarHover) targetElement.style.setProperty('--chat-theme-scrollbar-hover', palette.scrollbarHover);
+        if (palette.inputWrapperBg) targetElement.style.setProperty('--chat-theme-input-wrapper-bg', palette.inputWrapperBg);
+        if (palette.inputBorder) targetElement.style.setProperty('--chat-theme-input-border', palette.inputBorder);
 
         return option.key;
     },
@@ -1064,6 +1335,7 @@ const ChatCommon = {
         const themeOptions = this.getConversationThemeOptions();
         const currentKey = this.resolveConversationTheme(currentTheme);
         const selectedTheme = currentKey || 'default';
+        const currentMode = this.getCurrentAppThemeMode();
 
         const overlay = document.createElement('div');
         overlay.className = 'chat-common-confirm-overlay';
@@ -1082,9 +1354,10 @@ const ChatCommon = {
                 ${themeOptions.map(opt => {
                     const key = opt.key || 'default';
                     const isActive = selectedTheme === key;
+                    const swatchBackground = this.getConversationThemePreview(opt, currentMode) || 'var(--accent-primary)';
                     return `
                         <button class="chat-theme-option ${isActive ? 'active' : ''}" data-theme-key="${key}">
-                            <span class="chat-theme-swatch" style="background:${escapeHtml(opt.color)}"></span>
+                            <span class="chat-theme-swatch" style="background:${escapeHtml(swatchBackground)}"></span>
                             <span class="chat-theme-label">${escapeHtml(opt.label || key)}</span>
                         </button>
                     `;

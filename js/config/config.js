@@ -56,7 +56,51 @@
   const apiBase = apiBaseCandidates[0];
   const hubBase = hubBaseCandidates[0];
   const fallbackChatThemeOptions = [
-    { key: "default", label: "Default", color: "#ff416c", hover: "#e43c60", active: "#e63960", bg: "#0a1317" }
+    {
+      key: "default",
+      label: "Default",
+      preview: "linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)",
+      dark: {
+        accent: "#ff416c",
+        accentHover: "#e43c60",
+        accentActive: "#d7335a",
+        surface: "#0a1317",
+        surfaceAlt: "#121d24",
+        border: "#25323a",
+        ownBubbleBg: "#ff416c",
+        ownBubbleText: "#ffffff",
+        otherBubbleBg: "#1a252d",
+        otherBubbleText: "#f3f6f9",
+        systemText: "#9ca7b0",
+        actionColor: "#b7c2cb",
+        actionHover: "#ffffff",
+        actionHoverBg: "rgba(255,255,255,0.08)",
+        scrollbarThumb: "rgba(255,255,255,0.24)",
+        scrollbarHover: "#ff416c",
+        inputWrapperBg: "rgba(255,255,255,0.08)",
+        inputBorder: "rgba(255,255,255,0.14)"
+      },
+      light: {
+        accent: "#f72567",
+        accentHover: "#de1e5b",
+        accentActive: "#c7184f",
+        surface: "linear-gradient(160deg, #ffe3ec 0%, #ffd0df 52%, #ffd7c9 100%)",
+        surfaceAlt: "#ffc6da",
+        border: "#f58eb0",
+        ownBubbleBg: "#f72567",
+        ownBubbleText: "#ffffff",
+        otherBubbleBg: "#ffb9d2",
+        otherBubbleText: "#3d1123",
+        systemText: "#7d2848",
+        actionColor: "#6f1e3f",
+        actionHover: "#3f1024",
+        actionHoverBg: "rgba(0,0,0,0.06)",
+        scrollbarThumb: "rgba(116,26,60,0.42)",
+        scrollbarHover: "#f72567",
+        inputWrapperBg: "#ffc6da",
+        inputBorder: "#f58eb0"
+      }
+    }
   ];
   const chatThemeOptions = (Array.isArray(global.CHAT_THEME_OPTIONS) && global.CHAT_THEME_OPTIONS.length)
     ? global.CHAT_THEME_OPTIONS
@@ -96,7 +140,7 @@
   CHAT_RECALLED_MESSAGE_TEXT: "Message was recalled", // Text shown when a message is recalled
   CHAT_TIME_SEPARATOR_GAP: 15 * 60 * 1000, // Gap (ms) to show time separator (15 mins)
   CHAT_GROUPING_GAP: 2 * 60 * 1000, // Gap (ms) to break message grouping (2 mins)
-  CHAT_THEME_OPTIONS: chatThemeOptions, // Theme options per conversation (affects chat bubble + accent controls)
+  CHAT_THEME_OPTIONS: chatThemeOptions, // Theme options per conversation (full palette per dark/light mode)
   MAX_OPEN_CHAT_WINDOWS: 3, // Số lượng cửa sổ chat được mở tối đa cùng lúc
   MAX_TOTAL_CHAT_WINDOWS: 8, // Tổng số lượng chat (cả cửa sổ và bong bóng) tối đa được phép duy trì
   };
