@@ -288,6 +288,16 @@ const ChatPage = {
                 }
             };
         }
+
+        const onThemeModeChanged = () => {
+            const activeTheme = this.currentMetaData
+                ? (this.currentMetaData.theme ?? this.currentMetaData.Theme ?? null)
+                : null;
+            this.applyThemeVisual(activeTheme);
+        };
+        const themeEvent = window.themeManager?.EVENT || 'app:theme-changed';
+        window.addEventListener(themeEvent, onThemeModeChanged);
+        this._listenerRefs.push({ target: window, type: themeEvent, handler: onThemeModeChanged });
     },
 
     queuePendingSeen(conversationId, messageId, accountId, memberInfo = null) {
