@@ -7,6 +7,19 @@ window.EmojiUtils = {
     _loading: false,
     _loaded: false,
 
+    _syncChatPickerState: function (container, isOpen) {
+        if (!container) return;
+        const pageActions = container.closest('.chat-view-input-actions');
+        if (pageActions) {
+            pageActions.classList.toggle('emoji-open', !!isOpen);
+        }
+
+        const windowActions = container.closest('.chat-actions-group');
+        if (windowActions) {
+            windowActions.classList.toggle('emoji-open', !!isOpen);
+        }
+    },
+
     /**
      * Load Emoji Picker library dynamically
      */
@@ -100,6 +113,7 @@ window.EmojiUtils = {
     closePicker: function (container) {
         if (!container) return;
         container.classList.remove("show");
+        this._syncChatPickerState(container, false);
         // Delay clearing to allow animation
         setTimeout(() => {
             container.innerHTML = "";
@@ -113,12 +127,14 @@ window.EmojiUtils = {
         // Show loading with fixed height to match final picker
         container.innerHTML = '<div style="height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 13px;">Loading emoji picker...</div>';
         container.classList.add("show");
+        this._syncChatPickerState(container, true);
 
         // Load library if not loaded
         const loaded = await this.loadLibrary();
         
         if (!loaded) {
             container.innerHTML = '<div style="color: var(--danger); padding: 10px; text-align: center;">Failed to load emoji library.</div>';
+            this._syncChatPickerState(container, false);
             return null;
         }
 
@@ -186,6 +202,7 @@ window.EmojiUtils = {
         } catch (error) {
             console.error("Emoji Picker Error:", error);
             container.innerHTML = '<div style="color: var(--danger); padding: 10px;">Error initializing picker</div>';
+            this._syncChatPickerState(container, false);
             return null;
         }
     },

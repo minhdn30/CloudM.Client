@@ -420,42 +420,49 @@ function navigate(e, route, clickedEl = null) {
 // Theme toggle functionality
 function toggleTheme(e) {
   e.stopPropagation();
+  if (window.themeManager && typeof window.themeManager.toggleTheme === "function") {
+    window.themeManager.toggleTheme();
+    return;
+  }
+
+  // Fallback (legacy behavior)
   const body = document.body;
   const themeIcon = document.getElementById("theme-icon");
   const themeToggle = document.getElementById("theme-toggle");
-
-  // Toggle theme
   body.classList.toggle("light-mode");
-  themeToggle.classList.toggle("active");
-
-  // Update icon
+  themeToggle?.classList.toggle("active");
   if (body.classList.contains("light-mode")) {
-    themeIcon.setAttribute("data-lucide", "sun");
+    themeIcon?.setAttribute("data-lucide", "sun");
     localStorage.setItem("theme", "light");
   } else {
-    themeIcon.setAttribute("data-lucide", "moon");
+    themeIcon?.setAttribute("data-lucide", "moon");
     localStorage.setItem("theme", "dark");
   }
-
-  // Recreate icons
-  lucide.createIcons();
+  if (window.lucide) lucide.createIcons();
 }
 
 function loadThemePreference() {
+  if (window.themeManager && typeof window.themeManager.getTheme === "function") {
+    const theme = window.themeManager.getTheme();
+    if (window.themeManager.setTheme) {
+      window.themeManager.setTheme(theme);
+      return;
+    }
+  }
+
+  // Fallback (legacy behavior)
   const theme = localStorage.getItem("theme");
   const body = document.body;
   const themeIcon = document.getElementById("theme-icon");
   const themeToggle = document.getElementById("theme-toggle");
-
   if (theme === "light") {
     body.classList.add("light-mode");
-    themeToggle.classList.add("active");
-    themeIcon.setAttribute("data-lucide", "sun");
+    themeToggle?.classList.add("active");
+    themeIcon?.setAttribute("data-lucide", "sun");
   } else {
-    themeIcon.setAttribute("data-lucide", "moon");
+    themeIcon?.setAttribute("data-lucide", "moon");
   }
-
-  lucide.createIcons();
+  if (window.lucide) lucide.createIcons();
 }
 
 // Settings menu functions (placeholder)
