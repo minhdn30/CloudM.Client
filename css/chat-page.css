@@ -96,6 +96,7 @@
   gap: 2px;
   min-height: 0; /* Critical for flex scrolling */
   overflow-x: hidden;
+  background: var(--chat-theme-bg, var(--bg-primary));
 }
 
 .chat-view-messages::before {

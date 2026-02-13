@@ -492,6 +492,12 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ isMuted: !!isMuted }),
         }),
+      updateTheme: (conversationId, theme) =>
+        apiFetch(`/Conversations/${conversationId}/theme`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ theme: theme ?? null }),
+        }),
       deleteHistory: (conversationId) => apiFetch(`/Conversations/${conversationId}/history`, { method: "DELETE" }),
       getUnreadCount: () => apiFetch('/Conversations/unread-count'),
     },

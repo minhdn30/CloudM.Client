@@ -271,13 +271,14 @@ const ChatSidebar = {
             
             // --- Improved Last Message Preview ---
             let previewText = ChatCommon.getLastMsgPreview(conv);
+            const isSystemLastMessage = ChatCommon.isSystemMessage(conv?.lastMessage);
             const lastMsgSenderId = (conv.lastMessage?.sender?.accountId || '').toLowerCase();
-            if (lastMsgSenderId) {
+            if (lastMsgSenderId && !isSystemLastMessage) {
                 if (lastMsgSenderId === myId) {
                     previewText = `You: ${previewText}`;
                 } else if (conv.isGroup) {
-                    const sender = conv.lastMessage.sender;
-                    const senderName = sender.nickname || sender.username || sender.fullName || 'User';
+                    const sender = conv.lastMessage?.sender || conv.lastMessage?.Sender || {};
+                    const senderName = sender.nickname || sender.Nickname || sender.username || sender.Username || sender.fullName || sender.FullName || 'User';
                     previewText = `${senderName}: ${previewText}`;
                 }
             }
@@ -397,6 +398,35 @@ const ChatSidebar = {
         if (changed || options.forceRender) {
             this.renderConversations(this.conversations, false);
         }
+        return changed;
+    },
+
+    applyThemeUpdate(conversationId, theme, options = {}) {
+        const target = (conversationId || '').toLowerCase();
+        if (!target) return false;
+
+        const normalizeTheme = (value) => {
+            if (window.ChatCommon && typeof window.ChatCommon.resolveConversationTheme === 'function') {
+                return window.ChatCommon.resolveConversationTheme(value);
+            }
+            if (typeof value !== 'string') return null;
+            const trimmed = value.trim().toLowerCase();
+            return trimmed.length ? trimmed : null;
+        };
+        const normalizedTheme = normalizeTheme(theme);
+
+        let changed = false;
+        this.conversations.forEach(conv => {
+            if ((conv.conversationId || '').toLowerCase() !== target) return;
+            if ((conv.theme ?? null) === normalizedTheme) return;
+            conv.theme = normalizedTheme;
+            changed = true;
+        });
+
+        if (options.forceRender && changed) {
+            this.renderConversations(this.conversations, false);
+        }
+
         return changed;
     },
 
@@ -574,9 +604,14 @@ const ChatSidebar = {
             let content = message.content || message.Content || '';
             const isMedia = (message.medias?.length > 0) || (message.Medias?.length > 0);
             const isRecalled = !!(message.isRecalled ?? message.IsRecalled);
+            const isSystemMessage = window.ChatCommon && typeof ChatCommon.isSystemMessage === 'function'
+                ? ChatCommon.isSystemMessage(message)
+                : false;
             
             if (isRecalled) {
                 content = 'Message recalled';
+            } else if (isSystemMessage && window.ChatCommon && typeof ChatCommon.getSystemMessageText === 'function') {
+                content = ChatCommon.getSystemMessageText(message);
             } else if (!content && isMedia) {
                 const firstMedia = (message.medias || message.Medias)[0];
                 const type = firstMedia.mediaType === 0 ? '[Image]' : '[Video]';
@@ -588,9 +623,9 @@ const ChatSidebar = {
             const myId = (localStorage.getItem('accountId') || '').toLowerCase();
             
             let prefix = "";
-            if (senderId === myId) {
+            if (!isSystemMessage && senderId === myId) {
                 prefix = "You: ";
-            } else if (conv?.isGroup) {
+            } else if (!isSystemMessage && conv?.isGroup) {
                 const senderName = message.sender?.nickname || message.sender?.fullName || message.sender?.username || 
                                  message.Sender?.Nickname || message.Sender?.FullName || message.Sender?.Username || 'User';
                 prefix = `${senderName}: `;

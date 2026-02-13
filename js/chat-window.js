@@ -13,6 +13,7 @@ const ChatWindow = {
     _messageUnsub: null,
     _seenUnsub: null,
     _typingUnsub: null,
+    _themeUnsub: null,
     _initialized: false,
     
     init() {
@@ -286,11 +287,18 @@ const ChatWindow = {
             this._typingUnsub();
             this._typingUnsub = null;
         }
+        if (typeof this._themeUnsub === 'function') {
+            this._themeUnsub();
+            this._themeUnsub = null;
+        }
 
         this._messageUnsub = window.ChatRealtime.onMessage((msg) => this.handleRealtimeMessage(msg));
         this._seenUnsub = window.ChatRealtime.onSeen((data) => this.handleMemberSeen(data));
         if (typeof window.ChatRealtime.onTyping === 'function') {
             this._typingUnsub = window.ChatRealtime.onTyping((data) => this.handleTypingEvent(data));
+        }
+        if (typeof window.ChatRealtime.onTheme === 'function') {
+            this._themeUnsub = window.ChatRealtime.onTheme((data) => this.handleThemeEvent(data));
         }
         this.rejoinAllRealtimeConversations();
     },
@@ -1141,7 +1149,10 @@ const ChatWindow = {
             const chat = this.openChats.get(convId);
             
             // Always refresh data to ensure consistency (fix for "header showing own info" if stale)
-            if (conv) chat.data = conv;
+            if (conv) {
+                chat.data = conv;
+                this.setThemeStatus(convId, conv.theme ?? conv.Theme ?? null);
+            }
             this.getRuntimeCtx(convId, chat);
 
             // Move to last position (leftmost) if requested even if already open
@@ -1349,6 +1360,9 @@ const ChatWindow = {
         chatBox.className = 'chat-box';
         chatBox.id = `chat-box-${conv.conversationId}`;
         chatBox.dataset.id = conv.conversationId;
+        if (window.ChatCommon && typeof window.ChatCommon.applyConversationTheme === 'function') {
+            window.ChatCommon.applyConversationTheme(chatBox, conv.theme ?? conv.Theme ?? null);
+        }
 
         // Initial unread state (for restore)
         if (conv.unreadCount > 0 && !shouldFocus) {
@@ -1777,8 +1791,38 @@ const ChatWindow = {
 
         chat.data = chat.data || {};
         chat.data.isMuted = !!isMuted;
+        chat.data.IsMuted = !!isMuted;
         this.saveState();
         return true;
+    },
+
+    setThemeStatus(conversationId, theme) {
+        const openId = this.getOpenChatId(conversationId) || conversationId;
+        const chat = this.openChats.get(openId);
+        if (!chat) return false;
+
+        const normalizeTheme = (value) => {
+            if (window.ChatCommon && typeof window.ChatCommon.resolveConversationTheme === 'function') {
+                return window.ChatCommon.resolveConversationTheme(value);
+            }
+            if (typeof value !== 'string') return null;
+            const trimmed = value.trim().toLowerCase();
+            return trimmed.length ? trimmed : null;
+        };
+
+        const previousTheme = normalizeTheme(chat.data?.theme ?? chat.data?.Theme);
+        const nextTheme = normalizeTheme(theme);
+
+        chat.data = chat.data || {};
+        chat.data.theme = nextTheme;
+        chat.data.Theme = nextTheme;
+
+        if (chat.element && window.ChatCommon && typeof window.ChatCommon.applyConversationTheme === 'function') {
+            window.ChatCommon.applyConversationTheme(chat.element, nextTheme);
+        }
+
+        this.saveState();
+        return previousTheme !== nextTheme;
     },
 
     applyNicknameUpdate(conversationId, accountId, nickname) {
@@ -2025,6 +2069,29 @@ const ChatWindow = {
         }
     },
 
+    handleThemeEvent(data) {
+        const conversationId = (data?.conversationId || data?.ConversationId || '').toString().toLowerCase();
+        if (!conversationId) return;
+
+        const normalizeTheme = (value) => {
+            if (window.ChatCommon && typeof window.ChatCommon.resolveConversationTheme === 'function') {
+                return window.ChatCommon.resolveConversationTheme(value);
+            }
+            if (typeof value !== 'string') return null;
+            const trimmed = value.trim().toLowerCase();
+            return trimmed.length ? trimmed : null;
+        };
+        const theme = normalizeTheme(data?.theme ?? data?.Theme);
+
+        this.setThemeStatus(conversationId, theme);
+        if (window.ChatSidebar && typeof window.ChatSidebar.applyThemeUpdate === 'function') {
+            window.ChatSidebar.applyThemeUpdate(conversationId, theme);
+        }
+        if (window.ChatPage && typeof window.ChatPage.applyThemeStatus === 'function') {
+            window.ChatPage.applyThemeStatus(conversationId, theme);
+        }
+    },
+
     handleInput(field, id) {
         this.updateSendButtonState(id);
         this.updatePlaceholderState(field);
@@ -2171,7 +2238,7 @@ const ChatWindow = {
                 </button>
             </div>
             <div class="chat-menu-group">
-                <button class="chat-menu-item" onclick="ChatWindow.closeHeaderMenu(); window.toastInfo('Theme coming soon')">
+                <button class="chat-menu-item" onclick="ChatWindow.closeHeaderMenu(); ChatWindow.promptChangeTheme('${id}')">
                     <i data-lucide="palette"></i>
                     <span>Change theme</span>
                 </button>
@@ -2205,21 +2272,125 @@ const ChatWindow = {
         }, 10);
     },
 
-    toggleMute(id) {
+    async toggleMute(id) {
         const chat = this.openChats.get(id);
         if (!chat) return;
-        const isMuted = !chat.data.isMuted;
-        
-        // Call API if needed, for now just update local state
-        this.setMuteStatus(id, isMuted);
+
+        if (!this.isGuidConversationId(id)) {
+            if (window.toastInfo) window.toastInfo('Mute can be changed after conversation is created');
+            return;
+        }
+
+        const previousMuted = !!(chat.data?.isMuted ?? chat.data?.IsMuted);
+        const nextMuted = !previousMuted;
+
+        this.setMuteStatus(id, nextMuted);
+        if (window.ChatSidebar && typeof window.ChatSidebar.setMuteStatus === 'function') {
+            window.ChatSidebar.setMuteStatus(id, nextMuted, { forceRender: true });
+        }
+        if (window.ChatPage && typeof window.ChatPage.applyMuteStatus === 'function') {
+            window.ChatPage.applyMuteStatus(id, nextMuted);
+        }
+
+        try {
+            const res = await window.API.Conversations.updateMute(id, nextMuted);
+            if (!res.ok) {
+                this.setMuteStatus(id, previousMuted);
+                if (window.ChatSidebar && typeof window.ChatSidebar.setMuteStatus === 'function') {
+                    window.ChatSidebar.setMuteStatus(id, previousMuted, { forceRender: true });
+                }
+                if (window.ChatPage && typeof window.ChatPage.applyMuteStatus === 'function') {
+                    window.ChatPage.applyMuteStatus(id, previousMuted);
+                }
+                if (window.toastError) window.toastError('Failed to update mute status');
+                return;
+            }
+
+            if (window.toastSuccess) {
+                window.toastSuccess(nextMuted ? 'Conversation muted' : 'Conversation unmuted');
+            }
+        } catch (error) {
+            console.error('Failed to update mute status:', error);
+            this.setMuteStatus(id, previousMuted);
+            if (window.ChatSidebar && typeof window.ChatSidebar.setMuteStatus === 'function') {
+                window.ChatSidebar.setMuteStatus(id, previousMuted, { forceRender: true });
+            }
+            if (window.ChatPage && typeof window.ChatPage.applyMuteStatus === 'function') {
+                window.ChatPage.applyMuteStatus(id, previousMuted);
+            }
+            if (window.toastError) window.toastError('Failed to update mute status');
+        }
+    },
+
+    promptChangeTheme(id) {
+        const chat = this.openChats.get(id);
+        if (!chat) return;
+
         const menu = document.getElementById(`chat-header-menu-${id}`);
         if (menu) menu.remove();
 
-        if (window.ChatSidebar) {
-            window.ChatSidebar.setMuteStatus(id, isMuted);
+        if (!this.isGuidConversationId(id)) {
+            if (window.toastInfo) window.toastInfo('Theme can be changed after conversation is created');
+            return;
         }
-        
-        window.toastSuccess && window.toastSuccess(isMuted ? 'Notifications muted' : 'Notifications unmuted');
+
+        if (!window.ChatCommon || typeof window.ChatCommon.showThemePicker !== 'function') {
+            if (window.toastError) window.toastError('Theme picker is unavailable');
+            return;
+        }
+
+        const getNormalizedTheme = (value) => {
+            if (window.ChatCommon && typeof window.ChatCommon.resolveConversationTheme === 'function') {
+                return window.ChatCommon.resolveConversationTheme(value);
+            }
+            if (typeof value !== 'string') return null;
+            const trimmed = value.trim().toLowerCase();
+            return trimmed.length ? trimmed : null;
+        };
+
+        const previousTheme = getNormalizedTheme(chat.data?.theme ?? chat.data?.Theme);
+        window.ChatCommon.showThemePicker({
+            title: 'Change theme',
+            currentTheme: previousTheme,
+            onSelect: async (nextTheme) => {
+                const normalizedNext = getNormalizedTheme(nextTheme);
+                if (normalizedNext === previousTheme) return;
+
+                this.setThemeStatus(id, normalizedNext);
+                if (window.ChatSidebar && typeof window.ChatSidebar.applyThemeUpdate === 'function') {
+                    window.ChatSidebar.applyThemeUpdate(id, normalizedNext);
+                }
+                if (window.ChatPage && typeof window.ChatPage.applyThemeStatus === 'function') {
+                    window.ChatPage.applyThemeStatus(id, normalizedNext);
+                }
+
+                try {
+                    const res = await window.API.Conversations.updateTheme(id, normalizedNext);
+                    if (!res.ok) {
+                        this.setThemeStatus(id, previousTheme);
+                        if (window.ChatSidebar && typeof window.ChatSidebar.applyThemeUpdate === 'function') {
+                            window.ChatSidebar.applyThemeUpdate(id, previousTheme);
+                        }
+                        if (window.ChatPage && typeof window.ChatPage.applyThemeStatus === 'function') {
+                            window.ChatPage.applyThemeStatus(id, previousTheme);
+                        }
+                        if (window.toastError) window.toastError('Failed to update theme');
+                        return;
+                    }
+                    if (window.toastSuccess) window.toastSuccess('Theme updated');
+                } catch (error) {
+                    console.error('Failed to update theme:', error);
+                    this.setThemeStatus(id, previousTheme);
+                    if (window.ChatSidebar && typeof window.ChatSidebar.applyThemeUpdate === 'function') {
+                        window.ChatSidebar.applyThemeUpdate(id, previousTheme);
+                    }
+                    if (window.ChatPage && typeof window.ChatPage.applyThemeStatus === 'function') {
+                        window.ChatPage.applyThemeStatus(id, previousTheme);
+                    }
+                    if (window.toastError) window.toastError('Failed to update theme');
+                }
+            }
+        });
     },
 
     promptEditNicknames(id) {
@@ -2500,6 +2671,7 @@ const ChatWindow = {
                     const chat = this.openChats.get(id);
                     if (chat) {
                         chat.data = data.metaData;
+                        this.setThemeStatus(id, data.metaData.theme ?? data.metaData.Theme ?? null);
                         this.getRuntimeCtx(id, chat);
                         // If window is open (not bubble), refresh its header UI
                         if (chat.element) {
