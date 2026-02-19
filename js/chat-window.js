@@ -15,6 +15,7 @@ const ChatWindow = {
   _typingUnsub: null,
   _themeUnsub: null,
   _groupInfoUnsub: null,
+  _membersModal: null,
   _themeModeEvent: null,
   _themeModeHandler: null,
   _initialized: false,
@@ -2183,6 +2184,14 @@ const ChatWindow = {
   closeChat(id) {
     const chat = this.openChats.get(id);
     if (chat) {
+      if (
+        this._membersModal &&
+        (this._membersModal.conversationId || "").toLowerCase() ===
+          (id || "").toLowerCase()
+      ) {
+        this.closeMembersModal();
+      }
+
       this.pendingSeenByConv.delete(id.toLowerCase());
       this.revokePreviewBlobUrls(id);
       chat.pendingFiles = [];
@@ -2495,6 +2504,26 @@ const ChatWindow = {
       const bubbleName = chat.bubbleElement.querySelector(".chat-bubble-name");
       if (bubbleName) bubbleName.textContent = nextName;
     }
+
+    if (
+      this._membersModal &&
+      this._membersModal.conversationId === openId &&
+      Array.isArray(this._membersModal.items)
+    ) {
+      const modalMember = this._membersModal.items.find(
+        (item) => (item.accountId || "").toLowerCase() === accTarget,
+      );
+      if (modalMember) {
+        modalMember.nickname = normalizedNickname || "";
+        modalMember.displayName =
+          normalizedNickname ||
+          modalMember.username ||
+          fallbackDisplayName ||
+          "User";
+        this.renderMembersModal(this._membersModal);
+      }
+    }
+
     this.saveState();
     return true;
   },
@@ -2941,7 +2970,9 @@ const ChatWindow = {
     this.closeHeaderMenu();
 
     const otherMember = chat.data.otherMember;
-    const otherAccountId = otherMember?.accountId || "";
+    const otherAccountId = (otherMember?.accountId || "")
+      .toString()
+      .toLowerCase();
 
     const isGroup = !!chat.data.isGroup;
     const isMuted = !!chat.data.isMuted;
@@ -2952,12 +2983,23 @@ const ChatWindow = {
     menu.id = `chat-header-menu-${id}`;
     menu.className = "chat-window-header-menu";
 
-    menu.innerHTML = `
-            <div class="chat-menu-group">
+    const headerPrimaryAction = isGroup
+      ? `
+                <button class="chat-menu-item" onclick="ChatWindow.closeHeaderMenu(); ChatWindow.openMembersModal('${id}')">
+                    <i data-lucide="users"></i>
+                    <span>Members</span>
+                </button>
+            `
+      : `
                 <button class="chat-menu-item" onclick="ChatWindow.closeHeaderMenu(); window.location.hash = '#/profile/${otherAccountId}';">
                     <i data-lucide="user"></i>
                     <span>View profile</span>
                 </button>
+            `;
+
+    menu.innerHTML = `
+            <div class="chat-menu-group">
+                ${headerPrimaryAction}
                 <button class="chat-menu-item" onclick="ChatWindow.closeHeaderMenu(); ChatWindow.openPinnedMessages('${id}')">
                     <i data-lucide="pin"></i>
                     <span>View pinned messages</span>
@@ -2972,6 +3014,20 @@ const ChatWindow = {
                     <i data-lucide="at-sign"></i>
                     <span>Edit nicknames</span>
                 </button>
+                ${
+                  isGroup
+                    ? `
+                <button class="chat-menu-item" onclick="ChatWindow.closeHeaderMenu(); ChatWindow.promptEditGroupName('${id}')">
+                    <i data-lucide="type"></i>
+                    <span>Edit group name</span>
+                </button>
+                <button class="chat-menu-item" onclick="ChatWindow.closeHeaderMenu(); ChatWindow.promptEditGroupAvatar('${id}')">
+                    <i data-lucide="image"></i>
+                    <span>Edit group avatar</span>
+                </button>
+                `
+                    : ""
+                }
             </div>
             <div class="chat-menu-group">
                 <button class="chat-menu-item" onclick="ChatWindow.closeHeaderMenu(); ChatWindow.toggleMute('${id}')">
@@ -3195,6 +3251,1075 @@ const ChatWindow = {
         }
       },
     });
+  },
+
+  _ensureEditableGroupConversation(id, actionName = "Group info") {
+    const openId = this.getOpenChatId(id) || id;
+    const chat = this.openChats.get(openId);
+    if (!chat || !chat.data) return null;
+
+    const isGroup = !!(chat.data?.isGroup ?? chat.data?.IsGroup);
+    if (!isGroup) {
+      if (window.toastInfo)
+        window.toastInfo(`${actionName} is only available for group chats`);
+      return null;
+    }
+
+    const conversationId = (openId || "").toString().toLowerCase();
+    if (!this.isGuidConversationId(conversationId)) {
+      if (window.toastInfo)
+        window.toastInfo(`${actionName} can be changed after the group is created`);
+      return null;
+    }
+
+    return conversationId;
+  },
+
+  _getGroupNameById(id) {
+    const openId = this.getOpenChatId(id) || id;
+    const chat = this.openChats.get(openId);
+    const rawName =
+      chat?.data?.conversationName ??
+      chat?.data?.ConversationName ??
+      chat?.data?.displayName ??
+      chat?.data?.DisplayName ??
+      "";
+    const normalized = String(rawName || "").trim();
+    return normalized || "Group chat";
+  },
+
+  _syncGroupInfoForConversation(conversationId, payload = {}) {
+    this.applyGroupConversationInfoUpdate(conversationId, payload);
+
+    if (
+      window.ChatSidebar &&
+      typeof window.ChatSidebar.applyGroupConversationInfoUpdate === "function"
+    ) {
+      window.ChatSidebar.applyGroupConversationInfoUpdate(conversationId, payload);
+    }
+
+    if (
+      window.ChatPage &&
+      typeof window.ChatPage.applyGroupConversationInfoUpdate === "function"
+    ) {
+      window.ChatPage.applyGroupConversationInfoUpdate(conversationId, payload);
+    }
+  },
+
+  async _readConversationApiErrorMessage(res, fallbackMessage = "Request failed") {
+    if (!res) return fallbackMessage;
+
+    const jsonSource = typeof res.clone === "function" ? res.clone() : res;
+    try {
+      const data = await jsonSource.json();
+      const message = data?.message || data?.title;
+      if (typeof message === "string" && message.trim().length > 0) {
+        return message.trim();
+      }
+    } catch (_) {}
+
+    try {
+      const text = await res.text();
+      if (typeof text === "string" && text.trim().length > 0) {
+        return text.trim();
+      }
+    } catch (_) {}
+
+    return fallbackMessage;
+  },
+
+  async promptEditGroupName(id) {
+    const openId = this.getOpenChatId(id) || id;
+    const conversationId = this._ensureEditableGroupConversation(openId, "Group name");
+    if (!conversationId) return;
+
+    if (!window.API?.Conversations?.updateGroupInfo) {
+      if (window.toastError) window.toastError("Update group API is unavailable");
+      return;
+    }
+
+    if (!window.ChatCommon || typeof window.ChatCommon.showPrompt !== "function") {
+      if (window.toastError) window.toastError("Prompt is unavailable");
+      return;
+    }
+
+    const minLength = window.APP_CONFIG?.GROUP_NAME_MIN_LENGTH || 3;
+    const maxLength = window.APP_CONFIG?.GROUP_NAME_MAX_LENGTH || 50;
+    const currentName = this._getGroupNameById(openId);
+
+    window.ChatCommon.showPrompt({
+      title: "Edit group name",
+      message: `Group name must be at least ${minLength} characters.`,
+      placeholder: "Enter group name",
+      value: currentName,
+      confirmText: "Save",
+      cancelText: "Cancel",
+      maxLength,
+      validate: (val) => {
+        const trimmed = (val || "").trim();
+        return trimmed.length >= minLength && trimmed !== currentName;
+      },
+      onConfirm: async (nextNameRaw) => {
+        const nextName = String(nextNameRaw || "").trim();
+        if (!nextName || nextName.length < minLength || nextName === currentName) return;
+
+        this._syncGroupInfoForConversation(conversationId, {
+          conversationName: nextName,
+        });
+
+        try {
+          const formData = new FormData();
+          formData.append("ConversationName", nextName);
+
+          const res = await window.API.Conversations.updateGroupInfo(
+            conversationId,
+            formData,
+          );
+          if (!res.ok) {
+            this._syncGroupInfoForConversation(conversationId, {
+              conversationName: currentName,
+            });
+            const message = await this._readConversationApiErrorMessage(
+              res,
+              "Failed to update group name",
+            );
+            if (window.toastError) window.toastError(message);
+            return;
+          }
+
+          if (window.toastSuccess) window.toastSuccess("Group name updated");
+        } catch (error) {
+          console.error("Failed to update group name:", error);
+          this._syncGroupInfoForConversation(conversationId, {
+            conversationName: currentName,
+          });
+          if (window.toastError) window.toastError("Failed to update group name");
+        }
+      },
+    });
+  },
+
+  promptEditGroupAvatar(id) {
+    const openId = this.getOpenChatId(id) || id;
+    const conversationId = this._ensureEditableGroupConversation(openId, "Group avatar");
+    if (!conversationId) return;
+
+    if (!window.API?.Conversations?.updateGroupInfo) {
+      if (window.toastError) window.toastError("Update group API is unavailable");
+      return;
+    }
+
+    const chat = this.openChats.get(openId);
+    const currentAvatarRaw =
+      chat?.data?.conversationAvatar ??
+      chat?.data?.ConversationAvatar ??
+      chat?.data?.displayAvatar ??
+      chat?.data?.DisplayAvatar ??
+      null;
+    const currentAvatar =
+      typeof currentAvatarRaw === "string" ? currentAvatarRaw.trim() : "";
+    const isDefaultAvatar = (value) => {
+      if (
+        window.ChatCommon &&
+        typeof window.ChatCommon.isDefaultGroupAvatar === "function"
+      ) {
+        return window.ChatCommon.isDefaultGroupAvatar(value);
+      }
+      return !value;
+    };
+    const hasCurrentCustomAvatar = !!currentAvatar && !isDefaultAvatar(currentAvatar);
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.style.display = "none";
+
+    const overlay = document.createElement("div");
+    overlay.className = "chat-common-confirm-overlay chat-group-avatar-editor-overlay";
+
+    const popup = document.createElement("div");
+    popup.className = "chat-common-confirm-popup chat-group-avatar-editor-popup";
+    popup.innerHTML = `
+      <div class="chat-nicknames-header">
+        <h3>Edit group avatar</h3>
+        <div class="chat-nicknames-close" id="chat-group-avatar-editor-close-btn">
+          <i data-lucide="x"></i>
+        </div>
+      </div>
+      <div class="chat-group-avatar-editor-body">
+        <div class="cg-avatar-section">
+          <div class="cg-avatar-circle" id="chat-group-avatar-circle">
+            <i data-lucide="users" class="cg-avatar-icon" id="chat-group-avatar-icon"></i>
+            <img id="chat-group-avatar-preview" class="cg-avatar-img hidden" alt="Group avatar">
+            <button type="button" class="cg-avatar-remove hidden" id="chat-group-avatar-remove-btn">
+              <i data-lucide="x" size="12"></i>
+            </button>
+          </div>
+          <span class="cg-avatar-label" id="chat-group-avatar-upload-label">Upload Group Photo</span>
+        </div>
+        <div class="chat-group-avatar-editor-note" id="chat-group-avatar-editor-note"></div>
+      </div>
+      <div class="chat-group-avatar-editor-actions">
+        <button type="button" class="chat-group-avatar-editor-action" id="chat-group-avatar-editor-cancel-btn">Cancel</button>
+        <button type="button" class="chat-group-avatar-editor-action primary" id="chat-group-avatar-editor-save-btn">Save</button>
+      </div>
+    `;
+
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+    document.body.appendChild(input);
+
+    if (window.lockScroll) window.lockScroll();
+    if (window.lucide) lucide.createIcons({ container: popup });
+    requestAnimationFrame(() => overlay.classList.add("show"));
+
+    const avatarCircle = popup.querySelector("#chat-group-avatar-circle");
+    const avatarIcon = popup.querySelector("#chat-group-avatar-icon");
+    const avatarPreviewImg = popup.querySelector("#chat-group-avatar-preview");
+    const uploadLabel = popup.querySelector("#chat-group-avatar-upload-label");
+    const noteEl = popup.querySelector("#chat-group-avatar-editor-note");
+    const removeBtn = popup.querySelector("#chat-group-avatar-remove-btn");
+    const saveBtn = popup.querySelector("#chat-group-avatar-editor-save-btn");
+    const cancelBtn = popup.querySelector("#chat-group-avatar-editor-cancel-btn");
+    const closeBtn = popup.querySelector("#chat-group-avatar-editor-close-btn");
+
+    let selectedFile = null;
+    let selectedPreviewUrl = null;
+    let removeAvatar = false;
+    let isSubmitting = false;
+    let isClosed = false;
+
+    const clearPreviewUrl = () => {
+      if (!selectedPreviewUrl) return;
+      try {
+        URL.revokeObjectURL(selectedPreviewUrl);
+      } catch (_) {}
+      selectedPreviewUrl = null;
+    };
+
+    const closeModal = () => {
+      if (isClosed) return;
+      isClosed = true;
+
+      clearPreviewUrl();
+      input.value = "";
+      if (input.parentNode) input.parentNode.removeChild(input);
+      overlay.classList.remove("show");
+      if (window.unlockScroll) window.unlockScroll();
+      setTimeout(() => {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      }, 200);
+    };
+
+    const renderPreview = () => {
+      if (!avatarPreviewImg || !avatarIcon) return;
+
+      const showDefault = !selectedPreviewUrl && (removeAvatar || !hasCurrentCustomAvatar);
+      const showSelected = !!selectedPreviewUrl;
+      const showCurrent = !showSelected && !showDefault && hasCurrentCustomAvatar;
+
+      if (showSelected) {
+        avatarPreviewImg.src = selectedPreviewUrl;
+        avatarPreviewImg.classList.remove("hidden");
+        avatarIcon.style.display = "none";
+        if (noteEl) noteEl.textContent = "New avatar preview";
+      } else if (showCurrent) {
+        avatarPreviewImg.src = currentAvatar;
+        avatarPreviewImg.classList.remove("hidden");
+        avatarIcon.style.display = "none";
+        if (noteEl) noteEl.textContent = "Current group avatar";
+      } else {
+        avatarPreviewImg.src = "";
+        avatarPreviewImg.classList.add("hidden");
+        avatarIcon.style.display = "";
+        if (noteEl) noteEl.textContent = "Default group avatar";
+      }
+
+      const canSave = !!selectedFile || (removeAvatar && hasCurrentCustomAvatar);
+      if (saveBtn) saveBtn.disabled = isSubmitting || !canSave;
+      if (removeBtn) {
+        removeBtn.disabled = isSubmitting;
+        removeBtn.classList.toggle(
+          "hidden",
+          !selectedFile && (!hasCurrentCustomAvatar || removeAvatar),
+        );
+      }
+      if (uploadLabel) uploadLabel.style.pointerEvents = isSubmitting ? "none" : "";
+      if (avatarCircle) avatarCircle.style.pointerEvents = isSubmitting ? "none" : "";
+    };
+
+    if (avatarCircle) {
+      avatarCircle.onclick = () => {
+        if (isSubmitting) return;
+        input.click();
+      };
+    }
+    if (uploadLabel) {
+      uploadLabel.onclick = () => {
+        if (isSubmitting) return;
+        input.click();
+      };
+    }
+
+    input.onchange = () => {
+      if (isSubmitting) return;
+      const file = input.files && input.files[0] ? input.files[0] : null;
+      if (!file) return;
+
+      clearPreviewUrl();
+      selectedFile = file;
+      selectedPreviewUrl = URL.createObjectURL(file);
+      removeAvatar = false;
+      renderPreview();
+    };
+
+    if (removeBtn) {
+      removeBtn.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (isSubmitting) return;
+
+        if (selectedFile) {
+          clearPreviewUrl();
+          selectedFile = null;
+          input.value = "";
+          removeAvatar = false;
+          renderPreview();
+          return;
+        }
+
+        if (!hasCurrentCustomAvatar) return;
+        clearPreviewUrl();
+        selectedFile = null;
+        input.value = "";
+        removeAvatar = true;
+        renderPreview();
+      };
+    }
+
+    if (saveBtn) {
+      saveBtn.onclick = async () => {
+        if (isSubmitting) return;
+
+        const hasUpload = !!selectedFile;
+        const hasRemove = !!removeAvatar && !!hasCurrentCustomAvatar;
+        if (!hasUpload && !hasRemove) {
+          closeModal();
+          return;
+        }
+
+        isSubmitting = true;
+        saveBtn.textContent = "Saving...";
+        renderPreview();
+
+        try {
+          const formData = new FormData();
+          if (hasUpload && selectedFile) {
+            formData.append("ConversationAvatar", selectedFile);
+          } else if (hasRemove) {
+            formData.append("RemoveAvatar", "true");
+          }
+
+          const res = await window.API.Conversations.updateGroupInfo(
+            conversationId,
+            formData,
+          );
+          if (!res.ok) {
+            const message = await this._readConversationApiErrorMessage(
+              res,
+              "Failed to update group avatar",
+            );
+            if (window.toastError) window.toastError(message);
+            return;
+          }
+
+          if (hasRemove) {
+            this._syncGroupInfoForConversation(conversationId, {
+              hasConversationAvatarField: true,
+              conversationAvatar: null,
+            });
+          } else if (hasUpload) {
+            const jsonSource = typeof res.clone === "function" ? res.clone() : res;
+            try {
+              const data = await jsonSource.json();
+              const avatarValue =
+                data?.conversationAvatar ??
+                data?.ConversationAvatar ??
+                data?.avatarUrl ??
+                data?.AvatarUrl ??
+                data?.data?.conversationAvatar ??
+                data?.data?.ConversationAvatar ??
+                data?.data?.avatarUrl ??
+                data?.data?.AvatarUrl ??
+                null;
+              const normalizedAvatar =
+                typeof avatarValue === "string" && avatarValue.trim().length > 0
+                  ? avatarValue.trim()
+                  : null;
+              if (normalizedAvatar) {
+                this._syncGroupInfoForConversation(conversationId, {
+                  hasConversationAvatarField: true,
+                  conversationAvatar: normalizedAvatar,
+                });
+              }
+            } catch (_) {}
+          }
+
+          if (window.toastSuccess) {
+            window.toastSuccess(hasRemove ? "Group avatar removed" : "Group avatar updated");
+          }
+          closeModal();
+        } catch (error) {
+          console.error("Failed to update group avatar:", error);
+          if (window.toastError) window.toastError("Failed to update group avatar");
+        } finally {
+          isSubmitting = false;
+          if (!isClosed && saveBtn) {
+            saveBtn.textContent = "Save";
+            renderPreview();
+          }
+        }
+      };
+    }
+
+    if (cancelBtn) {
+      cancelBtn.onclick = () => {
+        if (isSubmitting) return;
+        closeModal();
+      };
+    }
+    if (closeBtn) {
+      closeBtn.onclick = () => {
+        if (isSubmitting) return;
+        closeModal();
+      };
+    }
+
+    overlay.onclick = (event) => {
+      if (event.target === overlay) {
+        if (isSubmitting) return;
+        closeModal();
+      }
+    };
+
+    renderPreview();
+  },
+
+  isCurrentUserGroupAdmin(chatData = null) {
+    const data = chatData || {};
+    const isGroup = !!(data?.isGroup ?? data?.IsGroup);
+    if (!isGroup) return false;
+
+    const currentId = (localStorage.getItem("accountId") || "").toLowerCase();
+    if (!currentId) return false;
+
+    const members = data?.members || data?.Members || [];
+    if (!Array.isArray(members) || members.length === 0) return false;
+
+    const me = members.find(
+      (m) =>
+        (m?.accountId || m?.AccountId || "").toString().toLowerCase() ===
+        currentId,
+    );
+    return Number(me?.role ?? me?.Role ?? 0) === 1;
+  },
+
+  normalizeGroupMemberItem(raw) {
+    const accountId = (raw?.accountId || raw?.AccountId || "")
+      .toString()
+      .toLowerCase();
+    const username = (raw?.username || raw?.Username || "")
+      .toString()
+      .trim();
+    const nicknameRaw = (raw?.nickname || raw?.Nickname || "").toString();
+    const nickname = nicknameRaw.trim();
+    const displayNameRaw = (raw?.displayName || raw?.DisplayName || "")
+      .toString()
+      .trim();
+
+    return {
+      accountId,
+      username: username || displayNameRaw || "unknown",
+      nickname: nickname || "",
+      displayName: nickname || displayNameRaw || username || "User",
+      avatarUrl:
+        raw?.avatarUrl || raw?.AvatarUrl || window.APP_CONFIG?.DEFAULT_AVATAR,
+      role: Number(raw?.role ?? raw?.Role ?? 0) === 1 ? 1 : 0,
+    };
+  },
+
+  closeWindowMembersActionMenus(scopeEl = null) {
+    const root = scopeEl || document;
+    root
+      .querySelectorAll(".chat-window-members-actions-menu.show")
+      .forEach((menuEl) => {
+        menuEl.classList.remove("show");
+        menuEl.classList.remove("is-dropup", "is-align-left");
+        menuEl.style.maxHeight = "";
+      });
+  },
+
+  positionWindowMembersActionMenu(menuEl, scrollContainer) {
+    if (!menuEl || !scrollContainer) return;
+
+    menuEl.classList.remove("is-dropup", "is-align-left");
+    menuEl.style.maxHeight = "";
+
+    const safePadding = 8;
+    const containerRect = scrollContainer.getBoundingClientRect();
+    if (!containerRect || containerRect.height <= 0) return;
+
+    // Initial position: open downward (default)
+    let menuRect = menuEl.getBoundingClientRect();
+    if (!menuRect || menuRect.height <= 0) return;
+
+    const visibleBottom = containerRect.bottom - safePadding;
+    const visibleTop = containerRect.top + safePadding;
+    const overflowBottom = menuRect.bottom - visibleBottom;
+
+    if (overflowBottom > 0) {
+      menuEl.classList.add("is-dropup");
+      menuRect = menuEl.getBoundingClientRect();
+
+      if (menuRect.top < visibleTop) {
+        const triggerRect =
+          menuEl.parentElement?.getBoundingClientRect?.() || menuRect;
+        const availableAbove = Math.floor(triggerRect.top - visibleTop - 4);
+        if (availableAbove > 90) {
+          menuEl.style.maxHeight = `${availableAbove}px`;
+        }
+      }
+    }
+
+    menuRect = menuEl.getBoundingClientRect();
+    const overflowLeft = containerRect.left + safePadding - menuRect.left;
+    if (overflowLeft > 0) {
+      menuEl.classList.add("is-align-left");
+    }
+  },
+
+  async handleWindowMembersAction(action, accountId, displayName, username) {
+    const normalizedAction = (action || "").toString().toLowerCase();
+    const targetAccountId = (accountId || "").toString().toLowerCase();
+    if (!normalizedAction || !targetAccountId) return;
+
+    const myId = (localStorage.getItem("accountId") || "").toLowerCase();
+
+    if (normalizedAction === "profile") {
+      this.closeMembersModal();
+      this.minimizeAll();
+      window.location.hash = `#/profile/${targetAccountId}`;
+      return;
+    }
+
+    if (normalizedAction === "message") {
+      if (targetAccountId === myId) {
+        if (window.toastInfo) window.toastInfo("This is your account.");
+        return;
+      }
+      this.closeMembersModal();
+      if (typeof this.openByAccountId === "function") {
+        await this.openByAccountId(targetAccountId);
+      } else if (window.toastInfo) {
+        window.toastInfo("Message action is unavailable right now.");
+      }
+      return;
+    }
+
+    if (normalizedAction === "kick") {
+      if (window.toastInfo)
+        window.toastInfo(
+          `Kick ${displayName || username || "member"}: coming soon`,
+        );
+      return;
+    }
+
+    if (normalizedAction === "assign-admin") {
+      if (window.toastInfo)
+        window.toastInfo(
+          `Assign admin for ${displayName || username || "member"}: coming soon`,
+        );
+    }
+  },
+
+  bindMembersModalEvents(state) {
+    if (!state || !state.popup || this._membersModal !== state) return;
+
+    const popup = state.popup;
+    const resultsEl = popup.querySelector(".chat-window-members-results");
+    if (!resultsEl) return;
+
+    resultsEl.querySelectorAll(".chat-window-members-more-btn").forEach((btn) => {
+      btn.onclick = (event) => {
+        event.stopPropagation();
+        const menuEl =
+          btn.parentElement?.querySelector(".chat-window-members-actions-menu");
+        if (!menuEl) return;
+
+        const isOpening = !menuEl.classList.contains("show");
+        this.closeWindowMembersActionMenus(resultsEl);
+        if (isOpening) {
+          menuEl.classList.add("show");
+          requestAnimationFrame(() => {
+            if (!menuEl.classList.contains("show")) return;
+            this.positionWindowMembersActionMenu(menuEl, resultsEl);
+          });
+        }
+      };
+    });
+
+    resultsEl.querySelectorAll(".chat-window-members-action-btn").forEach((btn) => {
+      btn.onclick = async (event) => {
+        event.stopPropagation();
+        const action = btn.dataset.action || "";
+        const accountId = btn.dataset.accountId || "";
+        const displayName = btn.dataset.displayName || "";
+        const username = btn.dataset.username || "";
+        this.closeWindowMembersActionMenus(resultsEl);
+        await this.handleWindowMembersAction(
+          action,
+          accountId,
+          displayName,
+          username,
+        );
+      };
+    });
+
+    resultsEl.onclick = (event) => {
+      if (!event.target.closest(".chat-window-members-actions")) {
+        this.closeWindowMembersActionMenus(resultsEl);
+      }
+    };
+
+    resultsEl.onscroll = () => {
+      if (state.isLoading || !state.hasMore) return;
+      const remaining =
+        resultsEl.scrollHeight - resultsEl.scrollTop - resultsEl.clientHeight;
+      if (remaining <= 80) {
+        this.loadMembersModal(state);
+      }
+    };
+
+    const filterBtn = popup.querySelector(".chat-window-members-filter-btn");
+    if (filterBtn) {
+      filterBtn.onclick = () => {
+        state.adminOnly = !state.adminOnly;
+        this.loadMembersModal(state, { reset: true });
+      };
+    }
+
+    const addBtn = popup.querySelector(".chat-window-members-add-btn");
+    if (addBtn) {
+      addBtn.onclick = () => {
+        if (window.toastInfo)
+          window.toastInfo("Add member modal will be implemented next");
+      };
+    }
+  },
+
+  renderMembersModal(state) {
+    if (!state || !state.popup || this._membersModal !== state) return;
+
+    const popup = state.popup;
+    const resultsEl = popup.querySelector(".chat-window-members-results");
+    const totalCountEl = popup.querySelector(".chat-window-members-total-count");
+    const paginationEl = popup.querySelector(".chat-window-members-pagination");
+    const filterBtn = popup.querySelector(".chat-window-members-filter-btn");
+    if (!resultsEl || !paginationEl) return;
+
+    if (filterBtn) filterBtn.classList.toggle("active", !!state.adminOnly);
+
+    const currentUserId = (localStorage.getItem("accountId") || "").toLowerCase();
+    const chat = this.openChats.get(state.conversationId);
+    const currentUserIsAdmin = this.isCurrentUserGroupAdmin(chat?.data || null);
+    const items = Array.isArray(state.items) ? state.items : [];
+    const totalItemsRaw = Number(state.totalItems);
+    const totalMembers =
+      Number.isFinite(totalItemsRaw) && totalItemsRaw >= 0
+        ? totalItemsRaw
+        : items.length;
+
+    if (totalCountEl) {
+      totalCountEl.textContent = `${totalMembers} member${totalMembers === 1 ? "" : "s"}`;
+    }
+
+    if (state.isLoading && items.length === 0) {
+      resultsEl.innerHTML = `
+        <div class="chat-window-members-loading-state">
+          <div class="spinner chat-spinner"></div>
+          <p>Loading members...</p>
+        </div>
+      `;
+      paginationEl.innerHTML = "";
+      paginationEl.style.display = "none";
+      return;
+    }
+
+    if (!state.isLoading && items.length === 0) {
+      resultsEl.innerHTML = `
+        <div class="chat-window-members-empty-state">
+          <i data-lucide="users"></i>
+          <p>${state.adminOnly ? "No admins found in this group." : "No members found."}</p>
+        </div>
+      `;
+      paginationEl.innerHTML = "";
+      paginationEl.style.display = "none";
+      if (window.lucide) lucide.createIcons({ container: popup });
+      return;
+    }
+
+    const nicknameMaxLength =
+      window.ChatCommon && typeof window.ChatCommon.getNicknameMaxLength === "function"
+        ? window.ChatCommon.getNicknameMaxLength()
+        : 50;
+    const maxNameLength = window.APP_CONFIG?.MAX_NAME_DISPLAY_LENGTH || 30;
+
+    const rowsHtml = items
+      .map((member) => {
+        const safeAccountId = escapeHtml(member.accountId);
+        const safeAvatar = escapeHtml(
+          member.avatarUrl || window.APP_CONFIG?.DEFAULT_AVATAR || "",
+        );
+        const usernameRaw = (member.username || "unknown").toString();
+        const usernameLabel =
+          window.ChatCommon &&
+          typeof window.ChatCommon.truncateDisplayText === "function"
+            ? window.ChatCommon.truncateDisplayText(usernameRaw, maxNameLength)
+            : usernameRaw;
+        const safeUsername = escapeHtml(usernameLabel);
+        const safeUsernameRaw = escapeHtml(usernameRaw);
+
+        const nicknameRaw = (member.nickname || "").toString();
+        const nicknameLabel =
+          window.ChatCommon &&
+          typeof window.ChatCommon.truncateDisplayText === "function"
+            ? window.ChatCommon.truncateDisplayText(nicknameRaw, nicknameMaxLength)
+            : nicknameRaw;
+        const safeNickname = escapeHtml(nicknameLabel);
+        const safeNicknameRaw = escapeHtml(nicknameRaw);
+
+        const isAdmin = member.role === 1;
+        const canManage =
+          currentUserIsAdmin && !isAdmin && member.accountId !== currentUserId;
+        const actionDisplayName = escapeHtml(
+          member.displayName || member.username || "user",
+        );
+        const actionUsername = escapeHtml(member.username || "unknown");
+
+        return `
+          <div class="chat-window-members-item" data-account-id="${safeAccountId}">
+            <img src="${safeAvatar}" class="chat-window-members-avatar" alt="" onerror="this.src='${window.APP_CONFIG?.DEFAULT_AVATAR}'">
+            <div class="chat-window-members-meta">
+              <div class="chat-window-members-primary">
+                <span class="chat-window-members-name" title="${safeUsernameRaw}">${safeUsername}</span>
+                ${isAdmin ? '<span class="chat-window-members-role">Admin</span>' : ""}
+              </div>
+              ${
+                nicknameRaw
+                  ? `
+              <div class="chat-window-members-secondary">
+                <span class="chat-window-members-nickname" title="${safeNicknameRaw}">${safeNickname}</span>
+              </div>
+              `
+                  : ""
+              }
+            </div>
+            <div class="chat-window-members-actions">
+              <button type="button" class="chat-window-members-more-btn" title="More actions">
+                <i data-lucide="ellipsis"></i>
+              </button>
+              <div class="chat-window-members-actions-menu">
+                <button type="button" class="chat-window-members-action-btn" data-action="profile" data-account-id="${safeAccountId}" data-display-name="${actionDisplayName}" data-username="${actionUsername}"><i data-lucide="user"></i><span>Profile</span></button>
+                <button type="button" class="chat-window-members-action-btn" data-action="message" data-account-id="${safeAccountId}" data-display-name="${actionDisplayName}" data-username="${actionUsername}"><i data-lucide="send"></i><span>Message</span></button>
+                ${canManage ? `<button type="button" class="chat-window-members-action-btn" data-action="assign-admin" data-account-id="${safeAccountId}" data-display-name="${actionDisplayName}" data-username="${actionUsername}"><i data-lucide="shield-check"></i><span>Assign as admin</span></button>` : ""}
+                ${canManage ? `<button type="button" class="chat-window-members-action-btn danger" data-action="kick" data-account-id="${safeAccountId}" data-display-name="${actionDisplayName}" data-username="${actionUsername}"><i data-lucide="user-x"></i><span>Kick</span></button>` : ""}
+              </div>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    resultsEl.innerHTML = `<div class="chat-window-members-list">${rowsHtml}</div>`;
+
+    let statusText = "";
+    if (state.isLoading && items.length > 0) {
+      statusText = "Loading more members...";
+    } else if (!state.hasMore) {
+      statusText = "All members loaded";
+    }
+    paginationEl.textContent = statusText;
+    paginationEl.style.display = statusText ? "flex" : "none";
+
+    if (window.lucide) lucide.createIcons({ container: popup });
+    this.bindMembersModalEvents(state);
+  },
+
+  async loadMembersModal(state, options = {}) {
+    if (!state || !state.conversationId || this._membersModal !== state) return;
+
+    const reset = !!options.reset;
+    if (state.isLoading) return;
+
+    if (reset) {
+      state.page = 1;
+      state.hasMore = true;
+      state.items = [];
+      state.totalItems = 0;
+      state.totalPages = 0;
+      const resetResultsEl = state.popup?.querySelector(".chat-window-members-results");
+      if (resetResultsEl) resetResultsEl.scrollTop = 0;
+    } else if (!state.hasMore) {
+      return;
+    }
+
+    const requestPage = Number.isFinite(state.page) && state.page > 0 ? state.page : 1;
+    const resultsElBefore = state.popup?.querySelector(".chat-window-members-results");
+    const shouldRestoreScroll =
+      !reset && !!resultsElBefore && Array.isArray(state.items) && state.items.length > 0;
+    const previousScrollTop = shouldRestoreScroll ? resultsElBefore.scrollTop : 0;
+    const previousScrollHeight = shouldRestoreScroll ? resultsElBefore.scrollHeight : 0;
+
+    state.isLoading = true;
+    this.renderMembersModal(state);
+
+    try {
+      const res = await window.API.Conversations.getMembers(
+        state.conversationId,
+        requestPage,
+        state.pageSize,
+        state.adminOnly,
+      );
+
+      if (!res.ok) {
+        let message = "Failed to load members";
+        try {
+          const errorData = await res.json();
+          message = errorData?.message || message;
+        } catch (_) {
+          // ignore json parse errors
+        }
+        if (window.toastError) window.toastError(message);
+        if (reset) {
+          state.items = [];
+          state.totalItems = 0;
+          state.totalPages = 0;
+        }
+        state.hasMore = false;
+        return;
+      }
+
+      const data = await res.json();
+      const rawItems = data?.items || data?.Items || [];
+      const normalizedItems = Array.isArray(rawItems)
+        ? rawItems
+            .map((item) => this.normalizeGroupMemberItem(item))
+            .filter((item) => !!item.accountId)
+        : [];
+
+      const totalItemsRaw = Number(data?.totalItems ?? data?.TotalItems);
+      const pageRaw = Number(data?.page ?? data?.Page);
+      const pageSizeRaw = Number(data?.pageSize ?? data?.PageSize);
+      const hasNextRaw = data?.hasNextPage ?? data?.HasNextPage;
+
+      const responsePage =
+        Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : requestPage;
+      const responsePageSize =
+        Number.isFinite(pageSizeRaw) && pageSizeRaw > 0
+          ? pageSizeRaw
+          : state.pageSize;
+      const responseTotalItems =
+        Number.isFinite(totalItemsRaw) && totalItemsRaw >= 0 ? totalItemsRaw : null;
+
+      if (reset) {
+        state.items = normalizedItems;
+      } else {
+        const merged = Array.isArray(state.items) ? state.items.slice() : [];
+        const seenIds = new Set(
+          merged
+            .map((item) => (item?.accountId || "").toString().toLowerCase())
+            .filter((id) => !!id),
+        );
+        for (const item of normalizedItems) {
+          const key = (item?.accountId || "").toString().toLowerCase();
+          if (!key || seenIds.has(key)) continue;
+          merged.push(item);
+          seenIds.add(key);
+        }
+        state.items = merged;
+      }
+
+      state.pageSize = responsePageSize;
+      state.totalItems =
+        responseTotalItems !== null ? responseTotalItems : state.items.length;
+      state.totalPages =
+        state.totalItems > 0
+          ? Math.ceil(state.totalItems / Math.max(state.pageSize, 1))
+          : 0;
+
+      if (typeof hasNextRaw === "boolean") {
+        state.hasMore = hasNextRaw;
+      } else if (responseTotalItems !== null) {
+        state.hasMore = state.items.length < responseTotalItems;
+      } else {
+        state.hasMore = normalizedItems.length >= responsePageSize;
+      }
+
+      state.page = responsePage + 1;
+    } catch (error) {
+      console.error("Failed to load group members in chat-window:", error);
+      if (window.toastError) window.toastError("Failed to load members");
+      if (reset) {
+        state.items = [];
+        state.totalItems = 0;
+        state.totalPages = 0;
+      }
+      state.hasMore = false;
+    } finally {
+      state.isLoading = false;
+      this.renderMembersModal(state);
+
+      if (this._membersModal === state && shouldRestoreScroll) {
+        const resultsEl = state.popup?.querySelector(".chat-window-members-results");
+        if (resultsEl) {
+          const delta = resultsEl.scrollHeight - previousScrollHeight;
+          resultsEl.scrollTop = previousScrollTop + (delta > 0 ? delta : 0);
+        }
+      }
+
+      if (this._membersModal === state && state.hasMore && !state.isLoading) {
+        const resultsEl = state.popup?.querySelector(".chat-window-members-results");
+        if (
+          resultsEl &&
+          resultsEl.scrollHeight <= resultsEl.clientHeight + 8
+        ) {
+          this.loadMembersModal(state);
+        }
+      }
+    }
+  },
+
+  openMembersModal(conversationId) {
+    const openId = this.getOpenChatId(conversationId) || conversationId;
+    const chat = this.openChats.get(openId);
+    if (!chat) return;
+
+    const isGroup = !!(chat.data?.isGroup ?? chat.data?.IsGroup);
+    if (!isGroup) {
+      if (window.toastInfo)
+        window.toastInfo("Members list is only available for group chats");
+      return;
+    }
+
+    this.closeHeaderMenu();
+    this.closeMembersModal();
+
+    const overlay = document.createElement("div");
+    overlay.className = "chat-common-confirm-overlay chat-window-members-overlay";
+    overlay.dataset.conversationId = openId;
+
+    const popup = document.createElement("div");
+    popup.className = "chat-common-confirm-popup chat-window-members-popup";
+    popup.innerHTML = `
+      <div class="chat-window-members-header">
+        <div class="chat-window-members-header-spacer" aria-hidden="true"></div>
+        <div class="chat-window-members-header-title-wrap">
+          <h3>Members</h3>
+          <span class="chat-window-members-total-count">0 members</span>
+        </div>
+        <button type="button" class="chat-window-members-close-btn" title="Close">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="chat-window-members-toolbar">
+        <button type="button" class="chat-window-members-filter-btn">
+          <i data-lucide="shield"></i>
+          <span>Admins only</span>
+        </button>
+        <button type="button" class="chat-window-members-add-btn">
+          <i data-lucide="user-plus"></i>
+          <span>Add member</span>
+        </button>
+      </div>
+      <div class="chat-window-members-results"></div>
+      <div class="chat-window-members-pagination"></div>
+    `;
+
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+
+    const state = {
+      overlay,
+      popup,
+      conversationId: openId,
+      page: 1,
+      pageSize: window.APP_CONFIG?.GROUP_CHAT_MEMBERS_PAGE_SIZE || 20,
+      adminOnly: false,
+      hasMore: true,
+      isLoading: false,
+      items: [],
+      totalItems: 0,
+      totalPages: 0,
+      _outsideClickHandler: null,
+    };
+    this._membersModal = state;
+
+    if (window.lockScroll) lockScroll();
+    if (window.lucide) lucide.createIcons({ container: popup });
+    requestAnimationFrame(() => overlay.classList.add("show"));
+
+    const closeBtn = popup.querySelector(".chat-window-members-close-btn");
+    if (closeBtn) closeBtn.onclick = () => this.closeMembersModal();
+
+    overlay.onclick = (event) => {
+      if (event.target === overlay) {
+        this.closeMembersModal();
+      }
+    };
+
+    const outsideClickHandler = (event) => {
+      if (this._membersModal !== state) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest(".chat-window-members-actions")) return;
+      this.closeWindowMembersActionMenus(state.popup);
+    };
+    state._outsideClickHandler = outsideClickHandler;
+    setTimeout(() => {
+      if (this._membersModal === state) {
+        document.addEventListener("click", outsideClickHandler);
+      }
+    }, 0);
+
+    this.loadMembersModal(state, { reset: true });
+  },
+
+  closeMembersModal() {
+    const state = this._membersModal;
+    if (!state) return;
+    this._membersModal = null;
+
+    const overlay = state.overlay;
+
+    if (typeof state._outsideClickHandler === "function") {
+      document.removeEventListener("click", state._outsideClickHandler);
+      state._outsideClickHandler = null;
+    }
+
+    if (!overlay) return;
+
+    overlay.classList.remove("show");
+    if (window.unlockScroll) unlockScroll();
+    setTimeout(() => overlay.remove(), 200);
+  },
+
+  refreshMembersModal(conversationId) {
+    if (!this._membersModal) return;
+    const normalizedConversationId = (conversationId || "").toString().toLowerCase();
+    if (!normalizedConversationId) return;
+    if ((this._membersModal.conversationId || "").toLowerCase() !== normalizedConversationId)
+      return;
+    this.loadMembersModal(this._membersModal, { reset: true });
   },
 
   promptEditNicknames(id) {

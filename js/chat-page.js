@@ -76,6 +76,7 @@ const ChatPage = {
         this._savedInfoHtml = null;
         this._activeInfoPanel = null;
         this.resetMediaPanelState();
+        this.resetMembersPanelState();
         this.removeJumpToBottomBtn();
         
         this.cacheElements();
@@ -1065,6 +1066,7 @@ const ChatPage = {
         this._savedInfoHtml = null;
         this._activeInfoPanel = null;
         this.resetMediaPanelState(conversationId);
+        this.resetMembersPanelState(conversationId);
         this.getRuntimeCtx();
         
         // 4. Optimization: Join target FIRST to maintain session during handoff from Bubble
@@ -1168,6 +1170,7 @@ const ChatPage = {
         this._savedInfoHtml = null;
         this._activeInfoPanel = null;
         this.resetMediaPanelState();
+        this.resetMembersPanelState();
         this.getRuntimeCtx();
         this.applyThemeVisual(null);
 
@@ -1561,6 +1564,20 @@ const ChatPage = {
             keySet: new Set(),
             scrollTop: 0,
             pageSize: window.APP_CONFIG?.CHAT_FILES_PAGE_SIZE || 20
+        };
+    },
+
+    resetMembersPanelState(conversationId = null) {
+        const targetConversationId = (conversationId || this.currentChatId || '').toString().toLowerCase() || null;
+        this._membersPanel = {
+            conversationId: targetConversationId,
+            page: 1,
+            pageSize: window.APP_CONFIG?.GROUP_CHAT_MEMBERS_PAGE_SIZE || 20,
+            totalItems: 0,
+            totalPages: 0,
+            adminOnly: false,
+            isLoading: false,
+            items: []
         };
     },
 
@@ -2207,6 +2224,16 @@ const ChatPage = {
         scrollTop: 0,
         pageSize: window.APP_CONFIG?.CHAT_FILES_PAGE_SIZE || 20
     },
+    _membersPanel: {
+        conversationId: null,
+        page: 1,
+        pageSize: window.APP_CONFIG?.GROUP_CHAT_MEMBERS_PAGE_SIZE || 20,
+        totalItems: 0,
+        totalPages: 0,
+        adminOnly: false,
+        isLoading: false,
+        items: []
+    },
 
     openSearchPanel() {
         if (!this.currentChatId) return;
@@ -2315,6 +2342,380 @@ const ChatPage = {
         this._activeInfoPanel = null;
     },
 
+    isCurrentUserGroupAdmin() {
+        const isGroup = !!(this.currentMetaData?.isGroup ?? this.currentMetaData?.IsGroup);
+        if (!isGroup) return false;
+
+        const currentId = (localStorage.getItem('accountId') || '').toLowerCase();
+        if (!currentId) return false;
+
+        const members = this.currentMetaData.members || this.currentMetaData.Members || [];
+        if (!Array.isArray(members) || members.length === 0) return false;
+
+        const me = members.find((m) =>
+            ((m?.accountId || m?.AccountId || '').toString().toLowerCase() === currentId));
+
+        return Number(me?.role ?? me?.Role ?? 0) === 1;
+    },
+
+    _normalizeGroupMemberItem(raw) {
+        const accountId = (raw?.accountId || raw?.AccountId || '').toString().toLowerCase();
+        const username = (raw?.username || raw?.Username || '').toString().trim();
+        const nicknameRaw = (raw?.nickname || raw?.Nickname || '').toString();
+        const nickname = nicknameRaw.trim();
+        const displayNameRaw = (raw?.displayName || raw?.DisplayName || '').toString().trim();
+
+        return {
+            accountId,
+            username: username || displayNameRaw || 'unknown',
+            nickname: nickname || '',
+            displayName: nickname || displayNameRaw || username || 'User',
+            avatarUrl: raw?.avatarUrl || raw?.AvatarUrl || window.APP_CONFIG?.DEFAULT_AVATAR,
+            role: Number(raw?.role ?? raw?.Role ?? 0) === 1 ? 1 : 0
+        };
+    },
+
+    _closeMembersActionMenus(scopeEl = null) {
+        const root = scopeEl || document;
+        root.querySelectorAll('.chat-members-actions-menu.show').forEach((menuEl) => {
+            menuEl.classList.remove('show');
+        });
+    },
+
+    async _handleMembersAction(action, accountId, displayName, username) {
+        const normalizedAction = (action || '').toString().toLowerCase();
+        const targetAccountId = (accountId || '').toString().toLowerCase();
+        if (!normalizedAction || !targetAccountId) return;
+
+        const myId = (localStorage.getItem('accountId') || '').toLowerCase();
+
+        if (normalizedAction === 'profile') {
+            this.minimizeToBubble();
+            window.location.hash = `#/profile/${targetAccountId}`;
+            return;
+        }
+
+        if (normalizedAction === 'message') {
+            if (targetAccountId === myId) {
+                if (window.toastInfo) window.toastInfo('This is your account.');
+                return;
+            }
+            if (window.ChatWindow && typeof window.ChatWindow.openByAccountId === 'function') {
+                await window.ChatWindow.openByAccountId(targetAccountId);
+                return;
+            }
+            if (window.toastInfo) window.toastInfo('Message action is unavailable right now.');
+            return;
+        }
+
+        if (normalizedAction === 'kick') {
+            if (window.toastInfo) window.toastInfo(`Kick ${displayName || username || 'member'}: coming soon`);
+            return;
+        }
+
+        if (normalizedAction === 'assign-admin') {
+            if (window.toastInfo) window.toastInfo(`Assign admin for ${displayName || username || 'member'}: coming soon`);
+        }
+    },
+
+    _bindMembersPanelEvents() {
+        const infoContent = document.getElementById('chat-info-content');
+        if (!infoContent) return;
+
+        const resultsEl = infoContent.querySelector('#chat-members-results');
+        if (!resultsEl) return;
+
+        resultsEl.querySelectorAll('.chat-members-more-btn').forEach((btn) => {
+            btn.onclick = (event) => {
+                event.stopPropagation();
+                const menuEl = btn.parentElement?.querySelector('.chat-members-actions-menu');
+                if (!menuEl) return;
+
+                const isOpening = !menuEl.classList.contains('show');
+                this._closeMembersActionMenus(resultsEl);
+                if (isOpening) menuEl.classList.add('show');
+            };
+        });
+
+        resultsEl.querySelectorAll('.chat-members-action-btn').forEach((btn) => {
+            btn.onclick = async (event) => {
+                event.stopPropagation();
+                const action = btn.dataset.action || '';
+                const accountId = btn.dataset.accountId || '';
+                const displayName = btn.dataset.displayName || '';
+                const username = btn.dataset.username || '';
+                this._closeMembersActionMenus(resultsEl);
+                await this._handleMembersAction(action, accountId, displayName, username);
+            };
+        });
+
+        resultsEl.onclick = (event) => {
+            if (!event.target.closest('.chat-members-actions')) {
+                this._closeMembersActionMenus(resultsEl);
+            }
+        };
+
+        const state = this._membersPanel;
+        const prevBtn = infoContent.querySelector('#chat-members-prev-btn');
+        if (prevBtn) {
+            prevBtn.onclick = () => {
+                if (!state || state.isLoading || state.page <= 1) return;
+                state.page -= 1;
+                this.loadMembersPanel();
+            };
+        }
+
+        const nextBtn = infoContent.querySelector('#chat-members-next-btn');
+        if (nextBtn) {
+            nextBtn.onclick = () => {
+                if (!state || state.isLoading || state.totalPages <= 0 || state.page >= state.totalPages) return;
+                state.page += 1;
+                this.loadMembersPanel();
+            };
+        }
+    },
+
+    renderMembersPanelResults() {
+        if (this._activeInfoPanel !== 'members') return;
+
+        const infoContent = document.getElementById('chat-info-content');
+        if (!infoContent) return;
+
+        const resultsEl = infoContent.querySelector('#chat-members-results');
+        const paginationEl = infoContent.querySelector('#chat-members-pagination');
+        const filterBtn = infoContent.querySelector('#chat-members-admin-filter-btn');
+        const state = this._membersPanel;
+
+        if (!resultsEl || !paginationEl || !state) return;
+
+        if (filterBtn) {
+            filterBtn.classList.toggle('active', !!state.adminOnly);
+        }
+
+        const currentUserId = (localStorage.getItem('accountId') || '').toLowerCase();
+        const currentUserIsAdmin = this.isCurrentUserGroupAdmin();
+        const items = Array.isArray(state.items) ? state.items : [];
+
+        if (state.isLoading && items.length === 0) {
+            resultsEl.innerHTML = `
+                <div class="chat-members-loading-state">
+                    <div class="spinner chat-spinner"></div>
+                    <p>Loading members...</p>
+                </div>
+            `;
+            paginationEl.innerHTML = '';
+            return;
+        }
+
+        if (!state.isLoading && items.length === 0) {
+            resultsEl.innerHTML = `
+                <div class="chat-members-empty-state">
+                    <i data-lucide="users"></i>
+                    <p>${state.adminOnly ? 'No admins found in this group.' : 'No members found.'}</p>
+                </div>
+            `;
+            paginationEl.innerHTML = '';
+            if (window.lucide) lucide.createIcons({ container: resultsEl });
+            return;
+        }
+
+        const rowsHtml = items.map((member) => {
+            const safeAccountId = escapeHtml(member.accountId);
+            const safeAvatar = escapeHtml(member.avatarUrl || window.APP_CONFIG?.DEFAULT_AVATAR || '');
+            const safeUsername = escapeHtml(member.username || 'unknown');
+            const safeNickname = escapeHtml(member.nickname || '');
+            const isAdmin = member.role === 1;
+            const canManage = currentUserIsAdmin && !isAdmin && member.accountId !== currentUserId;
+            const actionDisplayName = safeUsername || safeNickname || 'user';
+
+            return `
+                <div class="chat-members-item" data-account-id="${safeAccountId}">
+                    <img src="${safeAvatar}" class="chat-members-avatar" alt="" onerror="this.src='${window.APP_CONFIG?.DEFAULT_AVATAR}'">
+                    <div class="chat-members-meta">
+                        <div class="chat-members-primary">
+                            <span class="chat-members-name" title="${safeUsername}">${safeUsername}</span>
+                            ${isAdmin ? '<span class="chat-members-role">Admin</span>' : ''}
+                        </div>
+                        ${member.nickname ? `
+                        <div class="chat-members-secondary">
+                            <span class="chat-members-nickname">${safeNickname}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="chat-members-actions">
+                        <button type="button" class="chat-members-more-btn" title="More actions">
+                            <i data-lucide="ellipsis"></i>
+                        </button>
+                        <div class="chat-members-actions-menu">
+                            <button type="button" class="chat-members-action-btn" data-action="profile" data-account-id="${safeAccountId}" data-display-name="${actionDisplayName}" data-username="${safeUsername}"><i data-lucide="user"></i><span>Profile</span></button>
+                            <button type="button" class="chat-members-action-btn" data-action="message" data-account-id="${safeAccountId}" data-display-name="${actionDisplayName}" data-username="${safeUsername}"><i data-lucide="send"></i><span>Message</span></button>
+                            ${canManage ? `<button type="button" class="chat-members-action-btn" data-action="assign-admin" data-account-id="${safeAccountId}" data-display-name="${actionDisplayName}" data-username="${safeUsername}"><i data-lucide="shield-check"></i><span>Assign as admin</span></button>` : ''}
+                            ${canManage ? `<button type="button" class="chat-members-action-btn danger" data-action="kick" data-account-id="${safeAccountId}" data-display-name="${actionDisplayName}" data-username="${safeUsername}"><i data-lucide="user-x"></i><span>Kick</span></button>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        resultsEl.innerHTML = `<div class="chat-members-list">${rowsHtml}</div>`;
+
+        const totalMembers = Number(state.totalItems) || items.length;
+        const totalPages = Number(state.totalPages) || (totalMembers > 0 ? Math.ceil(totalMembers / Math.max(state.pageSize, 1)) : 0);
+        state.totalPages = totalPages;
+        const canPrev = state.page > 1;
+        const canNext = totalPages > 0 && state.page < totalPages;
+
+        paginationEl.innerHTML = `
+            <button type="button" class="chat-members-page-btn" id="chat-members-prev-btn" ${canPrev ? '' : 'disabled'}>Prev</button>
+            <span class="chat-members-page-label">${totalMembers} member${totalMembers === 1 ? '' : 's'}${totalPages > 0 ? ` · Page ${state.page}/${totalPages}` : ''}</span>
+            <button type="button" class="chat-members-page-btn" id="chat-members-next-btn" ${canNext ? '' : 'disabled'}>Next</button>
+        `;
+
+        if (window.lucide) lucide.createIcons({ container: infoContent });
+        this._bindMembersPanelEvents();
+    },
+
+    async loadMembersPanel() {
+        const state = this._membersPanel;
+        if (!state || !this.currentChatId) return;
+        if (this._activeInfoPanel !== 'members') return;
+        if (state.isLoading) return;
+
+        state.isLoading = true;
+        this.renderMembersPanelResults();
+
+        try {
+            const res = await window.API.Conversations.getMembers(
+                this.currentChatId,
+                state.page,
+                state.pageSize,
+                state.adminOnly
+            );
+
+            if (!res.ok) {
+                let message = 'Failed to load members';
+                try {
+                    const errorData = await res.json();
+                    message = errorData?.message || message;
+                } catch (_) {
+                    // ignore json parse errors
+                }
+                if (window.toastError) window.toastError(message);
+                state.items = [];
+                state.totalItems = 0;
+                state.totalPages = 0;
+                return;
+            }
+
+            const data = await res.json();
+            const rawItems = data?.items || data?.Items || [];
+            const normalizedItems = Array.isArray(rawItems)
+                ? rawItems.map((item) => this._normalizeGroupMemberItem(item)).filter((item) => !!item.accountId)
+                : [];
+
+            const totalItemsRaw = Number(data?.totalItems ?? data?.TotalItems);
+            const pageRaw = Number(data?.page ?? data?.Page);
+            const pageSizeRaw = Number(data?.pageSize ?? data?.PageSize);
+
+            state.items = normalizedItems;
+            state.totalItems = Number.isFinite(totalItemsRaw) && totalItemsRaw >= 0 ? totalItemsRaw : normalizedItems.length;
+            state.page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : state.page;
+            state.pageSize = Number.isFinite(pageSizeRaw) && pageSizeRaw > 0 ? pageSizeRaw : state.pageSize;
+            state.totalPages = state.totalItems > 0 ? Math.ceil(state.totalItems / Math.max(state.pageSize, 1)) : 0;
+        } catch (error) {
+            console.error('Failed to load group members:', error);
+            if (window.toastError) window.toastError('Failed to load members');
+            state.items = [];
+            state.totalItems = 0;
+            state.totalPages = 0;
+        } finally {
+            state.isLoading = false;
+            this.renderMembersPanelResults();
+        }
+    },
+
+    openMembersPanel() {
+        if (!this.currentChatId) return;
+        const isGroup = !!(this.currentMetaData?.isGroup ?? this.currentMetaData?.IsGroup);
+        if (!isGroup) {
+            if (window.toastInfo) window.toastInfo('Members list is only available for group chats');
+            return;
+        }
+
+        if (this.infoSidebar?.classList.contains('hidden')) {
+            this.infoSidebar.classList.remove('hidden');
+            const infoBtn = document.getElementById('chat-info-btn');
+            if (infoBtn) infoBtn.classList.add('active');
+        }
+
+        const infoContent = document.getElementById('chat-info-content');
+        if (!infoContent) return;
+
+        this._savedInfoHtml = infoContent.innerHTML;
+        this._activeInfoPanel = 'members';
+        this.resetMembersPanelState(this.currentChatId);
+
+        infoContent.innerHTML = `
+            <div class="chat-members-panel-inline">
+                <div class="chat-members-header">
+                    <button class="chat-members-back-btn" id="chat-members-back-btn" title="Back">
+                        <i data-lucide="arrow-left"></i>
+                    </button>
+                    <span class="chat-members-title">Members</span>
+                </div>
+                <div class="chat-members-toolbar">
+                    <button type="button" class="chat-members-filter-btn" id="chat-members-admin-filter-btn">
+                        <i data-lucide="shield"></i>
+                        <span>Admins only</span>
+                    </button>
+                    <button type="button" class="chat-members-add-btn" id="chat-members-add-btn">
+                        <i data-lucide="user-plus"></i>
+                        <span>Add member</span>
+                    </button>
+                </div>
+                <div class="chat-members-results" id="chat-members-results"></div>
+                <div class="chat-members-pagination" id="chat-members-pagination"></div>
+            </div>
+        `;
+
+        if (window.lucide) lucide.createIcons({ container: infoContent });
+
+        const backBtn = infoContent.querySelector('#chat-members-back-btn');
+        if (backBtn) backBtn.onclick = () => this.closeMembersPanel();
+
+        const filterBtn = infoContent.querySelector('#chat-members-admin-filter-btn');
+        if (filterBtn) {
+            filterBtn.onclick = () => {
+                this._membersPanel.adminOnly = !this._membersPanel.adminOnly;
+                this._membersPanel.page = 1;
+                this.loadMembersPanel();
+            };
+        }
+
+        const addBtn = infoContent.querySelector('#chat-members-add-btn');
+        if (addBtn) {
+            addBtn.onclick = () => {
+                if (window.toastInfo) window.toastInfo('Add member modal will be implemented next');
+            };
+        }
+
+        this.loadMembersPanel();
+    },
+
+    closeMembersPanel() {
+        const infoContent = document.getElementById('chat-info-content');
+        if (!infoContent) return;
+
+        if (this._savedInfoHtml !== null) {
+            infoContent.innerHTML = `<div class="chat-info-main-reveal">${this._savedInfoHtml}</div>`;
+            this._savedInfoHtml = null;
+            if (window.lucide) lucide.createIcons({ container: infoContent });
+            this._reattachInfoSidebarListeners();
+        }
+
+        this._activeInfoPanel = null;
+    },
+
     /**
      * Re-attach event listeners for info sidebar buttons after restoring HTML.
      * This mirrors the event binding done at the end of renderInfoSidebar().
@@ -2344,23 +2745,17 @@ const ChatPage = {
         const viewPinnedBtn = document.getElementById('chat-info-view-pinned-btn');
         if (viewPinnedBtn) viewPinnedBtn.onclick = () => this.openPinnedMessagesCurrentConversation();
 
+        const openMembersBtn = document.getElementById('chat-info-open-members-btn');
+        if (openMembersBtn) openMembersBtn.onclick = () => this.openMembersPanel();
+
+        const openMembersQuickBtn = document.getElementById('chat-info-open-members-quick-btn');
+        if (openMembersQuickBtn) openMembersQuickBtn.onclick = () => this.openMembersPanel();
+
         const mediaBtn = document.getElementById('chat-info-open-media-btn');
         if (mediaBtn) mediaBtn.onclick = () => this.openMediaPanel('media');
 
         const filesBtn = document.getElementById('chat-info-open-files-btn');
         if (filesBtn) filesBtn.onclick = () => this.openMediaPanel('file');
-
-        const infoContent = document.getElementById('chat-info-content');
-        if (infoContent) {
-            infoContent.querySelectorAll('.chat-info-member-edit').forEach(el => {
-                el.onclick = () => {
-                    const accountId = (el.dataset.accountId || '').toLowerCase();
-                    const displayName = el.dataset.displayName || 'User';
-                    const nickname = el.dataset.nickname || '';
-                    this.promptEditNickname(accountId, displayName, nickname);
-                };
-            });
-        }
     },
 
     /**
@@ -3242,28 +3637,6 @@ const ChatPage = {
         } else if (isGroup) {
             statusHtml = `${meta.members?.length || 0} Members`;
         }
-        const getMemberEditableName = (member) =>
-            member?.nickname ||
-            member?.Nickname ||
-            member?.username ||
-            member?.userName ||
-            member?.Username ||
-            member?.UserName ||
-            member?.displayName ||
-            member?.DisplayName ||
-            'Unknown';
-        const truncateDisplayText = (value, maxLength) => {
-            if (window.ChatCommon && typeof window.ChatCommon.truncateDisplayText === 'function') {
-                return window.ChatCommon.truncateDisplayText(value, maxLength);
-            }
-            const raw = value === null || value === undefined ? '' : String(value);
-            const limit = Number(maxLength);
-            if (!Number.isFinite(limit) || limit <= 0 || raw.length <= limit) {
-                return raw;
-            }
-            return raw.substring(0, Math.floor(limit)) + '...';
-        };
-        const memberNameMaxLength = window.APP_CONFIG?.MAX_NAME_DISPLAY_LENGTH || 25;
 
         const html = `
             <div class="chat-info-header">
@@ -3276,10 +3649,17 @@ const ChatPage = {
             </div>
 
             <div class="chat-info-quick-actions">
-                <button class="chat-info-quick-btn" onclick="${(!isGroup && (meta.otherMember?.accountId || meta.otherMemberId)) ? `ChatPage.minimizeToBubble(); window.location.hash = '#/profile/${meta.otherMember?.accountId || meta.otherMemberId}'` : "window.toastInfo('Profile only available for private chats')" }">
+                ${isGroup ? `
+                <button class="chat-info-quick-btn" id="chat-info-open-members-quick-btn">
+                    <div class="chat-info-quick-icon"><i data-lucide="users"></i></div>
+                    <span>Members</span>
+                </button>
+                ` : `
+                <button class="chat-info-quick-btn" onclick="${privateTargetId ? `ChatPage.minimizeToBubble(); window.location.hash = '#/profile/${privateTargetId}'` : "window.toastInfo('Profile is unavailable')" }">
                     <div class="chat-info-quick-icon"><i data-lucide="user"></i></div>
                     <span>Profile</span>
                 </button>
+                `}
                 <button class="chat-info-quick-btn" id="chat-info-mute-btn">
                     <div class="chat-info-quick-icon"><i data-lucide="${muteIcon}"></i></div>
                     <span>${muteLabel}</span>
@@ -3301,6 +3681,12 @@ const ChatPage = {
                             <i data-lucide="pin"></i>
                             <span>View pinned messages</span>
                         </div>
+                        ${isGroup ? `
+                        <div class="chat-info-item" id="chat-info-open-members-btn">
+                            <i data-lucide="users"></i>
+                            <span>Members</span>
+                        </div>
+                        ` : ''}
                     </div>
                 </div>
 
@@ -3330,33 +3716,6 @@ const ChatPage = {
                         ` : ''}
                     </div>
                 </div>
-
-                ${isGroup ? `
-                <div class="chat-info-section">
-                    <div class="chat-info-section-title" onclick="ChatPage.toggleInfoSection(this)">
-                        <span>Chat members</span>
-                        <i data-lucide="chevron-down" class="chevron"></i>
-                    </div>
-                    <div class="chat-info-section-content">
-                        ${(meta.members || []).map(m => {
-                            const rawMemberName = getMemberEditableName(m);
-                            const displayMemberName = truncateDisplayText(rawMemberName, memberNameMaxLength);
-                            const escapedRawMemberName = escapeHtml(rawMemberName);
-                            return `
-                            <div class="chat-info-item chat-info-member chat-info-member-edit"
-                                data-account-id="${(m.accountId || m.AccountId || '').toString().toLowerCase()}"
-                                data-display-name="${escapedRawMemberName}"
-                                data-nickname="${escapeHtml((m.nickname || m.Nickname || ''))}">
-                                <img src="${m.avatarUrl || window.APP_CONFIG?.DEFAULT_AVATAR}" class="chat-info-member-avatar">
-                                <span class="chat-info-member-name" title="${escapedRawMemberName}">${escapeHtml(displayMemberName)}</span>
-                                ${(m.role === 1 || m.Role === 1) ? '<span class="chat-info-member-role">Admin</span>' : ''}
-                                <i data-lucide="pencil" style="margin-left:auto;"></i>
-                            </div>
-                        `;
-                        }).join('')}
-                    </div>
-                </div>
-                ` : ''}
 
                 <div class="chat-info-section">
                     <div class="chat-info-section-title" onclick="ChatPage.toggleInfoSection(this)">
@@ -3441,6 +3800,16 @@ const ChatPage = {
             viewPinnedBtn.onclick = () => this.openPinnedMessagesCurrentConversation();
         }
 
+        const openMembersBtn = document.getElementById('chat-info-open-members-btn');
+        if (openMembersBtn) {
+            openMembersBtn.onclick = () => this.openMembersPanel();
+        }
+
+        const openMembersQuickBtn = document.getElementById('chat-info-open-members-quick-btn');
+        if (openMembersQuickBtn) {
+            openMembersQuickBtn.onclick = () => this.openMembersPanel();
+        }
+
         const mediaBtn = document.getElementById('chat-info-open-media-btn');
         if (mediaBtn) {
             mediaBtn.onclick = () => this.openMediaPanel('media');
@@ -3450,15 +3819,6 @@ const ChatPage = {
         if (filesBtn) {
             filesBtn.onclick = () => this.openMediaPanel('file');
         }
-
-        this.infoContent.querySelectorAll('.chat-info-member-edit').forEach(el => {
-            el.onclick = () => {
-                const accountId = (el.dataset.accountId || '').toLowerCase();
-                const displayName = el.dataset.displayName || 'User';
-                const nickname = el.dataset.nickname || '';
-                this.promptEditNickname(accountId, displayName, nickname);
-            };
-        });
     },
 
     toggleInfoSection(titleEl) {
