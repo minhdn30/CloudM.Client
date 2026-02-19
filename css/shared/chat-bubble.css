@@ -2035,6 +2035,14 @@ body.light-mode {
     border-radius: 6px;
     transition: background 0.1s;
     text-align: left;
+    min-width: 0;
+}
+
+.chat-menu-item span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .chat-menu-item:hover {

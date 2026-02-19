@@ -483,6 +483,12 @@
         }
         return apiFetch(url);
       },
+      getMembers: (
+        conversationId,
+        page = 1,
+        pageSize = window.APP_CONFIG?.GROUP_CHAT_MEMBERS_PAGE_SIZE || 20,
+        adminOnly = false
+      ) => apiFetch(`/Conversations/${conversationId}/members?page=${page}&pageSize=${pageSize}&adminOnly=${!!adminOnly}`),
       getMedia: (conversationId, page = 1, pageSize = window.APP_CONFIG?.CHAT_MEDIA_PAGE_SIZE || 20) =>
         apiFetch(`/Conversations/${conversationId}/media?page=${page}&pageSize=${pageSize}`),
       getFiles: (conversationId, page = 1, pageSize = window.APP_CONFIG?.CHAT_FILES_PAGE_SIZE || 20) =>
