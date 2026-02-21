@@ -294,6 +294,45 @@
         </div>
       </div>
     </div>
+    <div id="external-profile-popup" class="verify-popup external-profile-popup">
+      <div class="verify-popup-content external-profile-content">
+        <span class="close-external-profile-popup">&times;</span>
+        <h2>Complete your profile</h2>
+        <p>Choose username and full name to finish sign in.</p>
+
+        <div class="floating-field">
+          <input
+            id="external-profile-email"
+            type="email"
+            placeholder="Email"
+            disabled
+          />
+          <label for="external-profile-email">Email</label>
+        </div>
+
+        <div class="floating-field">
+          <input
+            id="external-profile-username"
+            type="text"
+            placeholder="Username"
+            autocomplete="username"
+          />
+          <label for="external-profile-username">Username</label>
+        </div>
+
+        <div class="floating-field">
+          <input
+            id="external-profile-fullname"
+            type="text"
+            placeholder="Full Name"
+            autocomplete="name"
+          />
+          <label for="external-profile-fullname">Full Name</label>
+        </div>
+
+        <button id="external-profile-submit-btn">Continue</button>
+      </div>
+    </div>
 
     <script src="js/config/chat-themes.js"></script>
     <script src="js/config/config.js"></script>
