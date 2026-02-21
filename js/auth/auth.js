@@ -51,6 +51,7 @@ const REGISTER_FULLNAME_MAX_LENGTH =
     : 25;
 const REGISTER_PASSWORD_MIN_LENGTH = 6;
 const PASSWORD_ACCENT_REGEX = /[\u00C0-\u024F\u1E00-\u1EFF]/u;
+const USERNAME_REGEX = /^[A-Za-z0-9_]+$/;
 
 const signupRuleUsernameLength = document.getElementById("signup-rule-username-length");
 const signupRuleFullnameLength = document.getElementById("signup-rule-fullname-length");
@@ -145,6 +146,12 @@ const forgotConfirmPasswordInput = document.getElementById("forgot-confirm-passw
 const forgotCodeInputs = forgotPasswordPopup
   ? forgotPasswordPopup.querySelectorAll(".forgot-code-input")
   : [];
+const externalProfilePopup = document.getElementById("external-profile-popup");
+const externalProfileEmailInput = document.getElementById("external-profile-email");
+const externalProfileUsernameInput = document.getElementById("external-profile-username");
+const externalProfileFullnameInput = document.getElementById("external-profile-fullname");
+const externalProfileSubmitBtn = document.getElementById("external-profile-submit-btn");
+const closeExternalProfileBtn = document.querySelector(".close-external-profile-popup");
 
 const FORGOT_MODAL_STEP = {
   EMAIL: "email",
@@ -156,6 +163,7 @@ let forgotVerifiedCode = "";
 let prefilledPasswordClearTimer = null;
 let isGoogleIdentityInitialized = false;
 let isGoogleButtonRendered = false;
+let pendingExternalProfileContext = null;
 
 let pendingAutoLogin = null;
 
@@ -362,33 +370,17 @@ async function handleGoogleCredentialResponse(response) {
       return;
     }
 
-    persistSessionFromLoginResponse(data);
-
-    if (data.status === 1) {
-      showToast(
-        `<div>
-          <p style="margin-bottom: 8px;">Your account is currently Inactive. Please reactivate to continue.</p>
-          <div class="toast-actions">
-            <button class="toast-btn" onclick="window.reactivateAccountAction()">Reactivate Now</button>
-            <button class="toast-btn secondary" onclick="window.location.href='auth.html'">Later</button>
-          </div>
-        </div>`,
-        "error",
-        0,
-        true,
-      );
+    if (data?.requiresProfileCompletion) {
+      openExternalProfileModal(data.profile, data.profile?.provider || "Google", idToken);
       return;
     }
 
-    if (data.status === 5) {
-      showToast("Email is not verified. Please verify your email first.", "error");
+    const loginData = data?.login || data;
+    if (!loginData || !loginData.accessToken) {
+      showToast("Google sign-in failed. Please try again.", "error");
       return;
     }
-
-    showToast("Google sign-in successful!", "success");
-    setTimeout(() => {
-      window.location.href = "index.html";
-    }, 700);
+    handleAuthenticatedRedirect(loginData, "Google sign-in successful!");
   } catch (err) {
     console.error(err);
     showToast("Server error. Please try again later.", "error");
@@ -411,6 +403,42 @@ function persistSessionFromLoginResponse(data) {
   localStorage.setItem("avatarUrl", data.avatarUrl || "");
   localStorage.setItem("accountId", data.accountId || "");
   localStorage.setItem("defaultPostPrivacy", data.defaultPostPrivacy ?? data.DefaultPostPrivacy ?? 0);
+}
+
+function handleAuthenticatedRedirect(loginData, successMessage) {
+  if (!loginData || typeof loginData !== "object") {
+    showToast("Login response is invalid. Please try again.", "error");
+    return false;
+  }
+
+  persistSessionFromLoginResponse(loginData);
+
+  if (loginData.status === 1) {
+    showToast(
+      `<div>
+        <p style="margin-bottom: 8px;">Your account is currently Inactive. Please reactivate to continue.</p>
+        <div class="toast-actions">
+          <button class="toast-btn" onclick="window.reactivateAccountAction()">Reactivate Now</button>
+          <button class="toast-btn secondary" onclick="window.location.href='auth.html'">Later</button>
+        </div>
+      </div>`,
+      "error",
+      0,
+      true,
+    );
+    return false;
+  }
+
+  if (loginData.status === 5) {
+    showToast("Email is not verified. Please verify your email first.", "error");
+    return false;
+  }
+
+  showToast(successMessage, "success");
+  setTimeout(() => {
+    window.location.href = "index.html";
+  }, 700);
+  return true;
 }
 
 function isEmailNotVerifiedResponse(response, data) {
@@ -622,6 +650,139 @@ function closeForgotPasswordModal() {
   if (forgotConfirmPasswordInput) {
     forgotConfirmPasswordInput.value = "";
     syncFloatingFieldState(forgotConfirmPasswordInput);
+  }
+}
+
+function openExternalProfileModal(profile, provider, credential) {
+  if (!externalProfilePopup) {
+    return;
+  }
+
+  const normalizedEmail = (profile?.email || "").trim();
+  const suggestedUsername = (profile?.suggestedUsername || "").trim();
+  const suggestedFullName = (profile?.suggestedFullName || "").trim();
+
+  pendingExternalProfileContext = {
+    provider,
+    credential,
+    email: normalizedEmail,
+    avatarUrl: profile?.avatarUrl || null,
+  };
+
+  externalProfilePopup.style.display = "flex";
+
+  if (externalProfileEmailInput) {
+    externalProfileEmailInput.value = normalizedEmail;
+    syncFloatingFieldState(externalProfileEmailInput);
+  }
+
+  if (externalProfileUsernameInput) {
+    externalProfileUsernameInput.value = suggestedUsername;
+    externalProfileUsernameInput.setAttribute("minlength", String(REGISTER_USERNAME_MIN_LENGTH));
+    externalProfileUsernameInput.setAttribute("maxlength", String(REGISTER_USERNAME_MAX_LENGTH));
+    syncFloatingFieldState(externalProfileUsernameInput);
+  }
+
+  if (externalProfileFullnameInput) {
+    externalProfileFullnameInput.value = suggestedFullName;
+    externalProfileFullnameInput.setAttribute("minlength", String(REGISTER_FULLNAME_MIN_LENGTH));
+    externalProfileFullnameInput.setAttribute("maxlength", String(REGISTER_FULLNAME_MAX_LENGTH));
+    syncFloatingFieldState(externalProfileFullnameInput);
+  }
+
+  if (externalProfileUsernameInput) {
+    externalProfileUsernameInput.focus();
+    externalProfileUsernameInput.select();
+  }
+}
+
+function closeExternalProfileModal() {
+  if (!externalProfilePopup) {
+    return;
+  }
+
+  externalProfilePopup.style.display = "none";
+  pendingExternalProfileContext = null;
+
+  if (externalProfileEmailInput) {
+    externalProfileEmailInput.value = "";
+    syncFloatingFieldState(externalProfileEmailInput);
+  }
+
+  if (externalProfileUsernameInput) {
+    externalProfileUsernameInput.value = "";
+    syncFloatingFieldState(externalProfileUsernameInput);
+  }
+
+  if (externalProfileFullnameInput) {
+    externalProfileFullnameInput.value = "";
+    syncFloatingFieldState(externalProfileFullnameInput);
+  }
+}
+
+async function completeExternalProfile() {
+  const provider = pendingExternalProfileContext?.provider;
+  const credential = pendingExternalProfileContext?.credential;
+  const username = (externalProfileUsernameInput?.value || "").trim();
+  const fullName = (externalProfileFullnameInput?.value || "").trim();
+
+  if (!provider || !credential) {
+    showToast("External sign-in session has expired. Please try Google sign-in again.", "error");
+    closeExternalProfileModal();
+    return false;
+  }
+
+  if (
+    username.length < REGISTER_USERNAME_MIN_LENGTH ||
+    username.length > REGISTER_USERNAME_MAX_LENGTH
+  ) {
+    showToast(
+      `Username must be between ${REGISTER_USERNAME_MIN_LENGTH} and ${REGISTER_USERNAME_MAX_LENGTH} characters.`,
+      "error",
+    );
+    return false;
+  }
+
+  if (!USERNAME_REGEX.test(username)) {
+    showToast(
+      "Username can only include letters, numbers, underscore (_), without spaces or accents.",
+      "error",
+    );
+    return false;
+  }
+
+  if (
+    fullName.length < REGISTER_FULLNAME_MIN_LENGTH ||
+    fullName.length > REGISTER_FULLNAME_MAX_LENGTH
+  ) {
+    showToast(
+      `Full name must be between ${REGISTER_FULLNAME_MIN_LENGTH} and ${REGISTER_FULLNAME_MAX_LENGTH} characters.`,
+      "error",
+    );
+    return false;
+  }
+
+  try {
+    const res = await API.Auth.completeExternalProfile(
+      provider,
+      credential,
+      username,
+      fullName,
+    );
+    const data = await res.json();
+
+    if (!res.ok) {
+      showToast(data.message || data.Message || "Failed to complete your profile.", "error");
+      return false;
+    }
+
+    closeExternalProfileModal();
+    handleAuthenticatedRedirect(data, "Google sign-in successful!");
+    return true;
+  } catch (err) {
+    console.error(err);
+    showToast("Server error. Please try again later.", "error");
+    return false;
   }
 }
 
@@ -993,8 +1154,7 @@ signupForm.addEventListener("submit", async (e) => {
       return;
     }
 
-    const usernameRegex = /^[A-Za-z0-9_]+$/;
-    if (!usernameRegex.test(username)) {
+    if (!USERNAME_REGEX.test(username)) {
       showToast(
         "Username can only include letters, numbers, underscore (_), without spaces or accents.",
         "error",
@@ -1227,6 +1387,31 @@ if (forgotPasswordPopup) {
     if (e.target === forgotPasswordPopup) {
       closeForgotPasswordModal();
     }
+  });
+}
+
+if (externalProfileSubmitBtn) {
+  externalProfileSubmitBtn.addEventListener("click", async () => {
+    await runWithPendingButton(externalProfileSubmitBtn, "Completing...", () =>
+      completeExternalProfile(),
+    );
+  });
+}
+
+if (externalProfileFullnameInput) {
+  externalProfileFullnameInput.addEventListener("keydown", async (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      await runWithPendingButton(externalProfileSubmitBtn, "Completing...", () =>
+        completeExternalProfile(),
+      );
+    }
+  });
+}
+
+if (closeExternalProfileBtn) {
+  closeExternalProfileBtn.addEventListener("click", () => {
+    closeExternalProfileModal();
   });
 }
 

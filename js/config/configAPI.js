@@ -21,16 +21,24 @@
 
   function getApiBaseCandidates() {
     const configured = normalizeApiBase(window.APP_CONFIG?.API_BASE);
-    const configuredCandidates = Array.isArray(window.APP_CONFIG?.API_BASE_CANDIDATES)
-      ? window.APP_CONFIG.API_BASE_CANDIDATES.map(normalizeApiBase).filter(Boolean)
+    const configuredCandidates = Array.isArray(
+      window.APP_CONFIG?.API_BASE_CANDIDATES,
+    )
+      ? window.APP_CONFIG.API_BASE_CANDIDATES.map(normalizeApiBase).filter(
+          Boolean,
+        )
       : [];
 
     const host = (window.location?.hostname || "").toLowerCase();
     const isLoopbackHost = host === "localhost" || host === "127.0.0.1";
     const isHttpsPage = window.location?.protocol === "https:";
-    const preferredLoopbackHost = host === "127.0.0.1" ? "127.0.0.1" : "localhost";
-    const fallbackLoopbackHost = preferredLoopbackHost === "localhost" ? "127.0.0.1" : "localhost";
-    const loopbackHosts = isLoopbackHost ? [preferredLoopbackHost, fallbackLoopbackHost] : [];
+    const preferredLoopbackHost =
+      host === "127.0.0.1" ? "127.0.0.1" : "localhost";
+    const fallbackLoopbackHost =
+      preferredLoopbackHost === "localhost" ? "127.0.0.1" : "localhost";
+    const loopbackHosts = isLoopbackHost
+      ? [preferredLoopbackHost, fallbackLoopbackHost]
+      : [];
     const localDefaults = loopbackHosts.flatMap((loopbackHost) => {
       if (isHttpsPage) {
         return [
@@ -76,7 +84,11 @@
 
   function getCurrentApiBase() {
     const candidates = getApiBaseCandidates();
-    return normalizeApiBase(activeApiBase) || candidates[0] || "http://localhost:5000/api";
+    return (
+      normalizeApiBase(activeApiBase) ||
+      candidates[0] ||
+      "http://localhost:5000/api"
+    );
   }
 
   async function fetchWithApiBase(url, fetchOptions) {
@@ -93,7 +105,14 @@
       }
     }
 
-    console.error("❌ Unable to reach API. Tried bases:", candidates, "url:", url, "error:", lastError);
+    console.error(
+      "❌ Unable to reach API. Tried bases:",
+      candidates,
+      "url:",
+      url,
+      "error:",
+      lastError,
+    );
     throw lastError || new TypeError("Failed to fetch");
   }
 
@@ -169,23 +188,23 @@
             throw new Error("REFRESH_EXPIRED_OR_FORBIDDEN");
           }
           if (!res.ok) {
-             const text = await res.text();
-             throw new Error(`REFRESH_FAILED_STATUS_${res.status}: ${text}`);
+            const text = await res.text();
+            throw new Error(`REFRESH_FAILED_STATUS_${res.status}: ${text}`);
           }
           return res.json();
         })
         .then((data) => {
           console.log("✅ Refresh successful, new token received.");
           if (!data.accessToken) {
-             throw new Error("REFRESH_NO_ACCESS_TOKEN_IN_RESPONSE");
+            throw new Error("REFRESH_NO_ACCESS_TOKEN_IN_RESPONSE");
           }
           setAccessToken(data.accessToken);
           syncAuthProfileFromResponse(data);
           return data.accessToken;
         })
         .catch((err) => {
-           console.error("❌ Error inside refreshAccessToken:", err);
-           throw err;
+          console.error("❌ Error inside refreshAccessToken:", err);
+          throw err;
         })
         .finally(() => {
           refreshPromise = null;
@@ -209,21 +228,25 @@
     });
 
     if (res.status === 403) {
-        const clonedRes = res.clone();
-        try {
-            const data = await clonedRes.json();
-            // If the message contains status info, it's likely our AccountStatusMiddleware
-            if (data.message && (data.message.toLowerCase().includes("status") || data.message.toLowerCase().includes("reactivate"))) {
-                console.warn("🚫 Account restricted, logging out...");
-                clearClientSession();
-                
-                if (!window.location.pathname.includes("auth.html")) {
-                    window.location.href = "auth.html?reason=restricted";
-                }
-            }
-        } catch (e) {
-            // Not JSON or no message
+      const clonedRes = res.clone();
+      try {
+        const data = await clonedRes.json();
+        // If the message contains status info, it's likely our AccountStatusMiddleware
+        if (
+          data.message &&
+          (data.message.toLowerCase().includes("status") ||
+            data.message.toLowerCase().includes("reactivate"))
+        ) {
+          console.warn("🚫 Account restricted, logging out...");
+          clearClientSession();
+
+          if (!window.location.pathname.includes("auth.html")) {
+            window.location.href = "auth.html?reason=restricted";
+          }
         }
+      } catch (e) {
+        // Not JSON or no message
+      }
     }
 
     if (res.status !== 401 || options.skipAuth) return res;
@@ -248,18 +271,26 @@
           window.location.href = "auth.html";
         }
       } else {
-        console.warn("⚠️ Refresh failed due to temporary error. Keeping session.", err);
+        console.warn(
+          "⚠️ Refresh failed due to temporary error. Keeping session.",
+          err,
+        );
       }
       throw err;
     }
   }
 
-  function uploadFormDataWithProgress(url, formData, onProgress, method = "POST") {
+  function uploadFormDataWithProgress(
+    url,
+    formData,
+    onProgress,
+    method = "POST",
+  ) {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       const baseUrl = getCurrentApiBase();
       // don't show global loader for chat messages (we use optimistic UI)
-      const isChatMessage = url.includes('/Messages/');
+      const isChatMessage = url.includes("/Messages/");
       if (!isChatMessage && window.showGlobalLoader) window.showGlobalLoader(0);
 
       xhr.open(method, baseUrl + url);
@@ -274,21 +305,26 @@
 
       xhr.onreadystatechange = function () {
         if (xhr.readyState === 4) {
-          if (!isChatMessage && window.hideGlobalLoader) window.hideGlobalLoader();
+          if (!isChatMessage && window.hideGlobalLoader)
+            window.hideGlobalLoader();
           const status = xhr.status;
           const text = xhr.responseText;
           const ok = status >= 200 && status < 300;
-          
+
           if (status === 403) {
-             try {
-                 const data = JSON.parse(text);
-                 if (data.message && (data.message.toLowerCase().includes("status") || data.message.toLowerCase().includes("reactivate"))) {
-                     clearClientSession();
-                     if (!window.location.pathname.includes("auth.html")) {
-                        window.location.href = "auth.html?reason=restricted";
-                     }
-                 }
-             } catch(e) {}
+            try {
+              const data = JSON.parse(text);
+              if (
+                data.message &&
+                (data.message.toLowerCase().includes("status") ||
+                  data.message.toLowerCase().includes("reactivate"))
+              ) {
+                clearClientSession();
+                if (!window.location.pathname.includes("auth.html")) {
+                  window.location.href = "auth.html?reason=restricted";
+                }
+              }
+            } catch (e) {}
           }
 
           resolve({
@@ -331,7 +367,9 @@
 
   function appendArrayQuery(url, key, values) {
     const normalizedValues = (Array.isArray(values) ? values : [])
-      .map((value) => (value === null || value === undefined ? "" : String(value).trim()))
+      .map((value) =>
+        value === null || value === undefined ? "" : String(value).trim(),
+      )
       .filter((value) => value.length > 0);
 
     if (!normalizedValues.length) return url;
@@ -381,6 +419,13 @@
           body: JSON.stringify({ provider, credential }),
           skipAuth: true,
         }),
+      completeExternalProfile: (provider, credential, username, fullName) =>
+        apiFetch("/Auths/external-login/complete-profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider, credential, username, fullName }),
+          skipAuth: true,
+        }),
       sendEmail: (email) =>
         apiFetch("/Auths/send-email", {
           method: "POST",
@@ -422,8 +467,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ newPassword, confirmPassword }),
         }),
-      getExternalLogins: () =>
-        apiFetch("/Auths/external-logins"),
+      getExternalLogins: () => apiFetch("/Auths/external-logins"),
       unlinkExternalLogin: (provider) =>
         apiFetch(`/Auths/external-logins/${encodeURIComponent(provider)}`, {
           method: "DELETE",
@@ -456,14 +500,14 @@
           body: JSON.stringify(data),
         }),
       getByAccountId: (accountId, page, pageSize) =>
-        apiFetch(`/Posts/profile/${accountId}?page=${page}&pageSize=${pageSize}`),
+        apiFetch(
+          `/Posts/profile/${accountId}?page=${page}&pageSize=${pageSize}`,
+        ),
     },
 
     Comments: {
       getByPostId: (postId, page, pageSize) =>
-        apiFetch(
-          `/Comments/post/${postId}?page=${page}&pageSize=${pageSize}`,
-        ),
+        apiFetch(`/Comments/post/${postId}?page=${page}&pageSize=${pageSize}`),
       getReplies: (commentId, page, pageSize) =>
         apiFetch(
           `/Comments/replies/${commentId}?page=${page}&pageSize=${pageSize}`,
@@ -493,12 +537,16 @@
     Accounts: {
       getProfilePreview: (accountId) =>
         apiFetch(`/Accounts/profile-preview/${accountId}`),
-      getProfile: (accountId) =>
-        apiFetch(`/Accounts/profile/${accountId}`),
+      getProfile: (accountId) => apiFetch(`/Accounts/profile/${accountId}`),
       getProfileByUsername: (username) =>
         apiFetch(`/Accounts/profile/username/${username}`),
       updateProfile: (formData) =>
-        uploadFormDataWithProgress("/Accounts/profile", formData, null, "PATCH"),
+        uploadFormDataWithProgress(
+          "/Accounts/profile",
+          formData,
+          null,
+          "PATCH",
+        ),
       getSettings: () => apiFetch("/Accounts/settings"),
       updateSettings: (data) =>
         apiFetch("/Accounts/settings", {
@@ -506,8 +554,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         }),
-      reactivate: () =>
-        apiFetch(`/Accounts/reactivate`, { method: "POST" }),
+      reactivate: () => apiFetch(`/Accounts/reactivate`, { method: "POST" }),
     },
 
     Follows: {
@@ -517,29 +564,49 @@
         apiFetch(`/Follows/${targetId}`, { method: "DELETE" }),
       getFollowers: (accountId, request) => {
         let url = `/Follows/followers?accountId=${accountId}&page=${request.page}&pageSize=${request.pageSize}`;
-        if (request.keyword) url += `&keyword=${encodeURIComponent(request.keyword)}`;
-        if (request.sortByCreatedASC !== undefined && request.sortByCreatedASC !== null) url += `&sortByCreatedASC=${request.sortByCreatedASC}`;
+        if (request.keyword)
+          url += `&keyword=${encodeURIComponent(request.keyword)}`;
+        if (
+          request.sortByCreatedASC !== undefined &&
+          request.sortByCreatedASC !== null
+        )
+          url += `&sortByCreatedASC=${request.sortByCreatedASC}`;
         return apiFetch(url);
       },
       getFollowing: (accountId, request) => {
         let url = `/Follows/following?accountId=${accountId}&page=${request.page}&pageSize=${request.pageSize}`;
-        if (request.keyword) url += `&keyword=${encodeURIComponent(request.keyword)}`;
-        if (request.sortByCreatedASC !== undefined && request.sortByCreatedASC !== null) url += `&sortByCreatedASC=${request.sortByCreatedASC}`;
+        if (request.keyword)
+          url += `&keyword=${encodeURIComponent(request.keyword)}`;
+        if (
+          request.sortByCreatedASC !== undefined &&
+          request.sortByCreatedASC !== null
+        )
+          url += `&sortByCreatedASC=${request.sortByCreatedASC}`;
         return apiFetch(url);
       },
     },
 
     Conversations: {
-      getConversations: (isPrivate, search, page = 1, pageSize = window.APP_CONFIG?.CONVERSATIONS_PAGE_SIZE || 20) => {
+      getConversations: (
+        isPrivate,
+        search,
+        page = 1,
+        pageSize = window.APP_CONFIG?.CONVERSATIONS_PAGE_SIZE || 20,
+      ) => {
         let url = `/Conversations?page=${page}&pageSize=${pageSize}`;
-        if (isPrivate !== undefined && isPrivate !== null) url += `&isPrivate=${isPrivate}`;
+        if (isPrivate !== undefined && isPrivate !== null)
+          url += `&isPrivate=${isPrivate}`;
         if (search) url += `&search=${encodeURIComponent(search)}`;
         return apiFetch(url);
       },
       getById: (conversationId) => apiFetch(`/Conversations/${conversationId}`),
-      getMessages: (conversationId, cursor = null, pageSize = window.APP_CONFIG?.CHATPAGE_MESSAGES_PAGE_SIZE || 20) => {
+      getMessages: (
+        conversationId,
+        cursor = null,
+        pageSize = window.APP_CONFIG?.CHATPAGE_MESSAGES_PAGE_SIZE || 20,
+      ) => {
         let url = `/Conversations/${conversationId}/messages?pageSize=${pageSize}`;
-        if (cursor !== null && cursor !== undefined && cursor !== '') {
+        if (cursor !== null && cursor !== undefined && cursor !== "") {
           url += `&cursor=${encodeURIComponent(cursor)}`;
         }
         return apiFetch(url);
@@ -548,23 +615,50 @@
         conversationId,
         page = 1,
         pageSize = window.APP_CONFIG?.GROUP_CHAT_MEMBERS_PAGE_SIZE || 20,
-        adminOnly = false
-      ) => apiFetch(`/Conversations/${conversationId}/members?page=${page}&pageSize=${pageSize}&adminOnly=${!!adminOnly}`),
-      getMedia: (conversationId, page = 1, pageSize = window.APP_CONFIG?.CHAT_MEDIA_PAGE_SIZE || 20) =>
-        apiFetch(`/Conversations/${conversationId}/media?page=${page}&pageSize=${pageSize}`),
-      getFiles: (conversationId, page = 1, pageSize = window.APP_CONFIG?.CHAT_FILES_PAGE_SIZE || 20) =>
-        apiFetch(`/Conversations/${conversationId}/files?page=${page}&pageSize=${pageSize}`),
-      getMessageContext: (conversationId, messageId, pageSize = window.APP_CONFIG?.CHATPAGE_MESSAGES_PAGE_SIZE || 20) =>
-        apiFetch(`/Conversations/${conversationId}/messages/context?messageId=${messageId}&pageSize=${pageSize}`),
-      getPrivateWithMessages: (otherId, cursor = null, pageSize = window.APP_CONFIG?.CHATPAGE_MESSAGES_PAGE_SIZE || 20) => {
+        adminOnly = false,
+      ) =>
+        apiFetch(
+          `/Conversations/${conversationId}/members?page=${page}&pageSize=${pageSize}&adminOnly=${!!adminOnly}`,
+        ),
+      getMedia: (
+        conversationId,
+        page = 1,
+        pageSize = window.APP_CONFIG?.CHAT_MEDIA_PAGE_SIZE || 20,
+      ) =>
+        apiFetch(
+          `/Conversations/${conversationId}/media?page=${page}&pageSize=${pageSize}`,
+        ),
+      getFiles: (
+        conversationId,
+        page = 1,
+        pageSize = window.APP_CONFIG?.CHAT_FILES_PAGE_SIZE || 20,
+      ) =>
+        apiFetch(
+          `/Conversations/${conversationId}/files?page=${page}&pageSize=${pageSize}`,
+        ),
+      getMessageContext: (
+        conversationId,
+        messageId,
+        pageSize = window.APP_CONFIG?.CHATPAGE_MESSAGES_PAGE_SIZE || 20,
+      ) =>
+        apiFetch(
+          `/Conversations/${conversationId}/messages/context?messageId=${messageId}&pageSize=${pageSize}`,
+        ),
+      getPrivateWithMessages: (
+        otherId,
+        cursor = null,
+        pageSize = window.APP_CONFIG?.CHATPAGE_MESSAGES_PAGE_SIZE || 20,
+      ) => {
         let url = `/Conversations/private/${otherId}?pageSize=${pageSize}`;
-        if (cursor !== null && cursor !== undefined && cursor !== '') {
+        if (cursor !== null && cursor !== undefined && cursor !== "") {
           url += `&cursor=${encodeURIComponent(cursor)}`;
         }
         return apiFetch(url);
       },
       getPrivateConversation: (otherId) =>
-        apiFetch(`/Conversations/private?otherId=${encodeURIComponent(otherId)}`),
+        apiFetch(
+          `/Conversations/private?otherId=${encodeURIComponent(otherId)}`,
+        ),
       createPrivateConversation: (otherId) =>
         apiFetch("/Conversations/private", {
           method: "POST",
@@ -572,7 +666,11 @@
           body: JSON.stringify({ otherId }),
         }),
       createGroup: (formData, onProgress) =>
-        uploadFormDataWithProgress("/Conversations/group", formData, onProgress),
+        uploadFormDataWithProgress(
+          "/Conversations/group",
+          formData,
+          onProgress,
+        ),
       updateNickname: (conversationId, data) =>
         apiFetch(`/Conversations/${conversationId}/members/nickname`, {
           method: "PATCH",
@@ -592,71 +690,120 @@
           body: JSON.stringify({ theme: theme ?? null }),
         }),
       updateGroupInfo: (conversationId, formData, onProgress) =>
-        uploadFormDataWithProgress(`/Conversations/${conversationId}/group-info`, formData, onProgress, "PATCH"),
+        uploadFormDataWithProgress(
+          `/Conversations/${conversationId}/group-info`,
+          formData,
+          onProgress,
+          "PATCH",
+        ),
       kickMember: (conversationId, targetAccountId) =>
-        apiFetch(`/Conversations/${conversationId}/members/${targetAccountId}/kick`, {
-          method: "PATCH",
-        }),
+        apiFetch(
+          `/Conversations/${conversationId}/members/${targetAccountId}/kick`,
+          {
+            method: "PATCH",
+          },
+        ),
       assignAdmin: (conversationId, targetAccountId) =>
-        apiFetch(`/Conversations/${conversationId}/members/${targetAccountId}/assign-admin`, {
-          method: "PATCH",
-        }),
+        apiFetch(
+          `/Conversations/${conversationId}/members/${targetAccountId}/assign-admin`,
+          {
+            method: "PATCH",
+          },
+        ),
       revokeAdmin: (conversationId, targetAccountId) =>
-        apiFetch(`/Conversations/${conversationId}/members/${targetAccountId}/revoke-admin`, {
-          method: "PATCH",
-        }),
+        apiFetch(
+          `/Conversations/${conversationId}/members/${targetAccountId}/revoke-admin`,
+          {
+            method: "PATCH",
+          },
+        ),
       transferOwner: (conversationId, targetAccountId) =>
-        apiFetch(`/Conversations/${conversationId}/owner/${targetAccountId}/transfer`, {
-          method: "PATCH",
-        }),
+        apiFetch(
+          `/Conversations/${conversationId}/owner/${targetAccountId}/transfer`,
+          {
+            method: "PATCH",
+          },
+        ),
       leaveGroup: (conversationId) =>
         apiFetch(`/Conversations/${conversationId}/leave`, {
           method: "PATCH",
         }),
-      deleteHistory: (conversationId) => apiFetch(`/Conversations/${conversationId}/history`, { method: "DELETE" }),
-      getUnreadCount: () => apiFetch('/Conversations/unread-count'),
+      deleteHistory: (conversationId) =>
+        apiFetch(`/Conversations/${conversationId}/history`, {
+          method: "DELETE",
+        }),
+      getUnreadCount: () => apiFetch("/Conversations/unread-count"),
       searchMessages: (conversationId, keyword, page = 1, pageSize = 20) =>
-        apiFetch(`/Conversations/${conversationId}/messages/search?keyword=${encodeURIComponent(keyword)}&page=${page}&pageSize=${pageSize}`),
-      searchAccountsForGroupInvite: (keyword = "", excludeAccountIds = [], limit = window.APP_CONFIG?.GROUP_CHAT_INVITE_SEARCH_LIMIT || 10) => {
+        apiFetch(
+          `/Conversations/${conversationId}/messages/search?keyword=${encodeURIComponent(keyword)}&page=${page}&pageSize=${pageSize}`,
+        ),
+      searchAccountsForGroupInvite: (
+        keyword = "",
+        excludeAccountIds = [],
+        limit = window.APP_CONFIG?.GROUP_CHAT_INVITE_SEARCH_LIMIT || 10,
+      ) => {
         const baseUrl = `/Conversations/accounts/search?keyword=${encodeURIComponent(keyword ?? "")}&limit=${limit}`;
-        return apiFetch(appendArrayQuery(baseUrl, "excludeAccountIds", excludeAccountIds));
+        return apiFetch(
+          appendArrayQuery(baseUrl, "excludeAccountIds", excludeAccountIds),
+        );
       },
       searchAccountsForAddGroupMembers: (
         conversationId,
         keyword = "",
         excludeAccountIds = [],
-        limit = window.APP_CONFIG?.GROUP_CHAT_ADD_MEMBER_SEARCH_LIMIT || window.APP_CONFIG?.GROUP_CHAT_INVITE_SEARCH_LIMIT || 10
+        limit = window.APP_CONFIG?.GROUP_CHAT_ADD_MEMBER_SEARCH_LIMIT ||
+          window.APP_CONFIG?.GROUP_CHAT_INVITE_SEARCH_LIMIT ||
+          10,
       ) => {
         const safeConversationId = encodeURIComponent(conversationId || "");
         const baseUrl = `/Conversations/${safeConversationId}/members/search?keyword=${encodeURIComponent(keyword ?? "")}&limit=${limit}`;
-        return apiFetch(appendArrayQuery(baseUrl, "excludeAccountIds", excludeAccountIds));
+        return apiFetch(
+          appendArrayQuery(baseUrl, "excludeAccountIds", excludeAccountIds),
+        );
       },
       addMembers: (conversationId, memberIds = []) =>
-        apiFetch(`/Conversations/${encodeURIComponent(conversationId || "")}/members`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ memberIds: Array.isArray(memberIds) ? memberIds : [] }),
-        }),
+        apiFetch(
+          `/Conversations/${encodeURIComponent(conversationId || "")}/members`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              memberIds: Array.isArray(memberIds) ? memberIds : [],
+            }),
+          },
+        ),
     },
 
     Messages: {
       // send message in private chat (1:1) - lazy creates conversation if needed
-      sendPrivate: (formData, onProgress) => 
-        uploadFormDataWithProgress("/Messages/private-chat", formData, onProgress),
-      
+      sendPrivate: (formData, onProgress) =>
+        uploadFormDataWithProgress(
+          "/Messages/private-chat",
+          formData,
+          onProgress,
+        ),
+
       // send message in group chat - conversation must exist
       sendGroup: (conversationId, formData, onProgress) =>
-        uploadFormDataWithProgress(`/Messages/group/${conversationId}`, formData, onProgress),
+        uploadFormDataWithProgress(
+          `/Messages/group/${conversationId}`,
+          formData,
+          onProgress,
+        ),
 
-      getPinned: (conversationId) => apiFetch(`/Messages/pinned/${conversationId}`),
+      getPinned: (conversationId) =>
+        apiFetch(`/Messages/pinned/${conversationId}`),
       pin: (conversationId, messageId) =>
-        apiFetch(`/Messages/pin/${conversationId}/${messageId}`, { method: "POST" }),
+        apiFetch(`/Messages/pin/${conversationId}/${messageId}`, {
+          method: "POST",
+        }),
       unpin: (conversationId, messageId) =>
-        apiFetch(`/Messages/unpin/${conversationId}/${messageId}`, { method: "DELETE" }),
+        apiFetch(`/Messages/unpin/${conversationId}/${messageId}`, {
+          method: "DELETE",
+        }),
       getMediaDownloadUrl: (messageMediaId) =>
         apiFetch(`/Messages/media/${messageMediaId}/download-url`),
-      getReact: (messageId) =>
-        apiFetch(`/Messages/${messageId}/react`),
+      getReact: (messageId) => apiFetch(`/Messages/${messageId}/react`),
       setReact: (messageId, reactType) =>
         apiFetch(`/Messages/${messageId}/react`, {
           method: "PUT",
@@ -665,50 +812,55 @@
         }),
       removeReact: (messageId) =>
         apiFetch(`/Messages/${messageId}/react`, { method: "DELETE" }),
-      hide: (messageId) => apiFetch(`/Messages/hide/${messageId}`, { method: "POST" }),
-      recall: (messageId) => apiFetch(`/Messages/recall/${messageId}`, { method: "POST" }),
+      hide: (messageId) =>
+        apiFetch(`/Messages/hide/${messageId}`, { method: "POST" }),
+      recall: (messageId) =>
+        apiFetch(`/Messages/recall/${messageId}`, { method: "POST" }),
     },
   };
 
   // Global Reactivation Handler
   async function handleGlobalReactivation(message) {
-      if (typeof showToast !== 'function') return;
+    if (typeof showToast !== "function") return;
 
-      showToast(
-          `<div>
+    showToast(
+      `<div>
             <p style="margin-bottom: 8px;">${message}</p>
             <div class="toast-actions">
               <button class="toast-btn" onclick="window.reactivateAccountAction()">Reactivate Now</button>
               <button class="toast-btn secondary" onclick="window.closeToast()">Later</button>
             </div>
           </div>`,
-          "error",
-          0,
-          true
-      );
+      "error",
+      0,
+      true,
+    );
   }
 
   window.reactivateAccountAction = async () => {
-      try {
-          const res = await window.API.Accounts.reactivate();
-          if (res.ok) {
-              if (typeof toastSuccess === 'function') toastSuccess("Account reactivated successfully!");
-              setTimeout(() => {
-                  window.closeToast();
-                  if (window.location.pathname.includes("auth.html")) {
-                      window.location.href = "index.html";
-                  } else {
-                      location.reload();
-                  }
-              }, 1000);
+    try {
+      const res = await window.API.Accounts.reactivate();
+      if (res.ok) {
+        if (typeof toastSuccess === "function")
+          toastSuccess("Account reactivated successfully!");
+        setTimeout(() => {
+          window.closeToast();
+          if (window.location.pathname.includes("auth.html")) {
+            window.location.href = "index.html";
           } else {
-              const data = await res.json();
-              if (typeof toastError === 'function') toastError(data.message || "Reactivation failed");
+            location.reload();
           }
-      } catch (err) {
-          console.error(err);
-          if (typeof toastError === 'function') toastError("Error during reactivation");
+        }, 1000);
+      } else {
+        const data = await res.json();
+        if (typeof toastError === "function")
+          toastError(data.message || "Reactivation failed");
       }
+    } catch (err) {
+      console.error(err);
+      if (typeof toastError === "function")
+        toastError("Error during reactivation");
+    }
   };
 
   // Export internal helpers for SignalR or other modules if they rely on window naming
@@ -718,4 +870,3 @@
   // Export
   window.uploadFormDataWithProgress = uploadFormDataWithProgress;
 })();
-

@@ -416,6 +416,10 @@ input:focus {
 
 .social-container {
   margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
 
 .social-container a {
@@ -423,9 +427,11 @@ input:focus {
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  margin: 0 5px;
+  margin: 0;
   height: 50px;
   width: 50px;
+  border: 1px solid var(--border-primary);
+  box-sizing: border-box;
 }
 
 /* Social login */
@@ -449,24 +455,29 @@ input:focus {
 .google-signin-render-host {
   position: absolute;
   inset: 0;
-  opacity: 0;
-  pointer-events: none;
   z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
 }
 
-.google-signin-render-host > div,
 .google-signin-render-host iframe {
-  width: 100% !important;
-  height: 100% !important;
-  max-width: none !important;
+  transform: scale(
+    1.3
+  ); /* slightly scale so the native borders are hidden by overflow */
 }
 
-.social-btn.google {
+.social-btn.google,
+.social-btn.facebook,
+.social-btn.tiktok {
   position: relative;
+  overflow: hidden;
 }
 
-.social-btn.google.google-ready .google-signin-render-host {
-  pointer-events: auto;
+.social-btn.google.google-ready img {
+  display: none;
 }
 
 .social-btn.is-loading {
@@ -475,14 +486,8 @@ input:focus {
   cursor: wait;
 }
 
-.social-btn.google:hover {
-  transform: scale(1.05);
-}
-
-.social-btn.facebook:hover {
-  transform: scale(1.05);
-}
-
+.social-btn.google:hover,
+.social-btn.facebook:hover,
 .social-btn.tiktok:hover {
   transform: scale(1.05);
 }
@@ -520,7 +525,8 @@ input:focus {
 }
 /* === Overlay popup verify email === */
 #verify-popup,
-#forgot-password-popup {
+#forgot-password-popup,
+#external-profile-popup {
   display: none;
   position: fixed;
   top: 0;
@@ -535,7 +541,8 @@ input:focus {
 }
 
 #verify-popup .verify-popup-content,
-#forgot-password-popup .verify-popup-content {
+#forgot-password-popup .verify-popup-content,
+#external-profile-popup .verify-popup-content {
   background: var(--bg-secondary);
   padding: 30px 40px;
   border-radius: 12px;
@@ -548,14 +555,16 @@ input:focus {
 }
 
 #verify-popup h2,
-#forgot-password-popup h2 {
+#forgot-password-popup h2,
+#external-profile-popup h2 {
   margin-bottom: 10px;
   font-size: 1.8rem;
   color: var(--accent-primary);
 }
 
 #verify-popup p,
-#forgot-password-popup p {
+#forgot-password-popup p,
+#external-profile-popup p {
   margin-bottom: 20px;
   font-size: 1rem;
   color: var(--text-tertiary);
@@ -607,7 +616,8 @@ input:focus {
 #forgot-send-code-btn,
 #forgot-verify-code-btn,
 #forgot-resend-code-btn,
-#forgot-reset-password-btn {
+#forgot-reset-password-btn,
+#external-profile-submit-btn {
   width: 100%;
   padding: 12px 0;
   margin-top: 10px;
@@ -623,7 +633,8 @@ input:focus {
 #verify-btn,
 #forgot-send-code-btn,
 #forgot-verify-code-btn,
-#forgot-reset-password-btn {
+#forgot-reset-password-btn,
+#external-profile-submit-btn {
   background: var(--accent-primary);
   color: var(--text-white);
   border: 2px solid var(--bg-secondary);
@@ -633,7 +644,8 @@ input:focus {
 #verify-btn:hover,
 #forgot-send-code-btn:hover,
 #forgot-verify-code-btn:hover,
-#forgot-reset-password-btn:hover {
+#forgot-reset-password-btn:hover,
+#external-profile-submit-btn:hover {
   background: var(--accent-hover);
 }
 
@@ -688,6 +700,30 @@ input:focus {
   color: var(--accent-primary);
 }
 
+.external-profile-content .close-external-profile-popup {
+  position: absolute;
+  top: 12px;
+  right: 15px;
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color var(--transition-normal);
+}
+
+.external-profile-content .close-external-profile-popup:hover {
+  color: var(--accent-primary);
+}
+
+.external-profile-content .floating-field {
+  margin: 12px 0;
+}
+
+.external-profile-content #external-profile-email:disabled {
+  opacity: 0.85;
+  cursor: not-allowed;
+}
+
 /* === Animations === */
 @keyframes fadeIn {
   from {
@@ -717,7 +753,8 @@ input:focus {
   }
 
   #verify-popup .verify-popup-content,
-  #forgot-password-popup .verify-popup-content {
+  #forgot-password-popup .verify-popup-content,
+  #external-profile-popup .verify-popup-content {
     padding: 20px;
   }
 
