@@ -1,0 +1,155 @@
+<div class="modal-overlay" id="createStoryModal">
+  <div class="modal-container create-story-modal-container">
+    <div class="create-story-modal-header">
+      <h2 class="create-story-modal-title">Create Story</h2>
+      <button
+        type="button"
+        class="create-story-close-btn"
+        onclick="closeCreateStoryModal()"
+        aria-label="Close create story modal"
+      >
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
+    <div class="create-story-modal-body">
+      <div class="create-story-preview-panel">
+        <div class="create-story-preview-shell" id="createStoryPreviewShell">
+          <div class="create-story-preview-empty" id="createStoryPreviewEmpty">
+            <i data-lucide="image-plus"></i>
+            <p>Select media or type text to preview your story</p>
+          </div>
+
+          <img
+            id="createStoryImagePreview"
+            class="create-story-image-preview"
+            alt="Story image preview"
+          />
+
+          <video
+            id="createStoryVideoPreview"
+            class="create-story-video-preview"
+            controls
+            preload="metadata"
+          ></video>
+
+          <div id="createStoryTextPreview" class="create-story-text-preview"></div>
+        </div>
+      </div>
+
+      <div class="create-story-form-panel">
+        <div class="create-story-section">
+          <label class="create-story-label">Story Type</label>
+          <div class="create-story-type-row">
+            <button
+              type="button"
+              class="create-story-type-btn active"
+              data-story-type="0"
+              onclick="setCreateStoryContentType(0)"
+            >
+              <i data-lucide="image"></i>
+              <span>Image</span>
+            </button>
+            <button
+              type="button"
+              class="create-story-type-btn"
+              data-story-type="1"
+              onclick="setCreateStoryContentType(1)"
+            >
+              <i data-lucide="video"></i>
+              <span>Video</span>
+            </button>
+            <button
+              type="button"
+              class="create-story-type-btn"
+              data-story-type="2"
+              onclick="setCreateStoryContentType(2)"
+            >
+              <i data-lucide="type"></i>
+              <span>Text</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="create-story-section" id="createStoryMediaSection">
+          <label class="create-story-label">Media File</label>
+          <div class="create-story-media-row">
+            <button
+              type="button"
+              class="create-story-select-file-btn"
+              id="createStorySelectFileBtn"
+            >
+              Select File
+            </button>
+            <span class="create-story-file-name" id="createStoryFileName">No file selected</span>
+          </div>
+          <input
+            type="file"
+            id="createStoryMediaInput"
+            hidden
+            accept="image/*"
+          />
+        </div>
+
+        <div class="create-story-section create-story-hidden" id="createStoryTextSection">
+          <label class="create-story-label" for="createStoryTextInput">Text Content</label>
+          <textarea
+            id="createStoryTextInput"
+            class="create-story-text-input"
+            maxlength="1000"
+            placeholder="Type your story text..."
+          ></textarea>
+          <div class="create-story-text-counter">
+            <span id="createStoryTextCount">0</span>/1000
+          </div>
+        </div>
+
+        <div class="create-story-section">
+          <label class="create-story-label" for="createStoryPrivacy">Privacy</label>
+          <select id="createStoryPrivacy" class="create-story-select">
+            <option value="0">Public</option>
+            <option value="1">Followers Only</option>
+            <option value="2">Private</option>
+          </select>
+        </div>
+
+        <div class="create-story-section">
+          <label class="create-story-label" for="createStoryExpires">Expire Time</label>
+          <select id="createStoryExpires" class="create-story-select">
+            <option value="6">6 hours</option>
+            <option value="12">12 hours</option>
+            <option value="24" selected>24 hours</option>
+          </select>
+        </div>
+
+        <div class="create-story-section" id="createStoryThumbnailSection">
+          <label class="create-story-label" for="createStoryThumbnailUrl">Thumbnail URL (optional)</label>
+          <input
+            id="createStoryThumbnailUrl"
+            class="create-story-input"
+            type="url"
+            placeholder="https://example.com/story-thumb.jpg"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="create-story-modal-footer">
+      <button
+        type="button"
+        class="create-story-cancel-btn"
+        onclick="closeCreateStoryModal()"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        class="create-story-submit-btn"
+        id="createStorySubmitBtn"
+        onclick="submitCreateStory()"
+      >
+        Share Story
+      </button>
+    </div>
+  </div>
+</div>

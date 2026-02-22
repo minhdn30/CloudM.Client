@@ -505,6 +505,18 @@
         ),
     },
 
+    Stories: {
+      create: (formData, onProgress) =>
+        uploadFormDataWithProgress("/Stories", formData, onProgress),
+      updatePrivacy: (storyId, privacy) =>
+        apiFetch(`/Stories/${storyId}/privacy`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ privacy }),
+        }),
+      delete: (storyId) => apiFetch(`/Stories/${storyId}`, { method: "DELETE" }),
+    },
+
     Comments: {
       getByPostId: (postId, page, pageSize) =>
         apiFetch(`/Comments/post/${postId}?page=${page}&pageSize=${pageSize}`),
