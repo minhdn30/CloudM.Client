@@ -72,6 +72,16 @@
 
 .profile-avatar-wrapper {
   position: relative;
+  --presence-avatar-size: 168px;
+  --presence-dot-ratio: 0.12;
+  --presence-dot-size: calc(
+    var(--presence-avatar-size) * var(--presence-dot-ratio)
+  );
+  --presence-dot-border-ratio: 0.018;
+  --presence-dot-border-size: calc(
+    var(--presence-avatar-size) * var(--presence-dot-border-ratio)
+  );
+  --presence-diagonal-inset-ratio: 0.1464466;
   width: 168px;
   height: 168px;
   border-radius: 50%;
@@ -84,6 +94,25 @@
   height: 100%;
   object-fit: cover;
   border-radius: 50%;
+}
+
+.profile-online-dot {
+  position: absolute;
+  right: calc(
+    (var(--presence-avatar-size) * var(--presence-diagonal-inset-ratio)) -
+      (var(--presence-dot-size) / 2)
+  );
+  bottom: calc(
+    (var(--presence-avatar-size) * var(--presence-diagonal-inset-ratio)) -
+      (var(--presence-dot-size) / 2)
+  );
+  width: var(--presence-dot-size);
+  height: var(--presence-dot-size);
+  border-radius: 50%;
+  background: #22c55e;
+  border: var(--presence-dot-border-size) solid var(--bg-primary);
+  pointer-events: none;
+  z-index: 2;
 }
 
 .profile-info-container {
@@ -1221,8 +1250,23 @@
   }
 
   .profile-avatar-wrapper {
+    --presence-avatar-size: 120px;
     width: 120px;
     height: 120px;
+  }
+
+  .profile-online-dot {
+    right: calc(
+      (var(--presence-avatar-size) * var(--presence-diagonal-inset-ratio)) -
+        (var(--presence-dot-size) / 2)
+    );
+    bottom: calc(
+      (var(--presence-avatar-size) * var(--presence-diagonal-inset-ratio)) -
+        (var(--presence-dot-size) / 2)
+    );
+    width: var(--presence-dot-size);
+    height: var(--presence-dot-size);
+    border-width: var(--presence-dot-border-size);
   }
 
   .profile-info-container {

@@ -14,6 +14,101 @@
     let profilePostIds = [];
 
     let currentProfileData = null;
+    let profilePresenceUnsubscribe = null;
+
+    function normalizePresenceId(value) {
+        if (window.PresenceUI && typeof window.PresenceUI.normalizeAccountId === "function") {
+            return window.PresenceUI.normalizeAccountId(value);
+        }
+        return (value || "").toString().trim().toLowerCase();
+    }
+
+    function resolvePresenceStatus(accountId) {
+        if (window.PresenceUI && typeof window.PresenceUI.resolveStatusByAccountId === "function") {
+            return window.PresenceUI.resolveStatusByAccountId(accountId, false);
+        }
+        const normalizedAccountId = normalizePresenceId(accountId);
+        if (
+            !normalizedAccountId ||
+            !window.PresenceStore ||
+            typeof window.PresenceStore.resolveStatus !== "function"
+        ) {
+            return { showDot: false };
+        }
+
+        return window.PresenceStore.resolveStatus({
+            accountId: normalizedAccountId
+        });
+    }
+
+    function applyProfilePresenceDot(accountId) {
+        const avatarWrapper = document.querySelector(".profile-avatar-wrapper");
+        if (!avatarWrapper) return;
+
+        const existingDot = avatarWrapper.querySelector(".profile-online-dot");
+        const presenceStatus = resolvePresenceStatus(accountId);
+        if (presenceStatus?.showDot) {
+            if (!existingDot) {
+                avatarWrapper.insertAdjacentHTML("beforeend", '<div class="profile-online-dot"></div>');
+            }
+        } else if (existingDot) {
+            existingDot.remove();
+        }
+    }
+
+    function ensureProfilePresenceSnapshot(accountId) {
+        if (window.PresenceUI && typeof window.PresenceUI.ensureSnapshotForAccountIds === "function") {
+            window.PresenceUI.ensureSnapshotForAccountIds([accountId])
+                .catch((error) => {
+                    console.warn("[ProfilePage] Presence snapshot sync failed:", error);
+                });
+            return;
+        }
+        const normalizedAccountId = normalizePresenceId(accountId);
+        if (
+            !normalizedAccountId ||
+            !window.PresenceStore ||
+            typeof window.PresenceStore.ensureSnapshotForAccountIds !== "function"
+        ) {
+            return;
+        }
+
+        window.PresenceStore.ensureSnapshotForAccountIds([normalizedAccountId])
+            .catch((error) => {
+                console.warn("[ProfilePage] Presence snapshot sync failed:", error);
+            });
+    }
+
+    function initProfilePresenceTracking() {
+        if (profilePresenceUnsubscribe) return;
+        if (window.PresenceUI && typeof window.PresenceUI.subscribe === "function") {
+            profilePresenceUnsubscribe = window.PresenceUI.subscribe((payload) => {
+                const targetAccountId = normalizePresenceId(currentProfileId);
+                if (!targetAccountId) return;
+
+                const changedIds = Array.isArray(payload?.changedAccountIds)
+                    ? payload.changedAccountIds.map((id) => normalizePresenceId(id))
+                    : [];
+
+                if (changedIds.length > 0 && !changedIds.includes(targetAccountId)) return;
+                applyProfilePresenceDot(targetAccountId);
+            });
+            return;
+        }
+        if (!window.PresenceStore || typeof window.PresenceStore.subscribe !== "function") return;
+
+        profilePresenceUnsubscribe = window.PresenceStore.subscribe((payload) => {
+            const targetAccountId = normalizePresenceId(currentProfileId);
+            if (!targetAccountId) return;
+
+            const changedIds = Array.isArray(payload?.changedAccountIds)
+                ? payload.changedAccountIds.map((id) => normalizePresenceId(id))
+                : [];
+
+            if (changedIds.length > 0 && !changedIds.includes(targetAccountId)) return;
+            applyProfilePresenceDot(targetAccountId);
+        });
+    }
 
     // Permanent State Accessor for App Router
     window.ProfileState = {
@@ -34,6 +129,8 @@
     };
 
     function initProfile() {
+        initProfilePresenceTracking();
+
         // Robust ID extraction
         const hash = window.location.hash || "";
         let accountId = null;
@@ -300,11 +397,14 @@
                 // Background update: Only update stats and internal data
                 currentProfileData = data;
                 updateProfileStatsOnly(data);
+                applyProfilePresenceDot(currentProfileId);
+                ensureProfilePresenceSnapshot(currentProfileId);
             } else {
                 // Full render
                 currentProfileData = data;
                 
                 renderProfileHeader(data);
+                ensureProfilePresenceSnapshot(currentProfileId);
                 
                 // Now that we have the GUID, we can load posts
                 isLoading = false;
@@ -521,6 +621,7 @@
         }
         
         if (window.lucide) lucide.createIcons();
+        applyProfilePresenceDot(info.accountId || info.id || currentProfileId);
     }
 
     function renderProfileTabs(isOwner) {
