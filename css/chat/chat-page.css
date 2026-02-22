@@ -50,6 +50,12 @@
 
 .chat-view-avatar {
   position: relative;
+  --presence-avatar-size: 44px;
+  --presence-dot-ratio: 0.24;
+  --presence-dot-size: calc(var(--presence-avatar-size) * var(--presence-dot-ratio));
+  --presence-dot-border-ratio: 0.045;
+  --presence-dot-border-size: calc(var(--presence-avatar-size) * var(--presence-dot-border-ratio));
+  --presence-diagonal-inset-ratio: 0.1464466;
   width: 44px;
   height: 44px;
 }
@@ -63,12 +69,18 @@
 
 .chat-view-status {
   position: absolute;
-  bottom: 2px;
-  right: 2px;
-  width: 12px;
-  height: 12px;
+  right: calc(
+    (var(--presence-avatar-size) * var(--presence-diagonal-inset-ratio)) -
+      (var(--presence-dot-size) / 2)
+  );
+  bottom: calc(
+    (var(--presence-avatar-size) * var(--presence-diagonal-inset-ratio)) -
+      (var(--presence-dot-size) / 2)
+  );
+  width: var(--presence-dot-size);
+  height: var(--presence-dot-size);
   background: #4ade80;
-  border: 2px solid var(--chat-theme-surface, var(--bg-primary));
+  border: var(--presence-dot-border-size) solid var(--chat-theme-surface, var(--bg-primary));
   border-radius: 50%;
 }
 
@@ -805,6 +817,12 @@
 }
 
 .chat-info-avatar {
+  --presence-avatar-size: 64px;
+  --presence-dot-ratio: 0.24;
+  --presence-dot-size: calc(var(--presence-avatar-size) * var(--presence-dot-ratio));
+  --presence-dot-border-ratio: 0.045;
+  --presence-dot-border-size: calc(var(--presence-avatar-size) * var(--presence-dot-border-ratio));
+  --presence-diagonal-inset-ratio: 0.1464466;
   width: 64px !important;
   height: 64px !important;
   position: relative;
@@ -821,12 +839,18 @@
 /* Status Dot */
 .chat-info-avatar .status-dot {
   position: absolute;
-  bottom: 2px;
-  right: 2px;
-  width: 14px;
-  height: 14px;
+  right: calc(
+    (var(--presence-avatar-size) * var(--presence-diagonal-inset-ratio)) -
+      (var(--presence-dot-size) / 2)
+  );
+  bottom: calc(
+    (var(--presence-avatar-size) * var(--presence-diagonal-inset-ratio)) -
+      (var(--presence-dot-size) / 2)
+  );
+  width: var(--presence-dot-size);
+  height: var(--presence-dot-size);
   background: #31a24c;
-  border: 2px solid var(--chat-theme-surface, var(--bg-primary));
+  border: var(--presence-dot-border-size) solid var(--chat-theme-surface, var(--bg-primary));
   border-radius: 50%;
 }
 

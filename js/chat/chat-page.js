@@ -125,10 +125,16 @@ const ChatPage = {
     },
 
     normalizePresenceId(value) {
+        if (window.PresenceUI && typeof window.PresenceUI.normalizeAccountId === 'function') {
+            return window.PresenceUI.normalizeAccountId(value);
+        }
         return (value || '').toString().toLowerCase();
     },
 
     getPrivateOtherAccountId(meta = {}) {
+        if (window.PresenceUI && typeof window.PresenceUI.getPrivateOtherAccountId === 'function') {
+            return window.PresenceUI.getPrivateOtherAccountId(meta);
+        }
         const isGroup = !!(meta.isGroup ?? meta.IsGroup);
         if (isGroup) return '';
         return this.normalizePresenceId(
@@ -141,6 +147,10 @@ const ChatPage = {
     },
 
     getPresenceStatus(meta = {}) {
+        if (window.PresenceUI && typeof window.PresenceUI.resolveConversationStatus === 'function') {
+            return window.PresenceUI.resolveConversationStatus(meta, 'Group chat');
+        }
+
         const isGroup = !!(meta.isGroup ?? meta.IsGroup);
         if (isGroup) {
             return {
@@ -152,6 +162,11 @@ const ChatPage = {
         }
 
         const accountId = this.getPrivateOtherAccountId(meta);
+        const legacyIsOnline = !!(
+            meta.otherMember?.isOnline ??
+            meta.otherMember?.IsOnline ??
+            false
+        );
         if (window.PresenceStore && typeof window.PresenceStore.resolveStatus === 'function') {
             return window.PresenceStore.resolveStatus({
                 accountId
@@ -167,6 +182,14 @@ const ChatPage = {
     },
 
     syncPresenceSnapshotForConversations(conversations, options = {}) {
+        if (window.PresenceUI && typeof window.PresenceUI.ensureSnapshotForConversations === 'function') {
+            window.PresenceUI.ensureSnapshotForConversations(conversations, options)
+                .catch((error) => {
+                    console.warn('[ChatPage] Presence snapshot sync failed:', error);
+                });
+            return;
+        }
+
         if (!window.PresenceStore || typeof window.PresenceStore.ensureSnapshotForConversations !== 'function') {
             return;
         }
@@ -179,6 +202,12 @@ const ChatPage = {
 
     initPresenceTracking() {
         if (this._presenceUnsubscribe) return;
+        if (window.PresenceUI && typeof window.PresenceUI.subscribe === 'function') {
+            this._presenceUnsubscribe = window.PresenceUI.subscribe((payload) => {
+                this.refreshPresenceForCurrentConversation(payload?.changedAccountIds || []);
+            });
+            return;
+        }
         if (!window.PresenceStore || typeof window.PresenceStore.subscribe !== 'function') return;
 
         this._presenceUnsubscribe = window.PresenceStore.subscribe((payload) => {

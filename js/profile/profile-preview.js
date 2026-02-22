@@ -5,6 +5,76 @@ let isFollowing = false;
 let currentUserId = null;
 let lastMouseEvent = null;
 let currentAccountId = null;
+let profilePreviewPresenceUnsubscribe = null;
+
+function normalizePresenceId(value) {
+  if (window.PresenceUI && typeof window.PresenceUI.normalizeAccountId === "function") {
+    return window.PresenceUI.normalizeAccountId(value);
+  }
+  return (value || "").toString().trim().toLowerCase();
+}
+
+function resolvePresenceStatus(accountId) {
+  if (window.PresenceUI && typeof window.PresenceUI.resolveStatusByAccountId === "function") {
+    return window.PresenceUI.resolveStatusByAccountId(accountId, false);
+  }
+  const normalizedAccountId = normalizePresenceId(accountId);
+  if (
+    !normalizedAccountId ||
+    !window.PresenceStore ||
+    typeof window.PresenceStore.resolveStatus !== "function"
+  ) {
+    return { showDot: false };
+  }
+
+  return window.PresenceStore.resolveStatus({
+    accountId: normalizedAccountId,
+  });
+}
+
+function ensurePresenceSnapshot(accountId) {
+  if (window.PresenceUI && typeof window.PresenceUI.ensureSnapshotForAccountIds === "function") {
+    window.PresenceUI.ensureSnapshotForAccountIds([accountId]).catch(
+      (error) => {
+        console.warn("[ProfilePreview] Presence snapshot sync failed:", error);
+      },
+    );
+    return;
+  }
+
+  const normalizedAccountId = normalizePresenceId(accountId);
+  if (
+    !normalizedAccountId ||
+    !window.PresenceStore ||
+    typeof window.PresenceStore.ensureSnapshotForAccountIds !== "function"
+  ) {
+    return;
+  }
+
+  window.PresenceStore.ensureSnapshotForAccountIds([normalizedAccountId]).catch(
+    (error) => {
+      console.warn("[ProfilePreview] Presence snapshot sync failed:", error);
+    },
+  );
+}
+
+function applyPreviewPresenceDot(accountId) {
+  const avatarWrapper = previewEl?.querySelector(".profile-preview-avatar-wrapper");
+  if (!avatarWrapper) return;
+
+  const existingDot = avatarWrapper.querySelector(".profile-preview-online-dot");
+  const presenceStatus = resolvePresenceStatus(accountId);
+  if (presenceStatus?.showDot) {
+    if (!existingDot) {
+      avatarWrapper.insertAdjacentHTML(
+        "beforeend",
+        '<div class="profile-preview-online-dot"></div>',
+      );
+    }
+  } else if (existingDot) {
+    existingDot.remove();
+  }
+}
 
 /* ===== Create preview element ===== */
 function createProfilePreview() {
@@ -157,6 +227,9 @@ function renderProfilePreview(data) {
     lucide.createIcons();
   }
 
+  applyPreviewPresenceDot(currentUserId);
+  ensurePresenceSnapshot(currentUserId);
+
   // Auto-shrink font for long names (Max 2 lines)
   const nameEl = document.getElementById("pp-username");
   if (nameEl) {
@@ -266,6 +339,48 @@ window.hidePreview = hidePreview;
 function initProfilePreview() {
   if (previewEl) return;
   createProfilePreview();
+
+  if (
+    !profilePreviewPresenceUnsubscribe &&
+    window.PresenceUI &&
+    typeof window.PresenceUI.subscribe === "function"
+  ) {
+    profilePreviewPresenceUnsubscribe = window.PresenceUI.subscribe(
+      (payload) => {
+        const targetAccountId = normalizePresenceId(currentUserId);
+        if (!targetAccountId || !previewEl || previewEl.classList.contains("hidden")) {
+          return;
+        }
+        const changedIds = Array.isArray(payload?.changedAccountIds)
+          ? payload.changedAccountIds.map(normalizePresenceId)
+          : [];
+        if (changedIds.length > 0 && !changedIds.includes(targetAccountId)) {
+          return;
+        }
+        applyPreviewPresenceDot(targetAccountId);
+      },
+    );
+  } else if (
+    !profilePreviewPresenceUnsubscribe &&
+    window.PresenceStore &&
+    typeof window.PresenceStore.subscribe === "function"
+  ) {
+    profilePreviewPresenceUnsubscribe = window.PresenceStore.subscribe(
+      (payload) => {
+        const targetAccountId = normalizePresenceId(currentUserId);
+        if (!targetAccountId || !previewEl || previewEl.classList.contains("hidden")) {
+          return;
+        }
+        const changedIds = Array.isArray(payload?.changedAccountIds)
+          ? payload.changedAccountIds.map(normalizePresenceId)
+          : [];
+        if (changedIds.length > 0 && !changedIds.includes(targetAccountId)) {
+          return;
+        }
+        applyPreviewPresenceDot(targetAccountId);
+      },
+    );
+  }
 
   // Disable hover on mobile, enable click instead
   const isTouchDevice =

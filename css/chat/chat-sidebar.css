@@ -537,6 +537,12 @@ body.chat-sidebar-open #sidebar.expanded ~ .main-content {
 
 .chat-avatar-wrapper {
   position: relative;
+  --presence-avatar-size: 56px;
+  --presence-dot-ratio: 0.24;
+  --presence-dot-size: calc(var(--presence-avatar-size) * var(--presence-dot-ratio));
+  --presence-dot-border-ratio: 0.045;
+  --presence-dot-border-size: calc(var(--presence-avatar-size) * var(--presence-dot-border-ratio));
+  --presence-diagonal-inset-ratio: 0.1464466;
   width: 56px;
   height: 56px;
   flex-shrink: 0;
@@ -551,13 +557,19 @@ body.chat-sidebar-open #sidebar.expanded ~ .main-content {
 
 .chat-status-dot {
   position: absolute;
-  bottom: 2px;
-  right: 2px;
-  width: 14px;
-  height: 14px;
+  right: calc(
+    (var(--presence-avatar-size) * var(--presence-diagonal-inset-ratio)) -
+      (var(--presence-dot-size) / 2)
+  );
+  bottom: calc(
+    (var(--presence-avatar-size) * var(--presence-diagonal-inset-ratio)) -
+      (var(--presence-dot-size) / 2)
+  );
+  width: var(--presence-dot-size);
+  height: var(--presence-dot-size);
   border-radius: 50%;
   background: var(--success, #4ade80);
-  border: 3px solid var(--bg-primary);
+  border: var(--presence-dot-border-size) solid var(--bg-primary);
 }
 
 .chat-info {
@@ -749,6 +761,7 @@ body.chat-sidebar-open #sidebar.expanded ~ .main-content {
   }
 
   .chat-avatar-wrapper {
+    --presence-avatar-size: 48px;
     width: 48px;
     height: 48px;
   }

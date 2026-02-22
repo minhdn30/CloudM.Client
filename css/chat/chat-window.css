@@ -163,6 +163,12 @@ body.is-dragging-chat #chat-windows-stack {
 
 .chat-header-avatar {
     position: relative;
+    --presence-avatar-size: 32px;
+    --presence-dot-ratio: 0.24;
+    --presence-dot-size: calc(var(--presence-avatar-size) * var(--presence-dot-ratio));
+    --presence-dot-border-ratio: 0.045;
+    --presence-dot-border-size: calc(var(--presence-avatar-size) * var(--presence-dot-border-ratio));
+    --presence-diagonal-inset-ratio: 0.1464466;
     width: 32px;
     height: 32px;
     flex-shrink: 0;
@@ -178,13 +184,19 @@ body.is-dragging-chat #chat-windows-stack {
 
 .chat-header-status {
     position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 10px;
-    height: 10px;
+    right: calc(
+        (var(--presence-avatar-size) * var(--presence-diagonal-inset-ratio)) -
+            (var(--presence-dot-size) / 2)
+    );
+    bottom: calc(
+        (var(--presence-avatar-size) * var(--presence-diagonal-inset-ratio)) -
+            (var(--presence-dot-size) / 2)
+    );
+    width: var(--presence-dot-size);
+    height: var(--presence-dot-size);
     border-radius: 50%;
     background: var(--success, #4ade80);
-    border: 2px solid var(--chat-theme-surface, var(--bg-primary));
+    border: var(--presence-dot-border-size) solid var(--chat-theme-surface, var(--bg-primary));
 }
 
 .chat-header-text {
@@ -379,13 +391,25 @@ body.is-dragging-chat #chat-windows-stack {
 
 .chat-bubble-status {
     position: absolute;
-    bottom: 2px;
-    right: 2px;
-    width: 12px;
-    height: 12px;
+    --presence-avatar-size: 48px;
+    --presence-dot-ratio: 0.24;
+    --presence-dot-size: calc(var(--presence-avatar-size) * var(--presence-dot-ratio));
+    --presence-dot-border-ratio: 0.045;
+    --presence-dot-border-size: calc(var(--presence-avatar-size) * var(--presence-dot-border-ratio));
+    --presence-diagonal-inset-ratio: 0.1464466;
+    right: calc(
+        (var(--presence-avatar-size) * var(--presence-diagonal-inset-ratio)) -
+            (var(--presence-dot-size) / 2)
+    );
+    bottom: calc(
+        (var(--presence-avatar-size) * var(--presence-diagonal-inset-ratio)) -
+            (var(--presence-dot-size) / 2)
+    );
+    width: var(--presence-dot-size);
+    height: var(--presence-dot-size);
     background: var(--success);
     border-radius: 50%;
-    border: 2px solid var(--bg-primary);
+    border: var(--presence-dot-border-size) solid var(--bg-primary);
 }
 
 /* Messages Area */

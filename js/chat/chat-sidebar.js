@@ -28,10 +28,16 @@ const ChatSidebar = {
     },
 
     normalizeId(value) {
+        if (window.PresenceUI && typeof window.PresenceUI.normalizeAccountId === 'function') {
+            return window.PresenceUI.normalizeAccountId(value);
+        }
         return (value || '').toString().toLowerCase();
     },
 
     getPrivateOtherAccountId(conv = {}) {
+        if (window.PresenceUI && typeof window.PresenceUI.getPrivateOtherAccountId === 'function') {
+            return window.PresenceUI.getPrivateOtherAccountId(conv);
+        }
         const isGroup = !!(conv.isGroup ?? conv.IsGroup);
         if (isGroup) return '';
         return this.normalizeId(
@@ -44,6 +50,10 @@ const ChatSidebar = {
     },
 
     getPresenceStatusForConversation(conv = {}) {
+        if (window.PresenceUI && typeof window.PresenceUI.resolveConversationStatus === 'function') {
+            return window.PresenceUI.resolveConversationStatus(conv, '');
+        }
+
         const isGroup = !!(conv.isGroup ?? conv.IsGroup);
         if (isGroup) {
             return {
@@ -55,6 +65,11 @@ const ChatSidebar = {
         }
 
         const accountId = this.getPrivateOtherAccountId(conv);
+        const legacyIsOnline = !!(
+            conv.otherMember?.isOnline ??
+            conv.otherMember?.IsOnline ??
+            false
+        );
         if (window.PresenceStore && typeof window.PresenceStore.resolveStatus === 'function') {
             return window.PresenceStore.resolveStatus({
                 accountId
@@ -71,6 +86,12 @@ const ChatSidebar = {
 
     initPresenceTracking() {
         if (this._presenceUnsubscribe) return;
+        if (window.PresenceUI && typeof window.PresenceUI.subscribe === 'function') {
+            this._presenceUnsubscribe = window.PresenceUI.subscribe((payload) => {
+                this.refreshPresenceIndicators(payload?.changedAccountIds || []);
+            });
+            return;
+        }
         if (!window.PresenceStore || typeof window.PresenceStore.subscribe !== 'function') return;
 
         this._presenceUnsubscribe = window.PresenceStore.subscribe((payload) => {
@@ -79,6 +100,14 @@ const ChatSidebar = {
     },
 
     syncPresenceSnapshotForConversations(conversations, options = {}) {
+        if (window.PresenceUI && typeof window.PresenceUI.ensureSnapshotForConversations === 'function') {
+            window.PresenceUI.ensureSnapshotForConversations(conversations, options)
+                .catch((error) => {
+                    console.warn('[ChatSidebar] Presence snapshot sync failed:', error);
+                });
+            return;
+        }
+
         if (!window.PresenceStore || typeof window.PresenceStore.ensureSnapshotForConversations !== 'function') {
             return;
         }
