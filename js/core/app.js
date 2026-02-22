@@ -59,6 +59,13 @@ function closeAllOverlayModals() {
        else createModal.classList.remove("show");
   }
 
+  // Create Story
+  const createStoryModal = document.getElementById("createStoryModal");
+  if (createStoryModal && createStoryModal.classList.contains("show")) {
+      if (window.closeCreateStoryModal) window.closeCreateStoryModal();
+      else createStoryModal.classList.remove("show");
+  }
+
   // React List
   if (window.InteractionModule && typeof window.InteractionModule.closeReactList === 'function') {
       const interactModal = document.getElementById("interactionModal");
