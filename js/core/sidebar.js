@@ -2,17 +2,21 @@
 window.updateSidebarInfo = function (url, name) {
   const avatarElement = document.getElementById("sidebar-avatar");
   const nameElement = document.getElementById("sidebar-name");
-  
+
   if (avatarElement) {
     if (!url || url === "null" || url.trim() === "") {
-        avatarElement.src = APP_CONFIG.DEFAULT_AVATAR;
+      avatarElement.src = APP_CONFIG.DEFAULT_AVATAR;
     } else {
-        avatarElement.src = url;
+      avatarElement.src = url;
     }
   }
 
   if (nameElement) {
-    nameElement.textContent = name || localStorage.getItem("username") || localStorage.getItem("fullname") || "User";
+    nameElement.textContent =
+      name ||
+      localStorage.getItem("username") ||
+      localStorage.getItem("fullname") ||
+      "User";
   }
 };
 
@@ -42,6 +46,9 @@ async function loadSidebar() {
   // Load create post modal
   await loadCreatePostModal();
 
+  // Load create story modal
+  await loadCreateStoryModal();
+
   // Load create group modal
   await loadCreateChatGroupModal();
 
@@ -49,9 +56,9 @@ async function loadSidebar() {
   document.getElementById("sidebar").addEventListener("click", (e) => {
     const menuItem = e.target.closest(".menu-item, .dropdown-item");
     if (menuItem && menuItem.dataset.route) {
-        if (!menuItem.getAttribute("onclick")) {
-            navigate(e, menuItem.dataset.route, menuItem);
-        }
+      if (!menuItem.getAttribute("onclick")) {
+        navigate(e, menuItem.dataset.route, menuItem);
+      }
     }
   });
 
@@ -74,7 +81,7 @@ async function loadGlobalMessageBadge() {
       setGlobalMessageBadge(data.count);
     }
   } catch (err) {
-    console.error('Failed to load global message badge:', err);
+    console.error("Failed to load global message badge:", err);
   }
 }
 
@@ -92,14 +99,14 @@ window.scheduleGlobalUnreadRefresh = scheduleGlobalUnreadRefresh;
  * Set the global Messages badge to an exact value.
  */
 function setGlobalMessageBadge(count) {
-  const badge = document.getElementById('messages-badge');
+  const badge = document.getElementById("messages-badge");
   if (!badge) return;
   if (count > 0) {
-    badge.textContent = count > 9 ? '9+' : count;
-    badge.style.display = '';
+    badge.textContent = count > 9 ? "9+" : count;
+    badge.style.display = "";
   } else {
-    badge.textContent = '';
-    badge.style.display = 'none';
+    badge.textContent = "";
+    badge.style.display = "none";
   }
   badge.dataset.count = count;
 }
@@ -264,6 +271,19 @@ async function loadCreatePostModal() {
   lucide.createIcons();
 }
 
+async function loadCreateStoryModal() {
+  if (document.getElementById("createStoryModal")) return;
+
+  const res = await fetch("pages/story/create-story-modal.html");
+  const modalHTML = await res.text();
+
+  const tempDiv = document.createElement("div");
+  tempDiv.innerHTML = modalHTML;
+  document.body.appendChild(tempDiv.firstElementChild);
+
+  lucide.createIcons();
+}
+
 document.addEventListener("click", (e) => {
   const sidebar = document.querySelector(".sidebar");
   const moreDropdown = document.getElementById("moreDropdown");
@@ -283,14 +303,14 @@ document.addEventListener("click", (e) => {
   }
 });
 
-
 function setActiveSidebar(route) {
   // Normalize route to plain path
-  let targetRoute = route || (window.location.hash || "#/home").slice(1).split("?")[0];
-  
+  let targetRoute =
+    route || (window.location.hash || "#/home").slice(1).split("?")[0];
+
   // Ensure targetRoute starts with /
   if (targetRoute && !targetRoute.startsWith("/")) {
-      targetRoute = "/" + targetRoute;
+    targetRoute = "/" + targetRoute;
   }
 
   const myId = localStorage.getItem("accountId")?.toLowerCase();
@@ -298,124 +318,144 @@ function setActiveSidebar(route) {
 
   // Helper inside to check if a route belongs to ME
   const isRouteMine = (r) => {
-      if (r === "/profile") return true;
-      if (!r.startsWith("/profile/")) return false;
-      const param = r.replace("/profile/", "").toLowerCase();
-      return param === myId || param === myUsername;
+    if (r === "/profile") return true;
+    if (!r.startsWith("/profile/")) return false;
+    const param = r.replace("/profile/", "").toLowerCase();
+    return param === myId || param === myUsername;
   };
 
   const hash = window.location.hash || "";
-  const isViewingOtherProfile = (hash.includes("/profile/") || hash.includes("/profile?")) && !isRouteMine(targetRoute);
+  const isViewingOtherProfile =
+    (hash.includes("/profile/") || hash.includes("/profile?")) &&
+    !isRouteMine(targetRoute);
 
   // Helper for home route equivalence
   const isHome = (r) => r === "/" || r === "/home" || r === "";
 
   document.querySelectorAll(".sidebar .menu-item").forEach((item) => {
-      const dataRoute = item.dataset.route;
-      const href = item.getAttribute("href")?.replace("#", "");
+    const dataRoute = item.dataset.route;
+    const href = item.getAttribute("href")?.replace("#", "");
 
-      let isActive = (dataRoute === targetRoute) || 
-                       (href === targetRoute) ||
-                       (isHome(dataRoute) && isHome(targetRoute)) ||
-                       (dataRoute === "/profile" && isRouteMine(targetRoute));
+    let isActive =
+      dataRoute === targetRoute ||
+      href === targetRoute ||
+      (isHome(dataRoute) && isHome(targetRoute)) ||
+      (dataRoute === "/profile" && isRouteMine(targetRoute));
 
-      // Special case: Profile button only active if it's our OWN profile (no params)
-      if (dataRoute === "/profile" && isViewingOtherProfile) {
-          isActive = false;
-      }
+    // Special case: Profile button only active if it's our OWN profile (no params)
+    if (dataRoute === "/profile" && isViewingOtherProfile) {
+      isActive = false;
+    }
 
-      item.classList.toggle("active", isActive);
+    item.classList.toggle("active", isActive);
   });
 }
 
 // Global navigate function to handle page changes and reloads
 function navigate(e, route, clickedEl = null) {
   const targetEl = clickedEl || e.currentTarget;
-  
+
   // 1. Special actions
   if (route === "/create/post") {
-      e.preventDefault();
-      if (window.openCreatePostModal) openCreatePostModal();
-      closeAllDropdowns();
-      return;
+    e.preventDefault();
+    if (window.openCreatePostModal) openCreatePostModal();
+    closeAllDropdowns();
+    return;
+  }
+
+  if (route === "/create/story") {
+    e.preventDefault();
+    if (window.openCreateStoryModal) openCreateStoryModal();
+    closeAllDropdowns();
+    return;
   }
 
   if (route === "/messages") {
-      e.preventDefault();
-      if (window.toggleChatSidebar) window.toggleChatSidebar();
-      closeAllDropdowns();
-      return;
+    e.preventDefault();
+    if (window.toggleChatSidebar) window.toggleChatSidebar();
+    closeAllDropdowns();
+    return;
   }
-  
+
   const currentHash = window.location.hash || "#/";
   const targetHash = route.startsWith("#") ? route : `#${route}`;
 
   // Helper to check if a hash is "Home"
   const isHome = (h) => h === "#/" || h === "#/home" || h === "";
-  
+
   // 2. Check if clicking same page (ignoring parameters for reload check) -> Force Reload
   // Path-based same page check
   const currentPath = currentHash.split("?")[0];
   const targetPath = targetHash.split("?")[0];
-  const isSamePath = (currentPath === targetPath) || (isHome(currentPath) && isHome(targetPath));
+  const isSamePath =
+    currentPath === targetPath || (isHome(currentPath) && isHome(targetPath));
 
   if (isSamePath) {
-      e.preventDefault();
+    e.preventDefault();
 
-      // Fix ReferenceError: Check if we are currently on a foreign profile
-      const myId = localStorage.getItem("accountId")?.toLowerCase();
-      const myUsername = localStorage.getItem("username")?.toLowerCase();
-      const isRouteMine = (r) => {
-          if (r === "/profile") return true;
-          if (!r.startsWith("/profile/")) return false;
-          const param = r.replace("/profile/", "").toLowerCase();
-          return param === myId || param === myUsername;
-      };
-      
-      const currentPathOnly = currentHash.slice(1).split("?")[0];
-      const isViewingOtherProfile = (currentHash.includes("/profile/") || currentHash.includes("/profile?")) && !isRouteMine(currentPathOnly);
+    // Fix ReferenceError: Check if we are currently on a foreign profile
+    const myId = localStorage.getItem("accountId")?.toLowerCase();
+    const myUsername = localStorage.getItem("username")?.toLowerCase();
+    const isRouteMine = (r) => {
+      if (r === "/profile") return true;
+      if (!r.startsWith("/profile/")) return false;
+      const param = r.replace("/profile/", "").toLowerCase();
+      return param === myId || param === myUsername;
+    };
 
-      if (route === "/profile" && isViewingOtherProfile) {
-          window.location.hash = "#/profile";
-          closeAllDropdowns();
-          return;
-      }
-      
-      if (window.reloadPage) window.reloadPage();
+    const currentPathOnly = currentHash.slice(1).split("?")[0];
+    const isViewingOtherProfile =
+      (currentHash.includes("/profile/") ||
+        currentHash.includes("/profile?")) &&
+      !isRouteMine(currentPathOnly);
+
+    if (route === "/profile" && isViewingOtherProfile) {
+      window.location.hash = "#/profile";
       closeAllDropdowns();
       return;
+    }
+
+    if (window.reloadPage) window.reloadPage();
+    closeAllDropdowns();
+    return;
   }
 
   // 3. Different page: Navigate
   const hasHref = targetEl && targetEl.getAttribute("href");
-  
+
   // NORMALIZE navigation function
   const executeFinalNavigation = () => {
     // Clear account settings cache if we are leaving it
     if (window.location.hash === "#/account-settings") {
-        if (window.PageCache) PageCache.clear("#/account-settings");
+      if (window.PageCache) PageCache.clear("#/account-settings");
     }
-    
+
     // Manually update hash since we might have prevented default
     if (window.location.hash !== targetHash) {
-        window.location.hash = targetHash;
+      window.location.hash = targetHash;
     }
-    
+
     window.onbeforeunload = null; // Clear guard
     closeAllDropdowns();
   };
 
   // INTERCEPT: Check for dirty Account Settings
-  if (window.location.hash === "#/account-settings" && window.getAccountSettingsModified && window.getAccountSettingsModified()) {
-      e.preventDefault(); // CHẶN NGAY việc trình duyệt tự thay đổi hash
-      
-      if (window.showDiscardAccountSettingsConfirmation) {
-          window.showDiscardAccountSettingsConfirmation(
-              () => executeFinalNavigation(), // On Discard: Go ahead
-              () => { /* On Keep: Do nothing, already prevented default */ }
-          );
-          return;
-      }
+  if (
+    window.location.hash === "#/account-settings" &&
+    window.getAccountSettingsModified &&
+    window.getAccountSettingsModified()
+  ) {
+    e.preventDefault(); // CHẶN NGAY việc trình duyệt tự thay đổi hash
+
+    if (window.showDiscardAccountSettingsConfirmation) {
+      window.showDiscardAccountSettingsConfirmation(
+        () => executeFinalNavigation(), // On Discard: Go ahead
+        () => {
+          /* On Keep: Do nothing, already prevented default */
+        },
+      );
+      return;
+    }
   }
 
   executeFinalNavigation();
@@ -424,7 +464,10 @@ function navigate(e, route, clickedEl = null) {
 // Theme toggle functionality
 function toggleTheme(e) {
   e.stopPropagation();
-  if (window.themeManager && typeof window.themeManager.toggleTheme === "function") {
+  if (
+    window.themeManager &&
+    typeof window.themeManager.toggleTheme === "function"
+  ) {
     window.themeManager.toggleTheme();
     return;
   }
@@ -446,7 +489,10 @@ function toggleTheme(e) {
 }
 
 function loadThemePreference() {
-  if (window.themeManager && typeof window.themeManager.getTheme === "function") {
+  if (
+    window.themeManager &&
+    typeof window.themeManager.getTheme === "function"
+  ) {
     const theme = window.themeManager.getTheme();
     if (window.themeManager.setTheme) {
       window.themeManager.setTheme(theme);
