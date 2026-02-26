@@ -1,6 +1,7 @@
 (function (global) {
   const STORY_URL_PARAM = "storyId";
-  const DEFAULT_STORY_DURATION_MS = 5000;
+  const DEFAULT_STORY_DURATION_MS =
+    global.APP_CONFIG?.STORY_DEFAULT_DURATION_MS || 5000;
   const PROGRESS_TICK_MS = 50;
   const URL_STORY_RESOLVE_PAGE_SIZE = 20;
   const URL_STORY_RESOLVE_MAX_PAGES = 10;
@@ -49,6 +50,12 @@
     shouldSyncUrl: true,
     modal: null,
     dom: {},
+    isViewersListOpen: false,
+    viewersPage: 1,
+    viewersHasMore: true,
+    viewersIsLoading: false,
+    viewersTotalCount: 0,
+    viewersTargetStoryId: null,
   };
 
   function stEscapeHtml(value) {
@@ -142,6 +149,26 @@
   function stReadString(payload, camelKey, pascalKey, fallbackValue = "") {
     const value = payload?.[camelKey] ?? payload?.[pascalKey];
     return value == null ? fallbackValue : String(value);
+  }
+
+  function stGetReactionEmoji(reactType) {
+    const type = Number(reactType);
+    switch (type) {
+      case 0:
+        return "👍";
+      case 1:
+        return "❤️";
+      case 2:
+        return "😆";
+      case 3:
+        return "😮";
+      case 4:
+        return "😢";
+      case 5:
+        return "😡";
+      default:
+        return "";
+    }
   }
 
   function stResolveStoryContentType(story) {
@@ -327,6 +354,19 @@
               <button type="button" class="sn-story-viewer-react-btn" data-story-react="😡" aria-label="Angry">😡</button>
             </div>
           </div>
+          <div class="sn-story-viewer-viewers-panel sn-story-viewer-panel-hidden" id="storyViewersPanel">
+            <div class="sn-story-viewer-viewers-header">
+              <span class="sn-story-viewer-viewers-title">Story Viewers <span class="sn-story-viewer-viewers-total" id="storyViewersTotalCount"></span></span>
+              <button type="button" class="sn-story-viewer-viewers-close" id="storyViewersCloseBtn" aria-label="Close viewers list">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+            <div class="sn-story-viewer-viewers-list" id="storyViewersList"></div>
+            <div class="sn-story-viewer-viewers-loading sn-story-viewer-hidden" id="storyViewersLoading">Loading...</div>
+          </div>
         </div>
         <button type="button" class="sn-story-viewer-nav sn-story-viewer-nav-prev" id="storyViewerPrevBtn" aria-label="Previous story">
           <svg class="sn-story-viewer-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -359,6 +399,11 @@
       moreBtn: modal.querySelector("#storyViewerMoreBtn"),
       moreMenu: modal.querySelector("#storyViewerMoreMenu"),
       privacy: modal.querySelector("#storyViewerPrivacy"),
+      viewersPanel: modal.querySelector("#storyViewersPanel"),
+      viewersList: modal.querySelector("#storyViewersList"),
+      viewersCloseBtn: modal.querySelector("#storyViewersCloseBtn"),
+      viewersLoading: modal.querySelector("#storyViewersLoading"),
+      viewersTotalCount: modal.querySelector("#storyViewersTotalCount"),
     };
 
     modal.addEventListener("click", (event) => {
@@ -420,6 +465,32 @@
       viewerState.dom.moreBtn.addEventListener("click", (event) => {
         event.stopPropagation();
         stToggleMoreMenu();
+      });
+    }
+
+    // Insight click to open viewers list
+    if (viewerState.dom.insight) {
+      viewerState.dom.insight.addEventListener("click", () => {
+        stOpenViewersList();
+      });
+    }
+
+    // Close viewers list
+    if (viewerState.dom.viewersCloseBtn) {
+      viewerState.dom.viewersCloseBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        stCloseViewersList();
+      });
+    }
+
+    // Viewers list scroll (infinite scroll)
+    if (viewerState.dom.viewersList) {
+      viewerState.dom.viewersList.addEventListener("scroll", () => {
+        const { scrollTop, scrollHeight, clientHeight } =
+          viewerState.dom.viewersList;
+        if (scrollTop + clientHeight >= scrollHeight - 30) {
+          stLoadMoreViewers();
+        }
       });
     }
 
@@ -633,26 +704,6 @@
       ? (summary.topViewers ?? summary.TopViewers)
       : [];
 
-    const stGetReactionEmoji = (reactType) => {
-      const type = Number(reactType);
-      switch (type) {
-        case 0:
-          return "👍";
-        case 1:
-          return "❤️";
-        case 2:
-          return "😆";
-        case 3:
-          return "😮";
-        case 4:
-          return "😢";
-        case 5:
-          return "😡";
-        default:
-          return "";
-      }
-    };
-
     let topViewersHtml = topViewers
       .slice(0, 3)
       .map((viewer, index) => {
@@ -696,6 +747,141 @@
     `;
   }
 
+  async function stOpenViewersList() {
+    const story = stCurrentStory();
+    if (!story || !viewerState.dom.viewersPanel) return;
+
+    viewerState.isViewersListOpen = true;
+    viewerState.viewersTargetStoryId = story.storyId; // Lock target
+    viewerState.viewersPage = 1;
+    viewerState.viewersHasMore = true;
+    viewerState.viewersTotalCount = story.viewSummary?.totalViews || 0;
+    if (viewerState.dom.viewersTotalCount) {
+      viewerState.dom.viewersTotalCount.textContent = `(${viewerState.viewersTotalCount})`;
+    }
+    viewerState.dom.viewersList.innerHTML = "";
+    viewerState.dom.viewersPanel.classList.remove(
+      "sn-story-viewer-panel-hidden",
+    );
+
+    // Pause story
+    stToggleStoryPause(true);
+
+    await stLoadMoreViewers();
+  }
+
+  function stCloseViewersList() {
+    if (!viewerState.dom.viewersPanel) return;
+
+    const targetId = viewerState.viewersTargetStoryId;
+    viewerState.isViewersListOpen = false;
+    viewerState.dom.viewersPanel.classList.add("sn-story-viewer-panel-hidden");
+
+    // Sync back only to the correct story
+    if (targetId) {
+      const targetStory = viewerState.stories.find(
+        (s) => s.storyId === targetId,
+      );
+      if (targetStory && targetStory.viewSummary) {
+        targetStory.viewSummary.totalViews = viewerState.viewersTotalCount;
+      }
+
+      // If that story is still the current one visible, update UI element
+      const current = stCurrentStory();
+      if (current && current.storyId === targetId) {
+        const countEl = viewerState.dom.insight?.querySelector(
+          ".sn-story-viewer-self-count",
+        );
+        if (countEl) {
+          countEl.textContent = viewerState.viewersTotalCount;
+        }
+      }
+    }
+
+    viewerState.viewersTargetStoryId = null;
+
+    // Resume story
+    stToggleStoryPause(false);
+  }
+
+  async function stLoadMoreViewers() {
+    if (viewerState.viewersIsLoading || !viewerState.viewersHasMore) return;
+    const story = stCurrentStory();
+    if (!story) return;
+
+    viewerState.viewersIsLoading = true;
+    if (viewerState.dom.viewersLoading) {
+      viewerState.dom.viewersLoading.classList.remove("sn-story-viewer-hidden");
+    }
+
+    try {
+      const res = await global.API.Stories.getViewers(
+        story.storyId,
+        viewerState.viewersPage,
+      );
+      if (res.ok) {
+        const payload = await res.json();
+        const items = payload.items || [];
+
+        // Prevent updating if story changed during async load
+        if (viewerState.viewersTargetStoryId === story.storyId) {
+          viewerState.viewersTotalCount = payload.totalItems || 0;
+          if (viewerState.dom.viewersTotalCount) {
+            viewerState.dom.viewersTotalCount.textContent = `(${viewerState.viewersTotalCount})`;
+          }
+        }
+
+        stRenderViewersListItems(items);
+
+        viewerState.viewersPage += 1;
+        viewerState.viewersHasMore = items.length >= (payload.pageSize || 20);
+      } else {
+        viewerState.viewersHasMore = false;
+      }
+    } catch (err) {
+      console.error("Error loading viewers:", err);
+      viewerState.viewersHasMore = false;
+    } finally {
+      viewerState.viewersIsLoading = false;
+      if (viewerState.dom.viewersLoading) {
+        viewerState.dom.viewersLoading.classList.add("sn-story-viewer-hidden");
+      }
+    }
+  }
+
+  function stRenderViewersListItems(viewers) {
+    if (!viewerState.dom.viewersList) return;
+
+    const html = viewers
+      .map((v, index) => {
+        const username = v.username || v.Username || "user";
+        const fullName = v.fullName || v.FullName || "";
+        const avatarUrl =
+          v.avatarUrl || v.AvatarUrl || global.APP_CONFIG.DEFAULT_AVATAR;
+        const emoji = stGetReactionEmoji(v.reactType ?? v.ReactType);
+        const accountId = v.accountId || v.AccountId || "";
+        const delay = index * 0.04; // Staggered delay
+
+        return `
+        <div class="sn-story-viewer-viewers-item" style="animation-delay: ${delay}s">
+          <div class="sn-story-viewer-viewers-item-left post-user" data-account-id="${stEscapeAttr(accountId)}">
+            <img class="sn-story-viewer-viewers-item-avatar post-avatar" src="${stEscapeAttr(avatarUrl)}" alt="${stEscapeAttr(username)}">
+            <div class="sn-story-viewer-viewers-item-info">
+              <span class="sn-story-viewer-viewers-item-username post-username">${stEscapeHtml(username)}</span>
+              <span class="sn-story-viewer-viewers-item-fullname post-username">${stEscapeHtml(fullName)}</span>
+            </div>
+          </div>
+          <div class="sn-story-viewer-viewers-item-right">
+            ${emoji ? `<span class="sn-story-viewer-viewers-item-react">${emoji}</span>` : ""}
+          </div>
+        </div>
+      `;
+      })
+      .join("");
+
+    viewerState.dom.viewersList.insertAdjacentHTML("beforeend", html);
+  }
+
   function stHandleReplySubmit() {
     if (stIsOwnStory()) return;
     const inputEl = viewerState.dom.replyInput;
@@ -729,18 +915,25 @@
 
     try {
       if (!global.API?.Stories?.toggleReact) return;
-      const res = await global.API.Stories.toggleReact(story.storyId, reactType);
+      const res = await global.API.Stories.toggleReact(
+        story.storyId,
+        reactType,
+      );
       if (res.ok) {
         const updatedStory = await res.json();
         // Update local state
         story.currentUserReactType = updatedStory.currentUserReactType;
         // Re-highlight
         stHighlightUserReact(story.currentUserReactType);
-        
+
         // Optional: show small toast or subtle feedback
         if (typeof global.toastSuccess === "function") {
-          const isUnreact = story.currentUserReactType === null || story.currentUserReactType === undefined;
-          global.toastSuccess(isUnreact ? "Reaction removed" : `Reacted ${emoji}`);
+          const isUnreact =
+            story.currentUserReactType === null ||
+            story.currentUserReactType === undefined;
+          global.toastSuccess(
+            isUnreact ? "Reaction removed" : `Reacted ${emoji}`,
+          );
         }
       } else {
         if (typeof global.toastError === "function") {
@@ -1211,7 +1404,9 @@
         e.stopPropagation();
         video.muted = !video.muted;
         const mutedIcon = muteBtn.querySelector(".sn-story-mute-icon--muted");
-        const unmutedIcon = muteBtn.querySelector(".sn-story-mute-icon--unmuted");
+        const unmutedIcon = muteBtn.querySelector(
+          ".sn-story-mute-icon--unmuted",
+        );
         if (video.muted) {
           mutedIcon.style.display = "";
           unmutedIcon.style.display = "none";
@@ -1285,6 +1480,7 @@
   }
 
   function stRenderCurrentStory(direction = "fade") {
+    stCloseViewersList();
     const story = stCurrentStory();
     if (!story) {
       stCloseViewer();
@@ -1643,6 +1839,7 @@
   }
 
   function stCloseViewer() {
+    stCloseViewersList();
     stStopProgressTimer();
     stPauseAnyVideo();
     stCloseMoreMenu();
