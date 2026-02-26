@@ -23,7 +23,10 @@ const ChatCommon = {
   },
 
   resolveStoryRingClass(storyRingState) {
-    const normalizedState = (storyRingState ?? "").toString().trim().toLowerCase();
+    const normalizedState = (storyRingState ?? "")
+      .toString()
+      .trim()
+      .toLowerCase();
 
     if (
       storyRingState === 2 ||
@@ -52,9 +55,7 @@ const ChatCommon = {
     const otherMember = conv.otherMember || conv.OtherMember || null;
     if (otherMember && typeof otherMember === "object") {
       const memberState =
-        otherMember.storyRingState ??
-        otherMember.StoryRingState ??
-        null;
+        otherMember.storyRingState ?? otherMember.StoryRingState ?? null;
       if (memberState !== null && memberState !== undefined) return memberState;
     }
 
@@ -68,7 +69,8 @@ const ChatCommon = {
     const avatar = this.getAvatar(conv);
     const name = options.name || this.getDisplayName(conv);
     const className = options.className || "chat-avatar";
-    const onError = options.onError || `this.src='${APP_CONFIG.DEFAULT_AVATAR}'`;
+    const onError =
+      options.onError || `this.src='${APP_CONFIG.DEFAULT_AVATAR}'`;
     const skipTitle = !!options.skipTitle;
     const titleAttr = skipTitle ? "" : ` title="${escapeHtml(name)}"`;
 
@@ -81,17 +83,20 @@ const ChatCommon = {
         ? groupAvatars.filter((_, index) => index in groupAvatars)
         : [];
       const membersToShow = normalizedGroupAvatars.slice(0, 4);
-      
+
       if (membersToShow.length > 0) {
         // Build composite avatar UI for members
         let compositeHtml = `<div class="${className} composite-group-avatar count-${membersToShow.length}"${titleAttr}>`;
-        
+
         membersToShow.forEach((url, i) => {
-            const fallbackAvatar = APP_CONFIG.DEFAULT_AVATAR;
-            const safeUrl = (url && typeof url === 'string' && url.trim().length > 0) ? escapeHtml(url) : fallbackAvatar;
-            compositeHtml += `<img src="${safeUrl}" alt="Member avatar" class="composite-avatar-part item-${i}" onerror="this.src='${fallbackAvatar}';">`;
+          const fallbackAvatar = APP_CONFIG.DEFAULT_AVATAR;
+          const safeUrl =
+            url && typeof url === "string" && url.trim().length > 0
+              ? escapeHtml(url)
+              : fallbackAvatar;
+          compositeHtml += `<img src="${safeUrl}" alt="Member avatar" class="composite-avatar-part item-${i}" onerror="this.src='${fallbackAvatar}';">`;
         });
-        
+
         compositeHtml += `</div>`;
         return compositeHtml;
       }
@@ -114,8 +119,11 @@ const ChatCommon = {
 
     if (storyRingClass) {
       const otherMember = conv?.otherMember || conv?.OtherMember || null;
-      const storyAuthorId = otherMember?.accountId || otherMember?.AccountId || "";
-      const storyAuthorAttr = storyAuthorId ? ` data-story-author-id="${escapeHtml(storyAuthorId)}"` : "";
+      const storyAuthorId =
+        otherMember?.accountId || otherMember?.AccountId || "";
+      const storyAuthorAttr = storyAuthorId
+        ? ` data-story-author-id="${escapeHtml(storyAuthorId)}"`
+        : "";
       return `<span class="post-avatar-ring ${storyRingClass}${storyRingExtraClass}"${storyRingStyleAttr}${storyAuthorAttr}><img src="${avatar}" alt="${escapeHtml(name)}"${titleAttr} class="${className} post-avatar" onerror="${onError}"></span>`;
     }
 
@@ -1319,6 +1327,7 @@ const ChatCommon = {
       if (normalized === "text") return 1;
       if (normalized === "media") return 2;
       if (normalized === "system") return 3;
+      if (normalized === "storyreply") return 4;
     }
 
     return rawType;
@@ -1992,9 +2001,7 @@ const ChatCommon = {
       username,
       avatarUrl,
       storyRingState:
-        normalized.storyRingState ??
-        normalized.StoryRingState ??
-        null,
+        normalized.storyRingState ?? normalized.StoryRingState ?? null,
       nickname,
     };
   },
@@ -3183,6 +3190,122 @@ const ChatCommon = {
                                 <div class="msg-reply-author">${escapeHtml(rtSenderName)}</div>
                                 <div class="msg-reply-text">${rtPreview}</div>
                             </div>`;
+                        })()}
+                        ${(() => {
+                          // --- Story Reply Preview ---
+                          if (messageType === 4) {
+                            const sri =
+                              msg.storyReplyInfo || msg.StoryReplyInfo;
+                            if (!sri || sri.isStoryExpired) {
+                              return `<div class="msg-story-reply-preview msg-story-reply-expired">
+                                <div class="msg-story-reply-expired-icon"><i data-lucide="image-off"></i></div>
+                                <span>Story is no longer available</span>
+                              </div>`;
+                            }
+                            if (sri) {
+                              const ct = Number(sri.contentType ?? 0);
+                              let thumbHtml = "";
+                              if (ct === 2) {
+                                const bgKeyRaw = (
+                                  sri.backgroundColorKey ||
+                                  sri.BackgroundColorKey ||
+                                  "accent"
+                                ).toLowerCase();
+                                const txtColorKeyRaw = (
+                                  sri.textColorKey ||
+                                  sri.TextColorKey ||
+                                  "light"
+                                ).toLowerCase();
+                                const fontKeyRaw = (
+                                  sri.fontTextKey ||
+                                  sri.FontTextKey ||
+                                  "modern"
+                                ).toLowerCase();
+                                const fontSizeRaw = parseInt(
+                                  sri.fontSizeKey || sri.FontSizeKey || "32",
+                                  10,
+                                );
+
+                                const thumbFontSizePx = Math.round(
+                                  fontSizeRaw * 0.38,
+                                );
+
+                                let bgCss =
+                                  "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
+                                let colorCss = "#fff";
+                                let fontCss = "inherit";
+
+                                if (
+                                  window.STORY_TEXT_EDITOR_CONFIG &&
+                                  window.STORY_TEXT_EDITOR_CONFIG.options
+                                ) {
+                                  let opts =
+                                    window.STORY_TEXT_EDITOR_CONFIG.options;
+
+                                  const getIgnoreCase = (obj, key) => {
+                                    if (!obj || !key) return null;
+                                    const lk = key.toLowerCase();
+                                    const foundKey = Object.keys(obj).find(
+                                      (k) => k.toLowerCase() === lk,
+                                    );
+                                    return foundKey ? obj[foundKey] : null;
+                                  };
+
+                                  const getCssValue = (optsObj, keyRaw) => {
+                                    const matched = getIgnoreCase(
+                                      optsObj,
+                                      keyRaw,
+                                    );
+                                    return matched ? matched.css : null;
+                                  };
+
+                                  const matchedBg = getCssValue(
+                                    opts.backgrounds,
+                                    bgKeyRaw,
+                                  );
+                                  if (matchedBg) bgCss = matchedBg;
+
+                                  const matchedColor = getCssValue(
+                                    opts.textColors,
+                                    txtColorKeyRaw,
+                                  );
+                                  if (matchedColor) colorCss = matchedColor;
+
+                                  const matchedFont = getCssValue(
+                                    opts.fonts,
+                                    fontKeyRaw,
+                                  );
+                                  if (matchedFont) fontCss = matchedFont;
+                                }
+
+                                const txt =
+                                  sri.textContent || sri.TextContent || "";
+                                const truncated =
+                                  txt.length > 50
+                                    ? txt.substring(0, 50) + "\u2026"
+                                    : txt;
+                                thumbHtml = `<div class="msg-story-reply-thumb msg-story-reply-text-thumb" style="background:${bgCss};color:${colorCss};font-family:${fontCss};font-size:${thumbFontSizePx}px;">
+                                  <span>${escapeHtml(truncated)}</span>
+                                </div>`;
+                              } else if (ct === 1 && sri.mediaUrl) {
+                                // Video story
+                                thumbHtml = `<div class="msg-story-reply-thumb">
+                                  <video src="${escapeHtml(sri.mediaUrl)}" muted></video>
+                                  <div class="msg-story-reply-play"><i data-lucide="play"></i></div>
+                                </div>`;
+                              } else if (sri.mediaUrl) {
+                                // Image story
+                                thumbHtml = `<div class="msg-story-reply-thumb">
+                                  <img src="${escapeHtml(sri.mediaUrl)}" alt="Story" loading="lazy">
+                                </div>`;
+                              }
+                              return `<div class="msg-story-reply-preview" data-story-id="${escapeHtml(sri.storyId)}" onclick="if(window.openStoryViewerByStoryId) window.openStoryViewerByStoryId('${sri.storyId}')" style="cursor: pointer;">
+                                <div class="msg-story-reply-label"><i data-lucide="reply"></i> Replied to story</div>
+                                ${thumbHtml}
+                              </div>`;
+                            }
+                          }
+                          return "";
                         })()}
                         ${
                           isRecalled || msg.content

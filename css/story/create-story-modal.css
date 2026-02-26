@@ -163,6 +163,8 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  position: relative;
+  z-index: 10;
 }
 
 #createStoryModal .create-story-preview-shell {
@@ -174,7 +176,7 @@
   margin: 0 auto;
   flex-shrink: 0;
   border-radius: 0;
-  overflow: hidden;
+  overflow: visible;
   background: linear-gradient(
     135deg,
     var(--bg-primary) 0%,
