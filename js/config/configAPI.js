@@ -536,6 +536,8 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ reactType }),
         }),
+      getViewers: (storyId, page = 1, pageSize = 20) =>
+        apiFetch(`/Stories/${storyId}/viewers?page=${page}&pageSize=${pageSize}`),
     },
 
     Comments: {
