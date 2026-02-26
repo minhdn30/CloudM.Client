@@ -179,5 +179,6 @@
     GROUP_CHAT_AVATAR_MAX_SIZE_MB: 5, // Max allowed group avatar upload size (MB)
     STORY_VIDEO_MAX_DURATION_SEC: 20, // Thời lượng tối đa của story video (giây)
     STORY_VIDEO_MAX_SIZE_MB: 10, // Dung lượng tối đa của story video (MB)
+    STORY_DEFAULT_DURATION_MS: 5000, // Thời gian mặc định hiển thị 1 story ảnh/text (ms)
   };
 })(window);
