@@ -866,6 +866,12 @@
         apiFetch(`/Messages/hide/${messageId}`, { method: "POST" }),
       recall: (messageId) =>
         apiFetch(`/Messages/recall/${messageId}`, { method: "POST" }),
+      storyReply: (data) =>
+        apiFetch("/Messages/story-reply", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        }),
     },
   };
 

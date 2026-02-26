@@ -330,7 +330,7 @@
           </div>
           <div class="sn-story-viewer-self-insight sn-story-viewer-hidden" id="storyViewerSelfInsight"></div>
           <div class="sn-story-viewer-actions sn-story-viewer-hidden" id="storyViewerActions">
-            <div class="sn-story-viewer-reply-frame">
+            <div class="sn-story-viewer-reply-frame" style="position: relative;">
               <input
                 id="storyViewerReplyInput"
                 class="sn-story-viewer-reply-input"
@@ -338,12 +338,21 @@
                 maxlength="500"
                 placeholder="Reply to story..."
               />
+              <button type="button" id="storyViewerReplyEmojiBtn" class="sn-story-viewer-reply-emoji-btn" aria-label="Insert emoji">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-smile">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                  <line x1="9" x2="9.01" y1="9" y2="9"></line>
+                  <line x1="15" x2="15.01" y1="9" y2="9"></line>
+                </svg>
+              </button>
               <button type="button" id="storyViewerReplySendBtn" class="sn-story-viewer-reply-send-btn" aria-label="Send reply">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="22" y1="2" x2="11" y2="13"></line>
                   <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                 </svg>
               </button>
+              <div id="storyViewerReplyEmojiPicker" class="emoji-picker-container sn-story-viewer-emoji-picker-container"></div>
             </div>
             <div class="sn-story-viewer-react-frame" id="storyViewerReactFrame">
               <button type="button" class="sn-story-viewer-react-btn" data-story-react="👍" aria-label="Like">👍</button>
@@ -392,6 +401,8 @@
       insight: modal.querySelector("#storyViewerSelfInsight"),
       actions: modal.querySelector("#storyViewerActions"),
       replyInput: modal.querySelector("#storyViewerReplyInput"),
+      replyEmojiBtn: modal.querySelector("#storyViewerReplyEmojiBtn"),
+      replyEmojiPicker: modal.querySelector("#storyViewerReplyEmojiPicker"),
       replySendBtn: modal.querySelector("#storyViewerReplySendBtn"),
       reactFrame: modal.querySelector("#storyViewerReactFrame"),
       prevBtn: modal.querySelector("#storyViewerPrevBtn"),
@@ -412,6 +423,23 @@
       );
       if (closeTrigger) {
         stCloseViewer();
+      }
+
+      if (
+        viewerState.dom.replyEmojiPicker &&
+        viewerState.dom.replyEmojiPicker.classList.contains("show")
+      ) {
+        // Find if we clicked inside the picker or the trigger button
+        const isClickInsidePicker = event
+          .composedPath()
+          .includes(viewerState.dom.replyEmojiPicker);
+        const isClickOnTrigger = event.target.closest(
+          "#storyViewerReplyEmojiBtn",
+        );
+
+        if (!isClickInsidePicker && !isClickOnTrigger && global.EmojiUtils) {
+          global.EmojiUtils.closePicker(viewerState.dom.replyEmojiPicker);
+        }
       }
     });
 
@@ -439,6 +467,32 @@
         stHandleReplySubmit();
       });
     }
+
+    if (viewerState.dom.replyEmojiBtn && viewerState.dom.replyEmojiPicker) {
+      viewerState.dom.replyEmojiBtn.addEventListener("click", async (event) => {
+        event.stopPropagation();
+        if (global.EmojiUtils) {
+          await global.EmojiUtils.togglePicker(
+            viewerState.dom.replyEmojiPicker,
+            (emoji) => {
+              if (viewerState.dom.replyInput) {
+                const input = viewerState.dom.replyInput;
+                const emojiChar = emoji.native || emoji; // handle object
+                const start = input.selectionStart || input.value.length;
+                const textBefore = input.value.substring(0, start);
+                const textAfter = input.value.substring(start);
+                input.value = textBefore + emojiChar + textAfter;
+                const newPos = start + emojiChar.length;
+                input.focus();
+                try {
+                  input.setSelectionRange(newPos, newPos);
+                } catch (e) {}
+              }
+            },
+          );
+        }
+      });
+    }
     if (viewerState.dom.reactFrame) {
       viewerState.dom.reactFrame.addEventListener("click", (event) => {
         const reactBtn = event.target.closest(".sn-story-viewer-react-btn");
@@ -456,6 +510,16 @@
 
         event.preventDefault();
         event.stopPropagation();
+
+        // Close emoji picker if open
+        if (
+          viewerState.dom.replyEmojiPicker &&
+          viewerState.dom.replyEmojiPicker.classList.contains("show") &&
+          global.EmojiUtils
+        ) {
+          global.EmojiUtils.closePicker(viewerState.dom.replyEmojiPicker);
+        }
+
         stToggleStoryPause();
       });
     }
@@ -882,17 +946,60 @@
     viewerState.dom.viewersList.insertAdjacentHTML("beforeend", html);
   }
 
-  function stHandleReplySubmit() {
+  async function stHandleReplySubmit() {
     if (stIsOwnStory()) return;
     const inputEl = viewerState.dom.replyInput;
     if (!inputEl) return;
 
     const value = (inputEl.value || "").trim();
     if (!value) return;
-    inputEl.value = "";
 
-    if (typeof global.toastInfo === "function") {
-      global.toastInfo("Story reply will be connected in the next step.");
+    const story = stCurrentStory();
+    const authorId = viewerState.author?.accountId;
+    if (!story || !authorId) return;
+
+    // Disable input while sending
+    inputEl.disabled = true;
+    const sendBtn = viewerState.dom.replySendBtn;
+    if (sendBtn) sendBtn.disabled = true;
+
+    try {
+      const res = await global.API.Messages.storyReply({
+        receiverId: authorId,
+        content: value,
+        tempId: crypto.randomUUID(),
+        storyId: story.storyId,
+        storyMediaUrl: story.mediaUrl || null,
+        storyContentType: Number(story.contentType ?? 0),
+        storyTextContent: story.textContent || null,
+        storyBackgroundColorKey: story.backgroundColorKey || null,
+        storyTextColorKey: story.textColorKey || null,
+        storyFontTextKey: story.fontTextKey || null,
+        storyFontSizeKey:
+          story.fontSizeKey ||
+          (story.fontSizePx ? String(story.fontSizePx) : null),
+      });
+
+      if (res.ok) {
+        inputEl.value = "";
+        if (typeof global.toastSuccess === "function") {
+          global.toastSuccess("Reply sent!");
+        }
+      } else {
+        const err = await res.json().catch(() => ({}));
+        if (typeof global.toastError === "function") {
+          global.toastError(err.message || "Failed to send reply.");
+        }
+      }
+    } catch (err) {
+      console.error("Story reply error:", err);
+      if (typeof global.toastError === "function") {
+        global.toastError("Failed to send reply.");
+      }
+    } finally {
+      inputEl.disabled = false;
+      if (sendBtn) sendBtn.disabled = false;
+      inputEl.focus();
     }
   }
 
@@ -1685,8 +1792,25 @@
     const authorId = await stResolveAuthorIdByStoryId(normalizedStoryId);
     if (!authorId) {
       if (typeof global.toastInfo === "function") {
-        global.toastInfo("Story is unavailable or you do not have permission.");
+        global.toastInfo("This story is no longer available.");
       }
+
+      const expiredElements = document.querySelectorAll(
+        `.msg-story-reply-preview[data-story-id="${normalizedStoryId}"]`,
+      );
+      expiredElements.forEach((el) => {
+        el.removeAttribute("onclick");
+        el.removeAttribute("style");
+        el.removeAttribute("data-story-id");
+        el.className = "msg-story-reply-preview msg-story-reply-expired";
+        el.innerHTML = `
+          <div class="msg-story-reply-expired-icon"><i data-lucide="image-off"></i></div>
+          <span>Story is no longer available</span>
+        `;
+        if (global.lucide && typeof global.lucide.createIcons === "function") {
+          global.lucide.createIcons({ root: el });
+        }
+      });
       return;
     }
 
@@ -1814,6 +1938,34 @@
           )
         : -1;
 
+      if (targetStoryId && targetStoryIndex === -1) {
+        if (global.toastInfo) {
+          global.toastInfo("This story is no longer available.");
+        }
+        stCloseViewer();
+
+        const expiredElements = document.querySelectorAll(
+          `.msg-story-reply-preview[data-story-id="${targetStoryId}"]`,
+        );
+        expiredElements.forEach((el) => {
+          el.removeAttribute("onclick");
+          el.removeAttribute("style");
+          el.removeAttribute("data-story-id");
+          el.className = "msg-story-reply-preview msg-story-reply-expired";
+          el.innerHTML = `
+            <div class="msg-story-reply-expired-icon"><i data-lucide="image-off"></i></div>
+            <span>Story is no longer available</span>
+          `;
+          if (
+            global.lucide &&
+            typeof global.lucide.createIcons === "function"
+          ) {
+            global.lucide.createIcons({ root: el });
+          }
+        });
+        return;
+      }
+
       if (targetStoryIndex >= 0) {
         viewerState.currentIndex = targetStoryIndex;
       } else {
@@ -1839,6 +1991,14 @@
   }
 
   function stCloseViewer() {
+    if (
+      viewerState.dom.replyEmojiPicker &&
+      viewerState.dom.replyEmojiPicker.classList.contains("show") &&
+      global.EmojiUtils
+    ) {
+      global.EmojiUtils.closePicker(viewerState.dom.replyEmojiPicker);
+    }
+
     stCloseViewersList();
     stStopProgressTimer();
     stPauseAnyVideo();
