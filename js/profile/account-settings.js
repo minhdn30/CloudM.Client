@@ -31,6 +31,7 @@
         post: 'defaultPostPrivacy',
         followers: 'followerPrivacy',
         following: 'followingPrivacy',
+        'story-highlight': 'storyHighlightPrivacy',
         'online-status': 'onlineStatusVisibility',
         'group-chat-invite': 'groupChatInvitePermission'
     };
@@ -41,6 +42,7 @@
         post: PRIVACY_LEVELS,
         followers: PRIVACY_LEVELS,
         following: PRIVACY_LEVELS,
+        'story-highlight': PRIVACY_LEVELS,
         'online-status': ONLINE_STATUS_VISIBILITY_LEVELS,
         'group-chat-invite': GROUP_CHAT_INVITE_LEVELS
     };
@@ -79,6 +81,7 @@
                     defaultPostPrivacy: 0, // Public
                     followerPrivacy: 0, // Public
                     followingPrivacy: 0, // Public
+                    storyHighlightPrivacy: 0, // Public
                     onlineStatusVisibility: 1, // Contacts Only
                     groupChatInvitePermission: 2 // Anyone
                 };
@@ -91,6 +94,7 @@
                 defaultPostPrivacy: currentSettings.defaultPostPrivacy ?? currentSettings.DefaultPostPrivacy,
                 followerPrivacy: currentSettings.followerPrivacy ?? currentSettings.FollowerPrivacy,
                 followingPrivacy: currentSettings.followingPrivacy ?? currentSettings.FollowingPrivacy,
+                storyHighlightPrivacy: currentSettings.storyHighlightPrivacy ?? currentSettings.StoryHighlightPrivacy ?? 0,
                 onlineStatusVisibility: currentSettings.onlineStatusVisibility ?? currentSettings.OnlineStatusVisibility ?? 1,
                 groupChatInvitePermission: currentSettings.groupChatInvitePermission ?? currentSettings.GroupChatInvitePermission
             };
@@ -110,6 +114,7 @@
         updatePrivacyButton('post', settings.defaultPostPrivacy ?? settings.DefaultPostPrivacy ?? 0);
         updatePrivacyButton('followers', settings.followerPrivacy ?? settings.FollowerPrivacy ?? 0);
         updatePrivacyButton('following', settings.followingPrivacy ?? settings.FollowingPrivacy ?? 0);
+        updatePrivacyButton('story-highlight', settings.storyHighlightPrivacy ?? settings.StoryHighlightPrivacy ?? 0);
         updatePrivacyButton('online-status', settings.onlineStatusVisibility ?? settings.OnlineStatusVisibility ?? 1);
         updatePrivacyButton('group-chat-invite', settings.groupChatInvitePermission ?? settings.GroupChatInvitePermission ?? 2);
         
@@ -307,6 +312,7 @@
                     defaultPostPrivacy: newSettings.defaultPostPrivacy ?? newSettings.DefaultPostPrivacy,
                     followerPrivacy: newSettings.followerPrivacy ?? newSettings.FollowerPrivacy,
                     followingPrivacy: newSettings.followingPrivacy ?? newSettings.FollowingPrivacy,
+                    storyHighlightPrivacy: newSettings.storyHighlightPrivacy ?? newSettings.StoryHighlightPrivacy ?? 0,
                     onlineStatusVisibility: newSettings.onlineStatusVisibility ?? newSettings.OnlineStatusVisibility ?? 1,
                     groupChatInvitePermission: newSettings.groupChatInvitePermission ?? newSettings.GroupChatInvitePermission
                 };
