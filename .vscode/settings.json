@@ -4,8 +4,8 @@
   "liveServer.settings.AdvanceCustomBrowserCmdLine": "",
   "liveServer.settings.https": {
     "enable": true,
-    "cert": "e:\\PersonalProject\\SocialNetwork\\.certs\\localhost-dev.pem",
-    "key": "e:\\PersonalProject\\SocialNetwork\\.certs\\localhost-dev.key",
+    "cert": "..\\.certs\\localhost-dev.pem",
+    "key": "..\\.certs\\localhost-dev.key",
     "passphrase": ""
   }
 }
