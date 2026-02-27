@@ -185,7 +185,7 @@ body.light-mode .sn-story-viewer-modal {
   max-height: calc(100vh - 24px);
   border-radius: 18px;
   overflow: visible;
-  border: 1px solid var(--snsv-card-border);
+
   background: var(--snsv-card-bg);
   box-shadow: var(--snsv-card-shadow);
   display: flex;
@@ -412,9 +412,17 @@ body.light-mode .sn-story-viewer-close-btn:hover {
     opacity 320ms ease;
 }
 
+.sn-story-viewer-preview-shell.snsv-preview-shell-entering {
+  z-index: 2;
+}
+
+.sn-story-viewer-preview-shell.snsv-preview-shell-leaving {
+  z-index: 1;
+}
+
 .sn-story-viewer-preview-shell.snsv-preview-shell-entering.snsv-preview-shell-enter-next,
 .sn-story-viewer-preview-shell.snsv-preview-shell-entering.snsv-preview-shell-enter-prev {
-  transform: scale(1.03);
+  transform: scale(1.02);
   opacity: 0;
 }
 
@@ -431,8 +439,8 @@ body.light-mode .sn-story-viewer-close-btn:hover {
 
 .sn-story-viewer-preview-shell.snsv-preview-shell-leaving.snsv-preview-shell-leave-next.snsv-preview-shell-leave-active,
 .sn-story-viewer-preview-shell.snsv-preview-shell-leaving.snsv-preview-shell-leave-prev.snsv-preview-shell-leave-active {
-  transform: scale(0.97);
-  opacity: 0;
+  transform: scale(0.96);
+  opacity: 1; /* Keep opacity 1 so it doesn't leak black background, entering will cover it */
 }
 
 .sn-story-viewer-preview-shell.snsv-preview-shell-fade-in {
@@ -570,6 +578,28 @@ body.light-mode .sn-story-viewer-mute-btn:hover {
   place-items: center;
 }
 
+.sn-story-viewer-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 10;
+  animation: snsvOverlayFade 0.3s ease;
+}
+
+@keyframes snsvOverlayFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .sn-story-viewer-unavailable {
   width: 100%;
   height: 100%;
@@ -640,6 +670,7 @@ body.light-mode .sn-story-viewer-mute-btn:hover {
   border-top: 1px solid var(--snsv-footer-border);
   background: var(--snsv-chrome-bg);
   color: var(--snsv-footer-text);
+  border-radius: 0 0 18px 18px;
 }
 
 /* Light mode: solid bg, no blur */
@@ -1505,6 +1536,14 @@ body.light-mode .sn-story-viewer-viewers-item-avatar {
   -ms-overflow-style: none;
 }
 
+body.light-mode .sn-story-viewer-strip {
+  background: rgba(255, 255, 255, 0.85); /* Slightly more transparent */
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.08),
+    inset 0 1px 2px rgba(255, 255, 255, 0.9);
+}
+
 .sn-story-viewer-strip:active {
   cursor: grabbing;
 }
@@ -1689,13 +1728,13 @@ body.light-mode .sn-story-viewer-viewers-item-avatar {
 
 /* ─── Light Mode Premium Refinement ─── */
 body.light-mode .sn-story-viewer-strip {
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(25px);
   -webkit-backdrop-filter: blur(25px);
   border: 1px solid rgba(0, 0, 0, 0.08);
   box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    0 20px 60px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 body.light-mode .sn-story-viewer-strip-avatar {
@@ -1703,15 +1742,29 @@ body.light-mode .sn-story-viewer-strip-avatar {
 }
 
 body.light-mode .sn-story-viewer-strip-name {
-  color: #555;
+  color: #666;
   font-weight: 600;
   text-shadow: none;
 }
 
 body.light-mode .sn-story-viewer-strip-item.active .sn-story-viewer-strip-name {
-  color: var(--accent-primary);
+  color: var(--text-primary);
   font-weight: 700;
   text-shadow: none;
+}
+
+/* Author Nav overrides for light mode */
+body.light-mode .sn-story-viewer-author-nav {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+body.light-mode .sn-story-viewer-author-nav:hover {
+  background: var(--accent-primary);
+  color: #fff;
+  border-color: var(--accent-primary);
 }
 
 body.light-mode .sn-story-viewer-strip-sentinel {
