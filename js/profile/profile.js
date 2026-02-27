@@ -18,12 +18,23 @@
     APP_CONFIG.PROFILE_ARCHIVED_STORIES_PAGE_SIZE ||
     APP_CONFIG.PROFILE_POSTS_PAGE_SIZE;
   const PROFILE_ARCHIVED_STORIES_TAB = "archived-stories";
+  const PROFILE_CACHEABLE_TABS = new Set([
+    "posts",
+    PROFILE_ARCHIVED_STORIES_TAB,
+  ]);
+  const PROFILE_TAB_SCROLL_NEAR_TOP_THRESHOLD = 160;
 
   // Post navigation: Store post IDs in grid order for next/prev navigation
   let profilePostIds = [];
 
   let currentProfileData = null;
   let profilePresenceUnsubscribe = null;
+  let profileTabStateCache = {
+    profileKey: "",
+    tabs: Object.create(null),
+  };
+  let pendingTabScrollRestoreTop = null;
+  let tabScrollRestoreVersion = 0;
 
   function normalizePresenceId(value) {
     if (
@@ -415,6 +426,218 @@
     }),
   };
 
+  function normalizeProfileCacheKey(value) {
+    return (value || "").toString().trim().toLowerCase();
+  }
+
+  function isCurrentUserProfile() {
+    if (currentProfileData?.isCurrentUser === true) return true;
+    if (currentProfileData?.IsCurrentUser === true) return true;
+
+    const profileKey = normalizeProfileCacheKey(currentProfileId);
+    if (!profileKey) return false;
+
+    const myAccountId = normalizeProfileCacheKey(localStorage.getItem("accountId"));
+    const myUsername = normalizeProfileCacheKey(localStorage.getItem("username"));
+
+    return Boolean(
+      (myAccountId && profileKey === myAccountId) ||
+      (myUsername && profileKey === myUsername),
+    );
+  }
+
+  function clearProfileTabStateCache() {
+    Object.values(profileTabStateCache.tabs).forEach((snapshot) => {
+      const container = snapshot?.container;
+      if (container && container.childNodes?.length > 0) {
+        container.textContent = "";
+      }
+    });
+
+    profileTabStateCache = {
+      profileKey: "",
+      tabs: Object.create(null),
+    };
+    pendingTabScrollRestoreTop = null;
+  }
+
+  function ensureProfileTabCacheScope() {
+    const cacheKey = normalizeProfileCacheKey(currentProfileId);
+    if (!cacheKey) return false;
+
+    if (profileTabStateCache.profileKey !== cacheKey) {
+      clearProfileTabStateCache();
+      profileTabStateCache.profileKey = cacheKey;
+    }
+
+    return true;
+  }
+
+  function canUseProfileTabStateCache(tabName) {
+    if (!PROFILE_CACHEABLE_TABS.has(tabName)) return false;
+    if (!isCurrentUserProfile()) return false;
+    return ensureProfileTabCacheScope();
+  }
+
+  function lockGridHeightForTabSwitch(grid) {
+    if (!grid) return;
+    const height = Math.ceil(grid.getBoundingClientRect().height || 0);
+    if (height > 0) {
+      grid.style.minHeight = `${height}px`;
+    }
+  }
+
+  function unlockGridHeightAfterTabRender(grid) {
+    if (!grid) return;
+    grid.style.minHeight = "";
+  }
+
+  function scheduleTabScrollRestore(scrollTopValue) {
+    const targetScrollTop = Math.max(
+      0,
+      Number.parseInt(String(scrollTopValue ?? 0), 10) || 0,
+    );
+    const version = ++tabScrollRestoreVersion;
+
+    const apply = () => {
+      if (version !== tabScrollRestoreVersion) return;
+      const mc = document.querySelector(".main-content");
+      if (!mc) return;
+      const maxScrollTop = Math.max(0, mc.scrollHeight - mc.clientHeight);
+      mc.scrollTop = Math.min(targetScrollTop, maxScrollTop);
+    };
+
+    requestAnimationFrame(apply);
+    setTimeout(apply, 32);
+    setTimeout(apply, 96);
+    setTimeout(apply, 220);
+  }
+
+  function applyPendingTabScrollRestore() {
+    if (pendingTabScrollRestoreTop === null) return;
+    const targetScrollTop = pendingTabScrollRestoreTop;
+    pendingTabScrollRestoreTop = null;
+    scheduleTabScrollRestore(targetScrollTop);
+  }
+
+  function cacheCurrentTabState(tabName) {
+    if (!canUseProfileTabStateCache(tabName)) return;
+
+    const grid = document.getElementById("profile-posts-grid");
+    if (!grid) return;
+
+    const existing = profileTabStateCache.tabs[tabName] || {};
+    const container = existing.container || document.createElement("div");
+
+    while (container.firstChild) {
+      container.removeChild(container.firstChild);
+    }
+    while (grid.firstChild) {
+      container.appendChild(grid.firstChild);
+    }
+
+    const mc = document.querySelector(".main-content");
+    const currentScrollTop = mc ? mc.scrollTop : 0;
+    const preservedDeepScrollTop = Number.isFinite(existing.lastDeepScrollTop)
+      ? existing.lastDeepScrollTop
+      : 0;
+    const shouldUsePreservedDeepScroll =
+      currentScrollTop <= PROFILE_TAB_SCROLL_NEAR_TOP_THRESHOLD &&
+      preservedDeepScrollTop > currentScrollTop;
+    const snapshotScrollTop = shouldUsePreservedDeepScroll
+      ? preservedDeepScrollTop
+      : currentScrollTop;
+
+    profileTabStateCache.tabs[tabName] = {
+      container,
+      placeholderMode: grid.classList.contains("placeholder-mode"),
+      page,
+      hasMore,
+      archivedStoriesPage,
+      hasMoreArchivedStories,
+      profilePostIds: Array.isArray(profilePostIds)
+        ? profilePostIds.slice()
+        : [],
+      scrollTop: snapshotScrollTop,
+      lastDeepScrollTop:
+        currentScrollTop > PROFILE_TAB_SCROLL_NEAR_TOP_THRESHOLD
+          ? currentScrollTop
+          : preservedDeepScrollTop,
+    };
+  }
+
+  function updateActiveTabScrollMemory() {
+    if (!canUseProfileTabStateCache(activeTab)) return;
+
+    const mc = document.querySelector(".main-content");
+    if (!mc) return;
+
+    const currentScrollTop = mc.scrollTop;
+    const existing = profileTabStateCache.tabs[activeTab] || {};
+    const updated = { ...existing };
+
+    if (currentScrollTop > PROFILE_TAB_SCROLL_NEAR_TOP_THRESHOLD) {
+      updated.lastDeepScrollTop = currentScrollTop;
+    }
+
+    if (
+      !Number.isFinite(updated.scrollTop) ||
+      currentScrollTop > PROFILE_TAB_SCROLL_NEAR_TOP_THRESHOLD
+    ) {
+      updated.scrollTop = currentScrollTop;
+    }
+
+    profileTabStateCache.tabs[activeTab] = updated;
+  }
+
+  function restoreTabStateFromCache(tabName) {
+    if (!canUseProfileTabStateCache(tabName)) return false;
+
+    const snapshot = profileTabStateCache.tabs[tabName];
+    if (!snapshot?.container) return false;
+
+    const grid = document.getElementById("profile-posts-grid");
+    if (!grid) return false;
+
+    grid.innerHTML = "";
+    unlockGridHeightAfterTabRender(grid);
+    grid.classList.toggle("placeholder-mode", Boolean(snapshot.placeholderMode));
+
+    while (snapshot.container.firstChild) {
+      grid.appendChild(snapshot.container.firstChild);
+    }
+
+    page = Number.isFinite(snapshot.page) ? snapshot.page : 1;
+    hasMore = typeof snapshot.hasMore === "boolean" ? snapshot.hasMore : true;
+    archivedStoriesPage = Number.isFinite(snapshot.archivedStoriesPage)
+      ? snapshot.archivedStoriesPage
+      : 1;
+    hasMoreArchivedStories =
+      typeof snapshot.hasMoreArchivedStories === "boolean"
+        ? snapshot.hasMoreArchivedStories
+        : true;
+    profilePostIds = Array.isArray(snapshot.profilePostIds)
+      ? snapshot.profilePostIds.slice()
+      : [];
+
+    isLoading = false;
+    isArchivedStoriesLoading = false;
+
+    const loader = document.getElementById("profile-posts-loader");
+    if (loader) loader.style.display = "none";
+
+    if (window.lucide) lucide.createIcons();
+
+    if (typeof snapshot.scrollTop === "number") {
+      scheduleTabScrollRestore(snapshot.scrollTop);
+    }
+
+    updateActiveTabScrollMemory();
+    pendingTabScrollRestoreTop = null;
+
+    return true;
+  }
+
   function initProfile() {
     initProfilePresenceTracking();
 
@@ -534,6 +757,7 @@
   }
 
   function resetState() {
+    clearProfileTabStateCache();
     page = 1;
     isLoading = false;
     hasMore = true;
@@ -546,6 +770,7 @@
     const grid = document.getElementById("profile-posts-grid");
     if (grid) {
       grid.innerHTML = "";
+      unlockGridHeightAfterTabRender(grid);
       grid.classList.remove("placeholder-mode");
     }
 
@@ -580,6 +805,8 @@
   const handleProfileScroll = () => {
     const grid = document.getElementById("profile-posts-grid");
     if (!grid || !document.body.contains(grid)) return;
+
+    updateActiveTabScrollMemory();
 
     if (activeTab !== "posts" && activeTab !== PROFILE_ARCHIVED_STORIES_TAB)
       return;
@@ -1058,6 +1285,14 @@
     const loader = document.getElementById("profile-posts-loader");
     if (!grid) return;
 
+    if (tabName === activeTab) return;
+
+    const mc = document.querySelector(".main-content");
+    const currentScrollTop = mc ? mc.scrollTop : 0;
+
+    const previousTab = activeTab;
+    cacheCurrentTabState(previousTab);
+
     activeTab = tabName;
 
     // Update UI active state
@@ -1066,6 +1301,13 @@
     });
 
     updateProfileTabsIndicator();
+
+    if (restoreTabStateFromCache(tabName)) {
+      return;
+    }
+
+    pendingTabScrollRestoreTop = currentScrollTop;
+    lockGridHeightForTabSwitch(grid);
 
     if (tabName === "posts") {
       // Restore posts grid
@@ -1109,6 +1351,8 @@
       if (loader) loader.style.display = "none";
       isLoading = false;
       isArchivedStoriesLoading = false;
+      unlockGridHeightAfterTabRender(grid);
+      applyPendingTabScrollRestore();
       if (window.lucide) lucide.createIcons();
     }
   };
@@ -1171,6 +1415,8 @@
       if (fetchForId === currentProfileId && fetchForTab === activeTab) {
         isLoading = false;
         if (loader) loader.style.display = "none";
+        unlockGridHeightAfterTabRender(grid);
+        applyPendingTabScrollRestore();
       }
     }
   }
@@ -1242,6 +1488,8 @@
       if (fetchForId === currentProfileId && fetchForTab === activeTab) {
         isArchivedStoriesLoading = false;
         if (loader) loader.style.display = "none";
+        unlockGridHeightAfterTabRender(grid);
+        applyPendingTabScrollRestore();
       }
     }
   }
@@ -1330,6 +1578,9 @@
     });
 
     if (window.lucide) lucide.createIcons();
+    unlockGridHeightAfterTabRender(grid);
+    applyPendingTabScrollRestore();
+    updateActiveTabScrollMemory();
   }
 
   function createGridItem(post) {
@@ -1406,6 +1657,9 @@
     });
 
     if (window.lucide) lucide.createIcons();
+    unlockGridHeightAfterTabRender(grid);
+    applyPendingTabScrollRestore();
+    updateActiveTabScrollMemory();
   }
 
   function resolveStoryContentType(rawStory) {

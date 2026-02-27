@@ -2510,8 +2510,31 @@
   function stShowLoading() {
     stEnsureModal();
     if (viewerState.dom.content) {
-      viewerState.dom.content.innerHTML =
-        '<div class="sn-story-viewer-loading"><div class="spinner spinner-medium"></div></div>';
+      const existingShell = viewerState.dom.content.querySelector(
+        ".sn-story-viewer-preview-shell:not(.snsv-preview-shell-leaving)"
+      );
+
+      if (existingShell) {
+        const outgoingVideo = existingShell.querySelector("video");
+        if (outgoingVideo && !outgoingVideo.paused) {
+          try {
+            outgoingVideo.pause();
+          } catch (_) {}
+        }
+
+        const oldOverlay = existingShell.querySelector(
+          ".sn-story-viewer-loading-overlay"
+        );
+        if (oldOverlay) oldOverlay.remove();
+
+        const overlay = document.createElement("div");
+        overlay.className = "sn-story-viewer-loading-overlay";
+        overlay.innerHTML = '<div class="spinner spinner-medium"></div>';
+        existingShell.appendChild(overlay);
+      } else {
+        viewerState.dom.content.innerHTML =
+          '<div class="sn-story-viewer-loading"><div class="spinner spinner-medium"></div></div>';
+      }
     }
     if (viewerState.dom.progress) {
       viewerState.dom.progress.innerHTML = "";
