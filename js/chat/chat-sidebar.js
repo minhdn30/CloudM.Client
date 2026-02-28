@@ -34,6 +34,41 @@ const ChatSidebar = {
         return (value || '').toString().toLowerCase();
     },
 
+    getCurrentPathFromHash() {
+        if (window.RouteHelper && typeof window.RouteHelper.parseHash === 'function') {
+            return window.RouteHelper.parseHash(window.location.hash || '').path || '';
+        }
+
+        const raw = (window.location.hash || '').replace(/^#/, '');
+        const pathOnly = raw.split('?')[0] || '';
+        return pathOnly.startsWith('/') ? pathOnly : `/${pathOnly}`;
+    },
+
+    isChatRoutePath(path) {
+        const routePath = (path || '').toString().trim();
+        if (!routePath) return false;
+
+        if (window.RouteHelper && typeof window.RouteHelper.isChatPath === 'function') {
+            return window.RouteHelper.isChatPath(routePath);
+        }
+
+        return routePath === '/chat' || routePath.startsWith('/chat/') || routePath === '/messages' || routePath.startsWith('/messages/');
+    },
+
+    isChatRouteFromHash() {
+        return this.isChatRoutePath(this.getCurrentPathFromHash());
+    },
+
+    extractConversationIdFromHash() {
+        if (window.RouteHelper && typeof window.RouteHelper.extractConversationIdFromHash === 'function') {
+            return (window.RouteHelper.extractConversationIdFromHash(window.location.hash || '') || '').toString().trim();
+        }
+
+        const hash = window.location.hash || '';
+        if (!hash.includes('?id=')) return '';
+        return hash.split('?id=')[1].split('&')[0] || '';
+    },
+
     getPrivateOtherAccountId(conv = {}) {
         if (window.PresenceUI && typeof window.PresenceUI.getPrivateOtherAccountId === 'function') {
             return window.PresenceUI.getPrivateOtherAccountId(conv);
@@ -453,17 +488,25 @@ const ChatSidebar = {
         // Removed: Auto-close on click outside. 
         // Logic moved to explicit close button for better persistence.
 
-        if (window.location.hash.startsWith('#/messages')) {
+        const initialConversationId = this.extractConversationIdFromHash();
+        if (initialConversationId) {
+            this.currentActiveId = this.normalizeId(initialConversationId);
+        }
+
+        if (this.isChatRouteFromHash()) {
             this.open();
         }
 
         // Auto-highlight based on URL change
         window.addEventListener('hashchange', () => {
-            if (window.location.hash.includes('?id=')) {
-                const id = window.location.hash.split('?id=')[1].split('&')[0];
+            const isChatRoute = this.isChatRouteFromHash();
+            const id = this.extractConversationIdFromHash();
+            if (isChatRoute && id) {
                 this.updateActiveId(id);
-            } else if (!window.location.hash.startsWith('#/messages')) {
-                // Clear active if we left chat area
+            } else if (!isChatRoute) {
+                this.updateActiveId(null);
+            } else {
+                // Chat route without conversationId: keep panel state, clear active item.
                 this.updateActiveId(null);
             }
         });
@@ -939,7 +982,7 @@ const ChatSidebar = {
     },
 
     close() {
-        if (window.location.hash.startsWith('#/messages')) return;
+        if (this.isChatRouteFromHash()) return;
 
         this.closeSettingsPopup();
         const panel = document.getElementById('chat-panel');
@@ -1058,9 +1101,10 @@ const ChatSidebar = {
             const showOnlineDot = !isGroupChat && !!presenceStatus.showDot;
             const isMuted = conv.isMuted ?? conv.IsMuted ?? false;
             
-            // Only highlight if on the Messages Page
-            const isChatPage = window.location.hash.startsWith('#/messages');
-            const isActive = isChatPage && conv.conversationId === this.currentActiveId;
+            const isChatPage = this.isChatRouteFromHash();
+            const isActive = isChatPage
+                && this.currentActiveId
+                && this.normalizeId(conv.conversationId) === this.normalizeId(this.currentActiveId);
 
             // --- Seen Avatars Logic ---
             let seenHtml = '';
@@ -1127,16 +1171,22 @@ const ChatSidebar = {
     },
 
     openConversation(id) {
-        const targetHash = `#/messages?id=${id}`;
+        const normalizedId = (id || '').toString().trim();
+        if (!normalizedId) return;
+
+        const targetPath = `/chat/${encodeURIComponent(normalizedId)}`;
+        const targetHash = (window.RouteHelper && typeof window.RouteHelper.buildHash === 'function')
+            ? window.RouteHelper.buildHash(targetPath)
+            : `#${targetPath}`;
         if (window.location.hash !== targetHash) {
             window.location.hash = targetHash;
             // The router (app.js) will handle the navigation/update
         } else {
             // Already on this specific conversation hash, just ensure UI is updated
             if (window.ChatPage && typeof window.ChatPage.loadConversation === 'function') {
-                window.ChatPage.loadConversation(id);
+                window.ChatPage.loadConversation(normalizedId);
             }
-            this.updateActiveId(id);
+            this.updateActiveId(normalizedId);
         }
     },
 
@@ -1607,24 +1657,21 @@ const ChatSidebar = {
     /**
      * Update the active ID using data-conversation-id attribute.
      */
-    updateActiveId(id, retryCount = 0) {
-        this.currentActiveId = id;
-        
-        const items = document.querySelectorAll('.chat-item');
-        
-        if (items.length === 0 && retryCount < 5 && window.location.hash.startsWith('#/messages')) {
-            setTimeout(() => this.updateActiveId(id, retryCount + 1), 200);
-            return;
-        }
+    updateActiveId(id) {
+        this.currentActiveId = this.normalizeId(id || "");
 
-        if (items.length > 0) {
-            const isChatPage = window.location.hash.startsWith('#/messages');
-            items.forEach(item => {
-                const convId = item.dataset.conversationId;
-                const isTarget = isChatPage && id && convId === id;
-                item.classList.toggle('active', !!isTarget);
-            });
-        }
+        const items = document.querySelectorAll('.chat-item');
+        if (items.length === 0) return;
+
+        const isChatPage = this.isChatRouteFromHash();
+        const routeConversationId = this.normalizeId(this.extractConversationIdFromHash());
+        const targetId = this.normalizeId(routeConversationId || this.currentActiveId || "");
+
+        items.forEach(item => {
+            const convId = this.normalizeId(item.dataset.conversationId);
+            const isTarget = isChatPage && targetId && convId === targetId;
+            item.classList.toggle('active', !!isTarget);
+        });
     },
 
     /**

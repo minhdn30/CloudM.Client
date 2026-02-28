@@ -4,6 +4,7 @@
  */
 
 const FollowListModule = (function () {
+  const FollowRouteHelper = window.RouteHelper;
   let currentPage = 1;
   let targetId = null;
   let listType = "followers"; // 'followers' or 'following'
@@ -14,6 +15,102 @@ const FollowListModule = (function () {
   const PAGE_SIZE = window.APP_CONFIG?.FOLLOW_LIST_PAGE_SIZE || 15;
 
   const MODAL_ID = "followListModal";
+
+  function normalizeListType(type) {
+    if (FollowRouteHelper?.normalizeProfileFollowListType) {
+      return FollowRouteHelper.normalizeProfileFollowListType(type);
+    }
+    const normalized = (type || "").toString().trim().toLowerCase();
+    if (normalized === "following") return "following";
+    if (normalized === "followers" || normalized === "follower") {
+      return "followers";
+    }
+    return "";
+  }
+
+  function getCurrentProfileUsername() {
+    const profileData = window.ProfilePage?.getData?.();
+    const accountInfo =
+      profileData?.accountInfo || profileData?.AccountInfo || profileData?.account || profileData?.Account || {};
+    const fromData = (accountInfo.username || accountInfo.Username || "")
+      .toString()
+      .trim();
+    if (fromData) return fromData;
+
+    const currentPath = FollowRouteHelper?.parseHash
+      ? FollowRouteHelper.parseHash(window.location.hash || "").path
+      : "";
+    if (currentPath) {
+      const segments = currentPath.split("/").filter(Boolean);
+      const firstSegment = (segments[0] || "").toString().trim();
+      if (
+        firstSegment &&
+        FollowRouteHelper?.isValidProfileTarget?.(firstSegment) &&
+        !FollowRouteHelper?.isReservedProfileRootSegment?.(firstSegment)
+      ) {
+        return FollowRouteHelper.safeDecode
+          ? FollowRouteHelper.safeDecode(firstSegment)
+          : firstSegment;
+      }
+    }
+
+    return (localStorage.getItem("username") || "").toString().trim();
+  }
+
+  function buildProfileHash(username) {
+    if (FollowRouteHelper?.buildProfileHash) {
+      return FollowRouteHelper.buildProfileHash(username || "");
+    }
+    const safe = (username || "").toString().trim();
+    if (!safe) return "#/";
+    return `#/${encodeURIComponent(safe)}`;
+  }
+
+  function buildFollowRouteHash(username, type) {
+    const normalizedType = normalizeListType(type);
+    if (!normalizedType) return buildProfileHash(username);
+
+    if (FollowRouteHelper?.buildProfileFollowListHash) {
+      return FollowRouteHelper.buildProfileFollowListHash(username || "", normalizedType);
+    }
+
+    const safe = (username || "").toString().trim();
+    if (!safe) return buildProfileHash("");
+    return `#/${encodeURIComponent(safe)}/${normalizedType}`;
+  }
+
+  function goToHash(hash, replace = false) {
+    const normalizedHash = (hash || "").toString().trim();
+    if (!normalizedHash) return;
+
+    if (FollowRouteHelper?.goTo) {
+      const parsed = FollowRouteHelper.parseHash(normalizedHash);
+      FollowRouteHelper.goTo(parsed.path, { query: parsed.params, replace });
+      return;
+    }
+
+    if (replace && window.history?.replaceState) {
+      const base = `${window.location.pathname || ""}${window.location.search || ""}`;
+      window.history.replaceState(window.history.state, "", `${base}${normalizedHash}`);
+      return;
+    }
+    window.location.hash = normalizedHash;
+  }
+
+  function redirectToProfileRoot(replace = true) {
+    const username = getCurrentProfileUsername();
+    const profileHash = buildProfileHash(username);
+    goToHash(profileHash, replace);
+  }
+
+  function redirectToNotFound(replace = true) {
+    if (window.RouteHelper?.goTo) {
+      const notFoundPath = window.RouteHelper.PATHS?.ERROR_404 || "/404";
+      window.RouteHelper.goTo(notFoundPath, { replace });
+      return;
+    }
+    goToHash("#/404", replace);
+  }
 
   async function _fetchPage(accountId, page, keyword = "", sort = null) {
     const request = {
@@ -33,19 +130,33 @@ const FollowListModule = (function () {
    * @param {string} accountId - User ID
    * @param {string} type - 'followers' or 'following'
    */
-  async function openFollowList(accountId, type = "followers") {
-    // 1. Pre-check: Nếu đang xem profile của người này, kiểm tra quyền trước để tránh lag/flicker
+  async function openFollowList(accountId, type = "followers", options = {}) {
+    const normalizedType = normalizeListType(type) || "followers";
+    const syncRoute = options.syncRoute !== false;
+    const routeReplace = options.routeReplace === true;
+    const profileUsername = (options.profileUsername || getCurrentProfileUsername())
+      .toString()
+      .trim();
+
+    if (syncRoute && profileUsername) {
+      const followHash = buildFollowRouteHash(profileUsername, normalizedType);
+      if ((window.location.hash || "") !== followHash) {
+        goToHash(followHash, routeReplace);
+        return;
+      }
+    }
+
+    // Pre-check permission from currently loaded profile data to avoid flicker
     if (window.ProfilePage && window.ProfilePage.getAccountId() === accountId) {
       const data = window.ProfilePage.getData();
       if (data && !data.isCurrentUser) {
         const settings = data.settings;
         const isFollowed = data.followInfo?.isFollowedByCurrentUser ?? false;
         const privacy =
-          type === "followers"
+          normalizedType === "followers"
             ? settings?.followerPrivacy
             : settings?.followingPrivacy;
 
-        // 0: Public, 1: FollowOnly, 2: Private
         let hasPermission = true;
         if (privacy === 2) {
           hasPermission = false;
@@ -54,47 +165,45 @@ const FollowListModule = (function () {
         }
 
         if (!hasPermission) {
-          if (window.toastError)
+          if (window.toastError) {
             toastError(
-              `This account is private or you don't have permission to view this ${type} list`,
+              `This account is private or you don't have permission to view this ${normalizedType} list`,
             );
-          return; // Thoát ngay, không mở modal, không khóa cuộn
+          }
+          redirectToProfileRoot(true);
+          return;
         }
       }
     }
 
     targetId = accountId;
-    listType = type;
+    listType = normalizedType;
     currentPage = 1;
     searchKeyword = "";
     sortState = null;
 
     try {
-      // Ensure modal exists
       let modal = document.getElementById(MODAL_ID);
       if (!modal) {
         await _loadModalHTML();
         modal = document.getElementById(MODAL_ID);
       }
 
-      // Reset UI
       _resetUI();
 
-      // Show modal and lock scroll
       modal.classList.add("show");
       if (window.lockScroll) lockScroll();
 
-      // Update title
       const titleEl = modal.querySelector(".modal-header h3 span");
-      if (titleEl)
-        titleEl.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+      if (titleEl) {
+        titleEl.textContent =
+          normalizedType.charAt(0).toUpperCase() + normalizedType.slice(1);
+      }
 
-      // Initial load (API call will still handle 403 as a fallback)
       await _loadData(1);
     } catch (error) {
       console.error(error);
       if (window.toastError) toastError("Could not load list");
-      // Đảm bảo mở lại cuộn nếu load lỗi
       if (window.unlockScroll) unlockScroll();
     }
   }
@@ -135,11 +244,13 @@ const FollowListModule = (function () {
             "This account is private or you don't have permission to view this list",
           );
         closeFollowList();
+        redirectToProfileRoot(true);
         return;
       }
       if (res.status === 404) {
         if (window.toastError) toastError("Account not found");
         closeFollowList();
+        redirectToNotFound(true);
         return;
       }
       if (!res.ok) throw new Error("Load failed");
@@ -291,14 +402,19 @@ const FollowListModule = (function () {
     }
   }
 
+  function closeFollowListFromUI() {
+    closeFollowList();
+    redirectToProfileRoot(false);
+  }
+
   async function _loadModalHTML() {
     const html = `
             <div id="${MODAL_ID}" class="interaction-modal follow-list-modal">
-                <div class="modal-backdrop" onclick="FollowListModule.closeFollowList()"></div>
+                <div class="modal-backdrop" onclick="FollowListModule.closeFollowListFromUI()"></div>
                 <div class="modal-content">
                     <div class="modal-header">
                     <h3><span>Followers</span></h3>
-                        <button class="close-btn" onclick="FollowListModule.closeFollowList()">
+                        <button class="close-btn" onclick="FollowListModule.closeFollowListFromUI()">
                             <i data-lucide="x"></i>
                         </button>
                     </div>
@@ -337,6 +453,7 @@ const FollowListModule = (function () {
   return {
     openFollowList,
     closeFollowList,
+    closeFollowListFromUI,
     toggleSort: _toggleSort,
     handleFollow,
     getCurrentTargetId: () => targetId,
@@ -376,9 +493,11 @@ const FollowListModule = (function () {
             `Permission changed. You can no longer view this ${listType} list.`,
           );
         closeFollowList();
+        redirectToProfileRoot(true);
       }
     },
   };
 })();
 
 window.FollowListModule = FollowListModule;
+

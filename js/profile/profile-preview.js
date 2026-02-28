@@ -749,8 +749,17 @@ function viewProfile(username) {
     hidePreview();
   }
 
-  // Navigate to profile page using hash
-  window.location.hash = `#/profile/${username}`;
+  const target = (username || "").toString().trim();
+  if (!target) return;
+
+  if (window.RouteHelper?.buildProfilePath && window.RouteHelper?.goTo) {
+    const path = window.RouteHelper.buildProfilePath(target);
+    window.RouteHelper.goTo(path);
+    return;
+  }
+
+  // Fallback without RouteHelper
+  window.location.hash = `#/${encodeURIComponent(target)}`;
 }
 window.viewProfile = viewProfile;
 

@@ -7,6 +7,15 @@
     let currentSettings = null;
     let hasUnsavedChanges = false;
 
+    function getMyProfileHash() {
+        if (window.RouteHelper?.buildProfileHash) {
+            return window.RouteHelper.buildProfileHash("");
+        }
+        const me = (localStorage.getItem("username") || "").toString().trim();
+        if (me) return `#/${encodeURIComponent(me)}`;
+        return "#/";
+    }
+
     // Privacy level mappings
     const PRIVACY_LEVELS = {
         0: { name: 'Public', icon: 'globe', class: 'public' },
@@ -283,7 +292,7 @@
         if (!hasAccountSettingsChanges()) {
             if (window.toastInfo) toastInfo("No changes were made.");
             setTimeout(() => {
-                window.location.hash = "#/profile";
+                window.location.hash = getMyProfileHash();
             }, 600);
             return;
         }
@@ -322,7 +331,7 @@
 
                 // Redirect to profile after a short delay
                 setTimeout(() => {
-                    window.location.hash = "#/profile";
+                    window.location.hash = getMyProfileHash();
                 }, 1000);
             } else {
                 const errorData = await res.json();

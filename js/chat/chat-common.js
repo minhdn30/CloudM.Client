@@ -3724,8 +3724,18 @@ const ChatCommon = {
     this.syncAllReactionBadgeOverflows(container);
   },
 
+  buildProfileHash(profileTarget) {
+    const safe = (profileTarget || "").toString().trim();
+    if (window.RouteHelper?.buildProfileHash) {
+      return window.RouteHelper.buildProfileHash(safe);
+    }
+    if (!safe) return "#/";
+    return `#/${encodeURIComponent(safe)}`;
+  },
+
   goToProfile(accountId, username) {
     if (!accountId && !username) return;
+
     // If we are leaving chat-page, ensure we minimize the current chat session
     if (
       window.ChatPage &&
@@ -3733,9 +3743,18 @@ const ChatCommon = {
     ) {
       window.ChatPage.minimizeToBubble();
     }
+
     // Prefer username for profile URL (clean/SEO-friendly); fallback to accountId
-    const profileParam = username || accountId;
-    window.location.hash = `#/profile/${profileParam}`;
+    const profileParam = (username || accountId || "").toString().trim();
+    if (!profileParam) return;
+
+    if (window.RouteHelper?.buildProfilePath && window.RouteHelper?.goTo) {
+      const path = window.RouteHelper.buildProfilePath(profileParam);
+      window.RouteHelper.goTo(path);
+      return;
+    }
+
+    window.location.hash = this.buildProfileHash(profileParam);
   },
 
   /**

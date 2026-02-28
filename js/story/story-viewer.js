@@ -1,9 +1,9 @@
 (function (global) {
   const STORY_URL_PARAM = "storyId";
-  const STORY_HASH_ROUTE_PREFIX = "/story/";
+  const STORY_HASH_ROUTE_PREFIX = "/stories/";
+  const STORY_HASH_ROUTE_LEGACY_PREFIX = "/story/";
   const STORY_HIGHLIGHT_HASH_ROUTE_PREFIX = "/story/highlight/";
-  const STORY_HIGHLIGHT_PROFILE_ROUTE_SEGMENT = "/highlight/";
-  const STORY_HIGHLIGHT_PROFILE_STORY_SEGMENT = "/story/";
+  const STORY_HIGHLIGHT_PROFILE_ROUTE_SEGMENT = "/stories/highlight/";
   const DEFAULT_STORY_DURATION_MS =
     global.APP_CONFIG?.STORY_DEFAULT_DURATION_MS || 5000;
   const PROGRESS_TICK_MS = 50;
@@ -1972,7 +1972,11 @@
     }
   }
 
-  function stRenderUnavailableContent(parentShell, reason, iconName = "eye-off") {
+  function stRenderUnavailableContent(
+    parentShell,
+    reason,
+    iconName = "eye-off",
+  ) {
     const unavailableEl = document.createElement("div");
     unavailableEl.className = "sn-story-viewer-unavailable";
     unavailableEl.innerHTML = `
@@ -2895,7 +2899,11 @@
     if (!profileTarget) return;
 
     // Navigate to profile
-    global.location.hash = `#/profile/${profileTarget}`;
+    if (global.RouteHelper?.buildProfileHash) {
+      global.location.hash = global.RouteHelper.buildProfileHash(profileTarget);
+    } else {
+      global.location.hash = `#/${encodeURIComponent(profileTarget)}`;
+    }
 
     // Note: router() will be triggered by hashchange, which calls closeAllOverlayModals(),
     // which in turn calls stCloseViewer().
@@ -2949,34 +2957,50 @@
     const normalizedHashPath = (hashPath || "").toString().trim();
     if (!normalizedHashPath.startsWith("#")) return "";
 
-    const rawPath = normalizedHashPath.slice(1);
-    const normalizedPath = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
-    if (!normalizedPath.startsWith("/profile")) return "";
-
-    const tail = normalizedPath.slice("/profile".length);
-    const segments = tail.split("/").filter(Boolean);
     if (
-      !segments.length ||
-      segments[0].toLowerCase() === "story" ||
-      segments[0].toLowerCase() === "highlight"
+      global.RouteHelper?.parseHash &&
+      global.RouteHelper?.extractProfileTargetFromHash &&
+      global.RouteHelper?.buildProfileHash
     ) {
-      return "#/profile";
+      const parsed = global.RouteHelper.parseHash(normalizedHashPath);
+      const profileTarget =
+        global.RouteHelper.extractProfileTargetFromHash(normalizedHashPath);
+      if (profileTarget) {
+        return global.RouteHelper.buildProfileHash(profileTarget);
+      }
+
+      if (global.RouteHelper.isProfilePath?.(parsed.path)) {
+        const currentUsername = (localStorage.getItem("username") || "")
+          .toString()
+          .trim();
+        return global.RouteHelper.buildProfileHash(currentUsername || "");
+      }
     }
 
-    return `#/profile/${segments[0]}`;
+    const rawPath = normalizedHashPath.slice(1);
+    const normalizedPath = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
+    const segments = normalizedPath.split("/").filter(Boolean);
+    if (!segments.length) return "";
+
+    const firstSegment = (segments[0] || "").toString().trim();
+    if (!firstSegment || firstSegment.toLowerCase() === "story") return "";
+    return `#/${encodeURIComponent(stDecodeRouteSegment(firstSegment))}`;
   }
 
   function stIsStoryHashRoute(hashPath) {
     const normalizedHashPath = (hashPath || "").toString().trim();
     const normalizedLowerHashPath = normalizedHashPath.toLowerCase();
     const isProfileHighlightRoute =
-      normalizedLowerHashPath.startsWith("#/profile") &&
-      normalizedLowerHashPath.includes(STORY_HIGHLIGHT_PROFILE_ROUTE_SEGMENT) &&
-      normalizedLowerHashPath.includes(STORY_HIGHLIGHT_PROFILE_STORY_SEGMENT);
+      !!stExtractProfileHighlightRouteContext(normalizedHashPath);
+    const isLegacyHighlightRoute =
+      normalizedLowerHashPath.startsWith("#/story/highlight/");
 
     return (
-      normalizedHashPath === "#/story" ||
+      normalizedHashPath === "#/stories" ||
       normalizedHashPath.startsWith(`#${STORY_HASH_ROUTE_PREFIX}`) ||
+      normalizedHashPath === "#/story" ||
+      normalizedHashPath.startsWith(`#${STORY_HASH_ROUTE_LEGACY_PREFIX}`) ||
+      isLegacyHighlightRoute ||
       isProfileHighlightRoute
     );
   }
@@ -3016,48 +3040,52 @@
     const normalizedHashPath = (hashPath || "").toString().trim();
     if (!normalizedHashPath.startsWith("#")) return null;
 
-    const rawPath = normalizedHashPath.slice(1);
-    const normalizedPath = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
-    if (!normalizedPath.startsWith("/profile")) return null;
+    const routeHelper = global.RouteHelper;
+    if (
+      routeHelper?.parseHash &&
+      routeHelper?.extractProfileHighlightContext &&
+      routeHelper?.buildProfileHash
+    ) {
+      const parsed = routeHelper.parseHash(normalizedHashPath);
+      const context = routeHelper.extractProfileHighlightContext(parsed.path);
+      if (!context?.profileTarget || !context?.groupId) {
+        return null;
+      }
 
-    const tail = normalizedPath.slice("/profile".length);
-    const segments = tail.split("/").filter(Boolean);
-    if (!segments.length) return null;
-
-    let routeStartIndex = 0;
-    let profileTarget = "";
-
-    const firstSegment = (segments[0] || "").toLowerCase();
-    if (firstSegment !== "highlight") {
-      if (firstSegment === "story") return null;
-      profileTarget = stDecodeRouteSegment(segments[0]);
-      routeStartIndex = 1;
+      return {
+        profileHashPath: routeHelper.buildProfileHash(context.profileTarget),
+        profileTarget: context.profileTarget,
+        groupId: context.groupId,
+        storyId: context.storyId || "",
+      };
     }
 
-    const routeSegment = (segments[routeStartIndex] || "").toLowerCase();
-    const groupSegment = segments[routeStartIndex + 1] || "";
-    const storyMarkerSegment = (
-      segments[routeStartIndex + 2] || ""
+    const rawPath = normalizedHashPath.slice(1);
+    const normalizedPath = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
+    const segments = normalizedPath.split("/").filter(Boolean);
+    if (segments.length < 4) return null;
+
+    const profileTarget = stDecodeRouteSegment(segments[0] || "");
+    const routeSegment = stDecodeRouteSegment(segments[1] || "").toLowerCase();
+    const highlightSegment = stDecodeRouteSegment(
+      segments[2] || "",
     ).toLowerCase();
-    const storySegment = segments[routeStartIndex + 3] || "";
+    const groupSegment = stDecodeRouteSegment(segments[3] || "");
+
     if (
-      routeSegment !== "highlight" ||
-      !groupSegment ||
-      storyMarkerSegment !== "story" ||
-      !storySegment
+      !profileTarget ||
+      routeSegment !== "stories" ||
+      highlightSegment !== "highlight" ||
+      !groupSegment
     ) {
       return null;
     }
 
-    const profileHashPath = profileTarget
-      ? `#/profile/${encodeURIComponent(profileTarget)}`
-      : "#/profile";
-
     return {
-      profileHashPath,
+      profileHashPath: `#/${encodeURIComponent(profileTarget)}`,
       profileTarget,
-      groupId: stDecodeRouteSegment(groupSegment),
-      storyId: stDecodeRouteSegment(storySegment),
+      groupId: groupSegment,
+      storyId: "",
     };
   }
 
@@ -3073,7 +3101,12 @@
     const normalizedPath = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
     if (normalizedPath.startsWith("/profile")) return "";
 
-    const rawStoryId = normalizedPath.slice(STORY_HASH_ROUTE_PREFIX.length);
+    let rawStoryId = "";
+    if (normalizedPath.startsWith(STORY_HASH_ROUTE_PREFIX)) {
+      rawStoryId = normalizedPath.slice(STORY_HASH_ROUTE_PREFIX.length);
+    } else if (normalizedPath.startsWith(STORY_HASH_ROUTE_LEGACY_PREFIX)) {
+      rawStoryId = normalizedPath.slice(STORY_HASH_ROUTE_LEGACY_PREFIX.length);
+    }
     if (!rawStoryId) return "";
 
     const firstSlash = rawStoryId.indexOf("/");
@@ -3095,18 +3128,13 @@
     return `#${STORY_HASH_ROUTE_PREFIX}${encodeURIComponent(normalizedStoryId)}`;
   }
 
-  function stBuildProfileHighlightStoryHashPath(
-    profileHashPath,
-    groupId,
-    storyId,
-  ) {
+  function stBuildProfileHighlightHashPath(profileHashPath, groupId) {
     const normalizedProfileHashPath =
-      stExtractProfileHashPath(profileHashPath) || "#/profile";
+      stExtractProfileHashPath(profileHashPath) || "";
     const normalizedGroupId = (groupId || "").toString().trim();
-    const normalizedStoryId = (storyId || "").toString().trim();
-    if (!normalizedGroupId || !normalizedStoryId)
-      return normalizedProfileHashPath;
-    return `${normalizedProfileHashPath}${STORY_HIGHLIGHT_PROFILE_ROUTE_SEGMENT}${encodeURIComponent(normalizedGroupId)}${STORY_HIGHLIGHT_PROFILE_STORY_SEGMENT}${encodeURIComponent(normalizedStoryId)}`;
+    if (!normalizedGroupId || !normalizedProfileHashPath)
+      return normalizedProfileHashPath || "#/";
+    return `${normalizedProfileHashPath}${STORY_HIGHLIGHT_PROFILE_ROUTE_SEGMENT}${encodeURIComponent(normalizedGroupId)}`;
   }
 
   function stBuildHighlightStoryHashPath(targetAccountId, groupId, storyId) {
@@ -3167,21 +3195,23 @@
         .toString()
         .trim();
       const resolvedProfileHashPath =
-        (profileHashPath && profileHashPath !== "#/profile") || !profileUsername
+        profileHashPath || !profileUsername
           ? profileHashPath
-          : `#/profile/${encodeURIComponent(profileUsername)}`;
+          : global.RouteHelper?.buildProfileHash
+            ? global.RouteHelper.buildProfileHash(profileUsername)
+            : `#/${encodeURIComponent(profileUsername)}`;
 
       if (resolvedProfileHashPath) {
-        nextHash = stBuildProfileHighlightStoryHashPath(
+        nextHash = stBuildProfileHighlightHashPath(
           resolvedProfileHashPath,
           viewerState.highlightGroupId,
-          normalizedStoryId,
         );
       } else {
-        nextHash = stBuildProfileHighlightStoryHashPath(
-          "#/profile",
+        nextHash = stBuildProfileHighlightHashPath(
+          global.RouteHelper?.buildProfileHash
+            ? global.RouteHelper.buildProfileHash("")
+            : "#/",
           viewerState.highlightGroupId,
-          normalizedStoryId,
         );
       }
     }
@@ -3215,67 +3245,156 @@
     viewerState.baseUrl = null;
   }
 
-  async function stResolveAuthorIdByStoryId(storyId) {
+  function stMarkStoryReplyPreviewExpired(storyId) {
+    const normalizedStoryId = (storyId || "").toString().trim();
+    if (!normalizedStoryId) return;
+
+    const expiredElements = document.querySelectorAll(
+      `.msg-story-reply-preview[data-story-id="${normalizedStoryId}"]`,
+    );
+    expiredElements.forEach((el) => {
+      el.removeAttribute("onclick");
+      el.removeAttribute("style");
+      el.removeAttribute("data-story-id");
+      el.className = "msg-story-reply-preview msg-story-reply-expired";
+      el.innerHTML = `
+          <div class="msg-story-reply-expired-icon"><i data-lucide="image-off"></i></div>
+          <span>Story is no longer available</span>
+        `;
+      if (global.lucide && typeof global.lucide.createIcons === "function") {
+        global.lucide.createIcons({ root: el });
+      }
+    });
+  }
+
+  async function stResolveStoryAuthorContextByStoryId(storyId) {
+    const result = {
+      authorId: "",
+      notFound: false,
+      forbidden: false,
+      error: false,
+    };
+
     const normalizedStoryId = stNormalizeId(storyId);
-    if (!normalizedStoryId) return null;
+    if (!normalizedStoryId) {
+      result.notFound = true;
+      return result;
+    }
 
     if (viewerState.storyToAuthorCache.has(normalizedStoryId)) {
-      return viewerState.storyToAuthorCache.get(normalizedStoryId) || null;
+      result.authorId =
+        viewerState.storyToAuthorCache.get(normalizedStoryId) || "";
+      if (!result.authorId) {
+        result.notFound = true;
+      }
+      return result;
     }
     if (!global.API?.Stories?.resolveByStoryId) {
-      return null;
+      result.error = true;
+      return result;
     }
 
     try {
       const resolveRes =
         await global.API.Stories.resolveByStoryId(normalizedStoryId);
-      if (!resolveRes?.ok) return null;
+      if (resolveRes?.status === 404) {
+        result.notFound = true;
+        return result;
+      }
+      if (resolveRes?.status === 403) {
+        result.forbidden = true;
+        return result;
+      }
+      if (!resolveRes?.ok) {
+        result.error = true;
+        return result;
+      }
 
       const payload = await resolveRes.json().catch(() => null);
       const authorId = stReadString(payload, "authorId", "AuthorId", "").trim();
-      if (!authorId) return null;
+      if (!authorId) {
+        result.notFound = true;
+        return result;
+      }
 
       stCacheStoryAuthor(normalizedStoryId, authorId);
-      return authorId;
+      result.authorId = authorId;
+      return result;
     } catch (_) {
-      return null;
+      result.error = true;
+      return result;
     }
   }
 
   async function stOpenViewerByStoryId(storyId, options = {}) {
     const normalizedStoryId = (storyId || "").toString().trim();
-    if (!normalizedStoryId) return;
+    if (!normalizedStoryId) return STORY_OPEN_STATUS.ERROR;
 
-    const authorId = await stResolveAuthorIdByStoryId(normalizedStoryId);
-    if (!authorId) {
-      if (typeof global.toastInfo === "function") {
+    const resolveResult =
+      await stResolveStoryAuthorContextByStoryId(normalizedStoryId);
+
+    if (resolveResult.notFound) {
+      if (options.redirectOnNotFound) {
+        stNavigateToNotFoundRoute();
+      } else if (typeof global.toastInfo === "function") {
         global.toastInfo("This story is no longer available.");
       }
-
-      const expiredElements = document.querySelectorAll(
-        `.msg-story-reply-preview[data-story-id="${normalizedStoryId}"]`,
-      );
-      expiredElements.forEach((el) => {
-        el.removeAttribute("onclick");
-        el.removeAttribute("style");
-        el.removeAttribute("data-story-id");
-        el.className = "msg-story-reply-preview msg-story-reply-expired";
-        el.innerHTML = `
-          <div class="msg-story-reply-expired-icon"><i data-lucide="image-off"></i></div>
-          <span>Story is no longer available</span>
-        `;
-        if (global.lucide && typeof global.lucide.createIcons === "function") {
-          global.lucide.createIcons({ root: el });
-        }
-      });
-      return;
+      stMarkStoryReplyPreviewExpired(normalizedStoryId);
+      return STORY_OPEN_STATUS.UNAVAILABLE;
     }
 
-    await stOpenViewerByAuthorId(authorId, {
+    if (resolveResult.forbidden) {
+      if (typeof global.toastInfo === "function") {
+        global.toastInfo("You no longer have permission to view this story.");
+      }
+      if (options.redirectOnForbidden) {
+        const fallbackHashPath = stGetFallbackHashPath();
+        if (global.RouteHelper?.goTo && global.RouteHelper?.parseHash) {
+          const parsed = global.RouteHelper.parseHash(fallbackHashPath);
+          global.RouteHelper.goTo(parsed.path, {
+            query: parsed.params,
+            replace: true,
+          });
+        } else {
+          global.location.hash = fallbackHashPath;
+        }
+      }
+      return STORY_OPEN_STATUS.UNAVAILABLE;
+    }
+
+    if (!resolveResult.authorId) {
+      if (typeof global.toastError === "function") {
+        global.toastError("Failed to resolve story route.");
+      }
+      return STORY_OPEN_STATUS.ERROR;
+    }
+
+    const openStatus = await stOpenViewerByAuthorId(resolveResult.authorId, {
       syncUrl: options.syncUrl !== false,
       startAtUnviewed: false,
       targetStoryId: normalizedStoryId,
     });
+
+    if (
+      openStatus !== STORY_OPEN_STATUS.SUCCESS &&
+      options.redirectOnForbidden
+    ) {
+      if (typeof global.toastInfo === "function") {
+        global.toastInfo("You no longer have permission to view this story.");
+      }
+      const fallbackHashPath = stGetFallbackHashPath();
+      if (global.RouteHelper?.goTo && global.RouteHelper?.parseHash) {
+        const parsed = global.RouteHelper.parseHash(fallbackHashPath);
+        global.RouteHelper.goTo(parsed.path, {
+          query: parsed.params,
+          replace: true,
+        });
+      } else {
+        global.location.hash = fallbackHashPath;
+      }
+    }
+
+    return openStatus;
   }
 
   function stShowLoading() {
@@ -4000,14 +4119,52 @@
     );
   }
 
-  async function stResolveHighlightTargetAccountId(profileTarget) {
+  function stNavigateToNotFoundRoute() {
+    if (global.RouteHelper?.goTo) {
+      const notFoundPath = global.RouteHelper.PATHS?.ERROR_404 || "/404";
+      global.RouteHelper.goTo(notFoundPath, { replace: true });
+      return;
+    }
+    global.location.hash = "#/404";
+  }
+
+  function stNavigateToProfileRoot(profileTarget) {
+    const normalizedTarget = (profileTarget || "").toString().trim();
+    if (global.RouteHelper?.goTo) {
+      const path = global.RouteHelper.buildProfilePath
+        ? global.RouteHelper.buildProfilePath(normalizedTarget)
+        : normalizedTarget
+          ? `/${encodeURIComponent(normalizedTarget)}`
+          : "/";
+      global.RouteHelper.goTo(path, { replace: true });
+      return;
+    }
+
+    if (normalizedTarget) {
+      global.location.hash = `#/${encodeURIComponent(normalizedTarget)}`;
+      return;
+    }
+    global.location.hash = "#/";
+  }
+
+  async function stResolveHighlightTargetAccount(profileTarget) {
+    const result = {
+      accountId: "",
+      notFound: false,
+      error: false,
+    };
+
     const normalizedProfileTarget = (profileTarget || "").toString().trim();
     if (!normalizedProfileTarget) {
-      return (localStorage.getItem("accountId") || "").toString().trim();
+      result.accountId = (localStorage.getItem("accountId") || "")
+        .toString()
+        .trim();
+      return result;
     }
 
     if (stIsGuidLike(normalizedProfileTarget)) {
-      return normalizedProfileTarget;
+      result.accountId = normalizedProfileTarget;
+      return result;
     }
 
     const currentAccountId = (localStorage.getItem("accountId") || "")
@@ -4020,18 +4177,27 @@
       currentUsername &&
       currentUsername.toLowerCase() === normalizedProfileTarget.toLowerCase()
     ) {
-      return currentAccountId || normalizedProfileTarget;
+      result.accountId = currentAccountId || normalizedProfileTarget;
+      return result;
     }
 
     if (!global.API?.Accounts?.getProfileByUsername) {
-      return "";
+      result.error = true;
+      return result;
     }
 
     try {
       const response = await global.API.Accounts.getProfileByUsername(
         normalizedProfileTarget,
       );
-      if (!response?.ok) return "";
+      if (response?.status === 404) {
+        result.notFound = true;
+        return result;
+      }
+      if (!response?.ok) {
+        result.error = true;
+        return result;
+      }
 
       const payload = await response.json().catch(() => null);
       const accountInfo =
@@ -4040,7 +4206,7 @@
         payload?.account ||
         payload?.Account ||
         {};
-      return (
+      result.accountId = (
         accountInfo.accountId ??
         accountInfo.AccountId ??
         accountInfo.id ??
@@ -4049,8 +4215,13 @@
       )
         .toString()
         .trim();
+      if (!result.accountId) {
+        result.notFound = true;
+      }
+      return result;
     } catch (_) {
-      return "";
+      result.error = true;
+      return result;
     }
   }
 
@@ -4060,8 +4231,9 @@
       const { hashPath, hashParams } = stParseHash();
       const lowerHashPath = (hashPath || "").toString().toLowerCase();
       const looksLikeProfileHighlightRoute =
-        lowerHashPath.startsWith("#/profile") &&
-        lowerHashPath.includes("/highlight/");
+        lowerHashPath.includes("/stories/highlight/") ||
+        (lowerHashPath.startsWith("#/profile") &&
+          lowerHashPath.includes("/highlight/"));
       const looksLikeLegacyHighlightRoute =
         lowerHashPath.startsWith("#/story/highlight/");
 
@@ -4076,26 +4248,33 @@
 
       if (
         profileHighlightContext?.groupId &&
-        profileHighlightContext?.storyId
+        profileHighlightContext?.profileTarget
       ) {
-        const targetAccountId = await stResolveHighlightTargetAccountId(
+        const resolveResult = await stResolveHighlightTargetAccount(
           profileHighlightContext.profileTarget,
         );
-        if (!targetAccountId) {
+        if (resolveResult.notFound) {
+          stNavigateToNotFoundRoute();
+          return;
+        }
+        if (!resolveResult.accountId) {
           if (global.toastInfo) {
-            global.toastInfo("This highlight story is no longer available.");
+            global.toastInfo("Unable to open this highlight link right now.");
           }
           return;
         }
 
-        stOpenHighlightViewerByGroup(
-          targetAccountId,
+        const openStatus = await stOpenHighlightViewerByGroup(
+          resolveResult.accountId,
           profileHighlightContext.groupId,
           {
             syncUrl: true,
-            targetStoryId: profileHighlightContext.storyId,
+            targetStoryId: profileHighlightContext.storyId || "",
           },
         );
+        if (openStatus === STORY_OPEN_STATUS.UNAVAILABLE) {
+          stNavigateToProfileRoot(profileHighlightContext.profileTarget);
+        }
         return;
       }
 
@@ -4133,7 +4312,12 @@
       const storyId =
         storyIdFromPath || storyIdFromHashQuery || storyIdFromSearch;
       if (!storyId) return;
-      stOpenViewerByStoryId(storyId, { syncUrl: true });
+      const openedFromStoryPath = !!storyIdFromPath;
+      await stOpenViewerByStoryId(storyId, {
+        syncUrl: true,
+        redirectOnNotFound: openedFromStoryPath,
+        redirectOnForbidden: openedFromStoryPath,
+      });
     } catch (_) {
       // Ignore deep-link parsing errors to avoid blocking page scripts.
     }
