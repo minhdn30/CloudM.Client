@@ -105,6 +105,15 @@
     return !!currentId && targetId === currentId;
   }
 
+  function buildProfileHash(profileTarget) {
+    const safe = (profileTarget || "").toString().trim();
+    if (window.RouteHelper?.buildProfileHash) {
+      return window.RouteHelper.buildProfileHash(safe);
+    }
+    if (!safe) return "#/";
+    return `#/${encodeURIComponent(safe)}`;
+  }
+
   function createPostElement(post) {
       const postEl = document.createElement("div");
       postEl.className = "post";
@@ -118,16 +127,19 @@
         : "";
       const avatarUrl = post.author?.avatarUrl || APP_CONFIG.DEFAULT_AVATAR;
       const avatarMarkup = renderPostAvatarMarkup(avatarUrl);
+      const authorProfileTarget =
+        (post.author?.username || post.author?.accountId || "").toString().trim();
+      const authorProfileHash = buildProfileHash(authorProfileTarget);
       const commentCount = Number.isFinite(Number(post.commentCount)) ? Number(post.commentCount) : 0;
 
       postEl.innerHTML = `
           <div class="post-header">
             <div class="post-user" data-account-id="${post.author.accountId}">
-              <a href="#/profile/${post.author.username}" class="post-avatar-ring ${storyRingClass}"${storyAuthorDataAttr}>
+              <a href="${authorProfileHash}" class="post-avatar-ring ${storyRingClass}"${storyAuthorDataAttr}>
                   ${avatarMarkup}
               </a>
               <div class="user-meta">
-                <a href="#/profile/${post.author.username}" style="text-decoration: none; color: inherit;">
+                <a href="${authorProfileHash}" style="text-decoration: none; color: inherit;">
                     <span class="post-username">${PostUtils.truncateName(post.author?.username || post.author?.fullName || "User")}</span>
                 </a>
                 <div class="post-meta">

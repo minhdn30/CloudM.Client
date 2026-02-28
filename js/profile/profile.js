@@ -11,15 +11,30 @@
   let archivedStoriesPage = 1;
   let isArchivedStoriesLoading = false;
   let hasMoreArchivedStories = true;
-  let activeTab = "posts";
+  const PROFILE_POSTS_TAB = "posts";
+  const PROFILE_REELS_TAB = "reels";
+  const PROFILE_TAGGED_TAB = "tagged";
+  const PROFILE_SAVED_TAB = "saved";
+  const PROFILE_ARCHIVED_STORIES_TAB = "archived-stories";
+  const PROFILE_ALL_TABS = new Set([
+    PROFILE_POSTS_TAB,
+    PROFILE_REELS_TAB,
+    PROFILE_TAGGED_TAB,
+    PROFILE_SAVED_TAB,
+    PROFILE_ARCHIVED_STORIES_TAB,
+  ]);
+  const PROFILE_OWNER_ONLY_TABS = new Set([
+    PROFILE_SAVED_TAB,
+    PROFILE_ARCHIVED_STORIES_TAB,
+  ]);
+  let activeTab = PROFILE_POSTS_TAB;
 
   const POSTS_PAGE_SIZE = APP_CONFIG.PROFILE_POSTS_PAGE_SIZE;
   const ARCHIVED_STORIES_PAGE_SIZE =
     APP_CONFIG.PROFILE_ARCHIVED_STORIES_PAGE_SIZE ||
     APP_CONFIG.PROFILE_POSTS_PAGE_SIZE;
-  const PROFILE_ARCHIVED_STORIES_TAB = "archived-stories";
   const PROFILE_CACHEABLE_TABS = new Set([
-    "posts",
+    PROFILE_POSTS_TAB,
     PROFILE_ARCHIVED_STORIES_TAB,
   ]);
   const PROFILE_TAB_SCROLL_NEAR_TOP_THRESHOLD = 160;
@@ -70,7 +85,10 @@
   }
 
   function resolveStoryRingClass(storyRingState) {
-    const normalizedState = (storyRingState ?? "").toString().trim().toLowerCase();
+    const normalizedState = (storyRingState ?? "")
+      .toString()
+      .trim()
+      .toLowerCase();
 
     if (
       storyRingState === 2 ||
@@ -153,7 +171,9 @@
       normalized[key] = { ...option, css };
     });
 
-    return Object.keys(normalized).length > 0 ? normalized : { ...(fallbackMap || {}) };
+    return Object.keys(normalized).length > 0
+      ? normalized
+      : { ...(fallbackMap || {}) };
   }
 
   function resolveStyleKey(collection, rawKey, fallbackKey) {
@@ -255,8 +275,14 @@
       defaultFontKey,
     );
 
-    const minSize = Math.max(1, parseIntSafe(fontSize.min, fallback.fontSize.min));
-    const maxSize = Math.max(minSize, parseIntSafe(fontSize.max, fallback.fontSize.max));
+    const minSize = Math.max(
+      1,
+      parseIntSafe(fontSize.min, fallback.fontSize.min),
+    );
+    const maxSize = Math.max(
+      minSize,
+      parseIntSafe(fontSize.max, fallback.fontSize.max),
+    );
     const defaultSize = clamp(
       parseIntSafe(
         defaults.fontSizePx,
@@ -266,10 +292,7 @@
       maxSize,
     );
     const finalSize = clamp(
-      parseIntSafe(
-        story.fontSizeKey ?? story.FontSizeKey,
-        defaultSize,
-      ),
+      parseIntSafe(story.fontSizeKey ?? story.FontSizeKey, defaultSize),
       minSize,
       maxSize,
     );
@@ -294,7 +317,12 @@
     };
   }
 
-  function renderProfileAvatar(avatarWrapper, avatarUrl, storyRingState, accountId) {
+  function renderProfileAvatar(
+    avatarWrapper,
+    avatarUrl,
+    storyRingState,
+    accountId,
+  ) {
     if (!avatarWrapper) return;
 
     const ringClass = resolveStoryRingClass(storyRingState);
@@ -414,8 +442,14 @@
       hasMore = data.hasMore;
       archivedStoriesPage = data.archivedStoriesPage ?? 1;
       hasMoreArchivedStories = data.hasMoreArchivedStories ?? true;
-      activeTab = data.activeTab || "posts";
+      activeTab = normalizeProfileTabName(data.activeTab) || PROFILE_POSTS_TAB;
       currentProfileData = data.currentProfileData;
+
+      // Transient loading flags must never be restored from in-flight context.
+      // Without this reset, switching profile while a previous request is pending
+      // can leave scroll-pagination locked (isLoading stuck true).
+      isLoading = false;
+      isArchivedStoriesLoading = false;
     },
     getPageData: () => ({
       currentProfileId,
@@ -439,8 +473,12 @@
     const profileKey = normalizeProfileCacheKey(currentProfileId);
     if (!profileKey) return false;
 
-    const myAccountId = normalizeProfileCacheKey(localStorage.getItem("accountId"));
-    const myUsername = normalizeProfileCacheKey(localStorage.getItem("username"));
+    const myAccountId = normalizeProfileCacheKey(
+      localStorage.getItem("accountId"),
+    );
+    const myUsername = normalizeProfileCacheKey(
+      localStorage.getItem("username"),
+    );
 
     return Boolean(
       (myAccountId && profileKey === myAccountId) ||
@@ -603,7 +641,10 @@
 
     grid.innerHTML = "";
     unlockGridHeightAfterTabRender(grid);
-    grid.classList.toggle("placeholder-mode", Boolean(snapshot.placeholderMode));
+    grid.classList.toggle(
+      "placeholder-mode",
+      Boolean(snapshot.placeholderMode),
+    );
 
     while (snapshot.container.firstChild) {
       grid.appendChild(snapshot.container.firstChild);
@@ -647,39 +688,18 @@
     const hash = window.location.hash || "";
     let accountId = null;
 
-    const extractProfileRouteTarget = (rawHash) => {
-      const normalizedHash = (rawHash || "").toString();
-      const hashPath = normalizedHash.split("?")[0] || "";
-      const marker = "#/profile";
-      const markerIndex = hashPath.indexOf(marker);
-      if (markerIndex < 0) return "";
+    const parsedHash = window.RouteHelper?.parseHash
+      ? window.RouteHelper.parseHash(hash)
+      : { params: new URLSearchParams((hash.split("?")[1] || "").toString()) };
 
-      const tail = hashPath.slice(markerIndex + marker.length);
-      const segments = tail.split("/").filter(Boolean);
-      if (!segments.length) return "";
-      if (
-        segments[0].toLowerCase() === "story" ||
-        segments[0].toLowerCase() === "highlight"
-      ) {
-        return "";
-      }
+    const legacyIdParam = (parsedHash.params?.get("id") || "")
+      .toString()
+      .trim();
+    const routeTarget = window.RouteHelper?.extractProfileTargetFromHash
+      ? window.RouteHelper.extractProfileTargetFromHash(hash)
+      : "";
 
-      try {
-        return decodeURIComponent(segments[0]);
-      } catch (_) {
-        return segments[0];
-      }
-    };
-
-    if (hash.includes("?")) {
-      const queryString = hash.split("?")[1];
-      const params = new URLSearchParams(queryString);
-      accountId = params.get("id");
-    }
-
-    if (!accountId) {
-      accountId = extractProfileRouteTarget(hash);
-    }
+    accountId = legacyIdParam || routeTarget;
 
     // Fallback to logged-in user if no ID in URL
     accountId = accountId || localStorage.getItem("accountId");
@@ -716,6 +736,12 @@
 
     if (window.PageCache && PageCache.restore(hash)) {
       // console.log("[Profile] Restored from cache");
+
+      // Ensure pending requests from previously viewed profile cannot lock pagination.
+      isLoading = false;
+      isArchivedStoriesLoading = false;
+      const loaderEl = document.getElementById("profile-posts-loader");
+      if (loaderEl) loaderEl.style.display = "none";
 
       // Even if restored, trigger a silent update to refresh stats (followers, etc.)
       // This ensures we keep scroll position but get fresh data
@@ -791,7 +817,7 @@
     archivedStoriesPage = 1;
     isArchivedStoriesLoading = false;
     hasMoreArchivedStories = true;
-    activeTab = "posts";
+    activeTab = PROFILE_POSTS_TAB;
     profilePostIds = []; // Reset post navigation list
     archivedStoryItems = [];
     archivedStoryIdSet.clear();
@@ -845,10 +871,13 @@
 
     updateActiveTabScrollMemory();
 
-    if (activeTab !== "posts" && activeTab !== PROFILE_ARCHIVED_STORIES_TAB)
+    if (
+      activeTab !== PROFILE_POSTS_TAB &&
+      activeTab !== PROFILE_ARCHIVED_STORIES_TAB
+    )
       return;
 
-    if (activeTab === "posts" && (isLoading || !hasMore)) return;
+    if (activeTab === PROFILE_POSTS_TAB && (isLoading || !hasMore)) return;
     if (
       activeTab === PROFILE_ARCHIVED_STORIES_TAB &&
       (isArchivedStoriesLoading || !hasMoreArchivedStories)
@@ -858,7 +887,7 @@
     const mc = document.querySelector(".main-content");
     if (!mc) return;
     if (mc.scrollTop + mc.clientHeight >= mc.scrollHeight - 500) {
-      if (activeTab === "posts") {
+      if (activeTab === PROFILE_POSTS_TAB) {
         loadPosts();
       } else if (activeTab === PROFILE_ARCHIVED_STORIES_TAB) {
         loadArchivedStories();
@@ -896,43 +925,33 @@
   };
 
   async function loadProfileData(isSilent = false) {
-    // Parse "u" parameter from URL query string
-    const hash = window.location.hash;
-    const params = new URLSearchParams(hash.split("?")[1] || "");
-    let usernameParam = params.get("u");
+    const hash = window.location.hash || "";
+    const parsedHash = window.RouteHelper?.parseHash
+      ? window.RouteHelper.parseHash(hash)
+      : { params: new URLSearchParams((hash.split("?")[1] || "").toString()) };
+    const params = parsedHash.params || new URLSearchParams();
 
-    // Check for /profile/username path format
-    if (!usernameParam && hash.includes("#/profile")) {
-      const hashPath = hash.split("?")[0] || "";
-      const marker = "#/profile";
-      const markerIndex = hashPath.indexOf(marker);
-      if (markerIndex >= 0) {
-        const tail = hashPath.slice(markerIndex + marker.length);
-        const segments = tail.split("/").filter(Boolean);
-        const candidate = segments.length
-          ? segments[0].toLowerCase() === "story" ||
-            segments[0].toLowerCase() === "highlight"
-            ? ""
-            : segments[0]
-          : "";
-        if (candidate) {
-          let decodedCandidate = candidate;
-          try {
-            decodedCandidate = decodeURIComponent(candidate);
-          } catch (_) {
-            decodedCandidate = candidate;
-          }
+    const isGuid = (value) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        (value || "").toString().trim(),
+      );
 
-          // Ensure it is NOT a GUID (if it's a GUID, let logic below handle it via currentProfileId)
-          const isGuid =
-            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-              decodedCandidate,
-            );
-          if (!isGuid) {
-            usernameParam = decodedCandidate;
-          }
-        }
+    let usernameParam = (params.get("u") || "").toString().trim();
+    const legacyIdParam = (params.get("id") || "").toString().trim();
+    const routeTarget = window.RouteHelper?.extractProfileTargetFromHash
+      ? window.RouteHelper.extractProfileTargetFromHash(hash)
+      : "";
+
+    if (!usernameParam && routeTarget) {
+      if (isGuid(routeTarget)) {
+        if (!currentProfileId) currentProfileId = routeTarget;
+      } else {
+        usernameParam = routeTarget;
       }
+    }
+
+    if (!currentProfileId && legacyIdParam) {
+      currentProfileId = legacyIdParam;
     }
 
     // Use LoadingUtils if available
@@ -948,11 +967,7 @@
       } else if (currentProfileId) {
         // Fallback: If currentProfileId is set (could be ID or Username if extracted loosely)
         // We should try to determine if it is a GUID
-        const isGuid =
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-            currentProfileId,
-          );
-        if (isGuid) {
+        if (isGuid(currentProfileId)) {
           res = await API.Accounts.getProfile(currentProfileId);
         } else {
           // Assume it's a username if not a GUID
@@ -962,6 +977,15 @@
         return;
       }
       if (!res.ok) {
+        if (res.status === 404) {
+          if (window.RouteHelper?.goTo) {
+            const notFoundPath = window.RouteHelper.PATHS?.ERROR_404 || "/404";
+            window.RouteHelper.goTo(notFoundPath, { replace: true });
+          } else {
+            window.location.hash = "#/404";
+          }
+          return;
+        }
         if (window.toastError) toastError("Failed to load profile details.");
         return;
       }
@@ -1028,20 +1052,42 @@
       } else {
         // Full render
         currentProfileData = data;
+        const isOwnerProfile = Boolean(
+          data.isCurrentUser || data.IsCurrentUser,
+        );
+        const requestedTab =
+          resolveProfileTabForRoute({ includeDefault: true }) ||
+          PROFILE_POSTS_TAB;
+        const initialTab =
+          !isOwnerOnlyProfileTab(requestedTab) || isOwnerProfile
+            ? requestedTab
+            : PROFILE_POSTS_TAB;
+
+        activeTab = PROFILE_POSTS_TAB;
 
         renderProfileHeader(data);
         ensureProfilePresenceSnapshot(currentProfileId);
 
-        // Now that we have the GUID, we can load posts
-        activeTab = "posts";
+        // Now that we have the GUID, we can load active tab content
         archivedStoriesPage = 1;
         isArchivedStoriesLoading = false;
         hasMoreArchivedStories = true;
         archivedStoryItems = [];
         archivedStoryIdSet.clear();
         isLoading = false;
-        startedPostLoad = true;
-        loadPosts();
+        startedPostLoad =
+          initialTab === PROFILE_POSTS_TAB ||
+          initialTab === PROFILE_ARCHIVED_STORIES_TAB;
+
+        if (initialTab === PROFILE_POSTS_TAB) {
+          loadPosts();
+        } else {
+          applyProfileTab(initialTab);
+        }
+      }
+
+      if (typeof syncProfileRouteState === "function") {
+        syncProfileRouteState();
       }
     } catch (err) {
       console.error(err);
@@ -1128,7 +1174,12 @@
 
     if (avatarWrapper) {
       const profileAccountId = info.accountId || info.id || currentProfileId;
-      renderProfileAvatar(avatarWrapper, avatarUrl, storyRingState, profileAccountId);
+      renderProfileAvatar(
+        avatarWrapper,
+        avatarUrl,
+        storyRingState,
+        profileAccountId,
+      );
     }
 
     if (coverImg) {
@@ -1229,12 +1280,15 @@
     // Action Buttons
     if (actionBtn) {
       if (isOwner) {
+        const mySettingsHash = window.RouteHelper?.buildAccountSettingsHash
+          ? window.RouteHelper.buildAccountSettingsHash("")
+          : "#/account-settings";
         actionBtn.innerHTML = `
                     <button class="profile-btn profile-btn-edit" onclick="openEditProfile()">
                         <i data-lucide="edit-3"></i>
                         <span>Edit Profile</span>
                     </button>
-                    <button class="profile-btn profile-btn-secondary" id="profile-settings-btn" onclick="window.location.hash='#/account-settings'">
+                    <button class="profile-btn profile-btn-secondary" id="profile-settings-btn" onclick="window.location.hash='${mySettingsHash}'">
                         <i data-lucide="settings"></i>
                         <span>Settings</span>
                     </button>
@@ -1355,18 +1409,113 @@
     return Array.isArray(result) ? result : [];
   }
 
+  function normalizeProfileTabName(tabName) {
+    if (window.RouteHelper?.normalizeProfileTabName) {
+      const normalizedByHelper =
+        window.RouteHelper.normalizeProfileTabName(tabName);
+      if (normalizedByHelper) return normalizedByHelper;
+    }
+
+    const normalized = (tabName || "").toString().trim().toLowerCase();
+    if (PROFILE_ALL_TABS.has(normalized)) return normalized;
+    return "";
+  }
+
+  function isOwnerOnlyProfileTab(tabName) {
+    return PROFILE_OWNER_ONLY_TABS.has(normalizeProfileTabName(tabName));
+  }
+
+  function buildProfileTabHash(tabName) {
+    const normalizedTab = normalizeProfileTabName(tabName) || PROFILE_POSTS_TAB;
+    const username = getCurrentProfileUsername();
+    if (!username) return "";
+
+    if (window.RouteHelper?.buildProfileTabHash) {
+      return window.RouteHelper.buildProfileTabHash(username, normalizedTab);
+    }
+
+    const encodedUsername = encodeURIComponent(username);
+    if (normalizedTab === PROFILE_POSTS_TAB) {
+      return `#/${encodedUsername}`;
+    }
+    return `#/${encodedUsername}/${normalizedTab}`;
+  }
+
+  function getCurrentProfileRouteTab(includeDefault = true) {
+    const currentPath = window.RouteHelper?.parseHash
+      ? window.RouteHelper.parseHash(window.location.hash || "").path
+      : "";
+    if (!currentPath) return includeDefault ? PROFILE_POSTS_TAB : "";
+
+    if (window.RouteHelper?.extractProfileTabFromPath) {
+      const extracted = window.RouteHelper.extractProfileTabFromPath(
+        currentPath,
+        {
+          includeDefault,
+        },
+      );
+      return (
+        normalizeProfileTabName(extracted) ||
+        (includeDefault ? PROFILE_POSTS_TAB : "")
+      );
+    }
+
+    const segments = currentPath.split("/").filter(Boolean);
+    if (segments.length <= 1) {
+      return includeDefault ? PROFILE_POSTS_TAB : "";
+    }
+    if (segments.length !== 2) return "";
+    const tabName = normalizeProfileTabName(segments[1]);
+    if (!tabName) return "";
+    return tabName;
+  }
+
+  function resolveProfileTabForRoute({ includeDefault = true } = {}) {
+    const followRouteType = window.RouteHelper?.extractProfileFollowListType
+      ? window.RouteHelper.extractProfileFollowListType(
+          window.RouteHelper.parseHash(window.location.hash || "").path,
+        )
+      : "";
+    if (followRouteType) return "";
+    return getCurrentProfileRouteTab(includeDefault);
+  }
+
+  function navigateToProfileTabRoute(tabName, options = {}) {
+    const normalizedTab = normalizeProfileTabName(tabName);
+    if (!normalizedTab) return;
+
+    const hash = buildProfileTabHash(normalizedTab);
+    if (!hash) {
+      applyProfileTab(normalizedTab);
+      return;
+    }
+
+    const replace = options.replace === true;
+    if (window.location.hash !== hash) {
+      if (window.RouteHelper?.goTo) {
+        const parsed = window.RouteHelper.parseHash(hash);
+        window.RouteHelper.goTo(parsed.path, { query: parsed.params, replace });
+      } else {
+        window.location.hash = hash;
+      }
+      return;
+    }
+
+    applyProfileTab(normalizedTab);
+  }
+
   function renderProfileTabs(isOwner) {
     const tabsContainer = document.getElementById("profile-tabs");
     if (!tabsContainer) return;
 
     let tabs = [
-      { id: "posts", label: "Posts", icon: "grid" },
-      { id: "reels", label: "Reels", icon: "clapperboard" },
-      { id: "tagged", label: "Tagged", icon: "user-square" },
+      { id: PROFILE_POSTS_TAB, label: "Posts", icon: "grid" },
+      { id: PROFILE_REELS_TAB, label: "Reels", icon: "clapperboard" },
+      { id: PROFILE_TAGGED_TAB, label: "Tagged", icon: "user-square" },
     ];
 
     if (isOwner) {
-      tabs.push({ id: "saved", label: "Saved", icon: "bookmark" });
+      tabs.push({ id: PROFILE_SAVED_TAB, label: "Saved", icon: "bookmark" });
       tabs.push({
         id: PROFILE_ARCHIVED_STORIES_TAB,
         label: "Archived Stories",
@@ -1374,16 +1523,18 @@
       });
     }
 
-    tabsContainer.innerHTML = tabs
-      .map(
-        (tab) => `
+    tabsContainer.innerHTML =
+      tabs
+        .map(
+          (tab) => `
             <div class="profile-tab ${tab.id === activeTab ? "active" : ""}" data-tab="${tab.id}" onclick="switchProfileTab('${tab.id}')">
                 <i data-lucide="${tab.icon}"></i>
                 <span>${tab.label}</span>
             </div>
         `,
-      )
-      .join("") + '<div class="profile-tabs-indicator" id="profile-tabs-indicator"></div>';
+        )
+        .join("") +
+      '<div class="profile-tabs-indicator" id="profile-tabs-indicator"></div>';
 
     if (window.lucide) lucide.createIcons();
     requestAnimationFrame(updateProfileTabsIndicator);
@@ -1402,12 +1553,15 @@
     requestAnimationFrame(updateProfileTabsIndicator);
   });
 
-  window.switchProfileTab = function (tabName) {
+  function applyProfileTab(tabName) {
+    const normalizedTab = normalizeProfileTabName(tabName);
+    if (!normalizedTab) return;
+
     const grid = document.getElementById("profile-posts-grid");
     const loader = document.getElementById("profile-posts-loader");
     if (!grid) return;
 
-    if (tabName === activeTab) return;
+    if (normalizedTab === activeTab) return;
 
     const mc = document.querySelector(".main-content");
     const currentScrollTop = mc ? mc.scrollTop : 0;
@@ -1415,23 +1569,23 @@
     const previousTab = activeTab;
     cacheCurrentTabState(previousTab);
 
-    activeTab = tabName;
+    activeTab = normalizedTab;
 
     // Update UI active state
     document.querySelectorAll(".profile-tab").forEach((t) => {
-      t.classList.toggle("active", t.dataset.tab === tabName);
+      t.classList.toggle("active", t.dataset.tab === normalizedTab);
     });
 
     updateProfileTabsIndicator();
 
-    if (restoreTabStateFromCache(tabName)) {
+    if (restoreTabStateFromCache(normalizedTab)) {
       return;
     }
 
     pendingTabScrollRestoreTop = currentScrollTop;
     lockGridHeightForTabSwitch(grid);
 
-    if (tabName === "posts") {
+    if (normalizedTab === PROFILE_POSTS_TAB) {
       // Restore posts grid
       grid.innerHTML = "";
       grid.classList.remove("placeholder-mode");
@@ -1439,7 +1593,7 @@
       hasMore = true;
       isLoading = false;
       loadPosts();
-    } else if (tabName === PROFILE_ARCHIVED_STORIES_TAB) {
+    } else if (normalizedTab === PROFILE_ARCHIVED_STORIES_TAB) {
       // Archived stories grid (owner only)
       grid.innerHTML = "";
       grid.classList.remove("placeholder-mode");
@@ -1466,10 +1620,10 @@
       grid.innerHTML = `
                 <div class="profile-tab-placeholder">
                     <div class="placeholder-icon-circle">
-                        <i data-lucide="${iconMap[tabName]}"></i>
+                        <i data-lucide="${iconMap[normalizedTab]}"></i>
                     </div>
-                    <h2>${labels[tabName]} coming soon</h2>
-                    <p>We're working on ${labels[tabName].toLowerCase()} feature. It will be available in a future update.</p>
+                    <h2>${labels[normalizedTab]} coming soon</h2>
+                    <p>We're working on ${labels[normalizedTab].toLowerCase()} feature. It will be available in a future update.</p>
                 </div>
             `;
       if (loader) loader.style.display = "none";
@@ -1479,10 +1633,16 @@
       applyPendingTabScrollRestore();
       if (window.lucide) lucide.createIcons();
     }
+  }
+
+  window.switchProfileTab = function (tabName) {
+    const normalizedTab = normalizeProfileTabName(tabName);
+    if (!normalizedTab) return;
+    navigateToProfileTabRoute(normalizedTab);
   };
 
   async function loadPosts() {
-    if (activeTab !== "posts") return;
+    if (activeTab !== PROFILE_POSTS_TAB) return;
     if (isLoading || !hasMore) return;
 
     // Capture the ID we are fetching for at the start
@@ -1508,7 +1668,11 @@
         return;
       }
 
-      const res = await API.Posts.getByAccountId(fetchForId, page, POSTS_PAGE_SIZE);
+      const res = await API.Posts.getByAccountId(
+        fetchForId,
+        page,
+        POSTS_PAGE_SIZE,
+      );
 
       // RACECONDITION FIX:
       // Check if user switched profiles while we were fetching
@@ -1808,13 +1972,7 @@
   }
 
   function readStoryId(rawStory) {
-    return (
-      rawStory?.storyId ??
-      rawStory?.StoryId ??
-      ""
-    )
-      .toString()
-      .trim();
+    return (rawStory?.storyId ?? rawStory?.StoryId ?? "").toString().trim();
   }
 
   function mergeArchivedStories(items) {
@@ -1825,7 +1983,8 @@
     incoming.forEach((story) => {
       const storyId = readStoryId(story);
       const normalizedStoryId = normalizeStoryId(storyId);
-      if (!normalizedStoryId || archivedStoryIdSet.has(normalizedStoryId)) return;
+      if (!normalizedStoryId || archivedStoryIdSet.has(normalizedStoryId))
+        return;
 
       archivedStoryItems.push(story);
       appended.push(story);
@@ -1837,9 +1996,7 @@
 
   function resolveArchiveAuthorInfo() {
     const accountInfo =
-      currentProfileData?.accountInfo ||
-      currentProfileData?.AccountInfo ||
-      {};
+      currentProfileData?.accountInfo || currentProfileData?.AccountInfo || {};
 
     return {
       accountId:
@@ -1904,7 +2061,7 @@
     if (!grid) return;
 
     const targets = grid.querySelectorAll(
-      '.profile-story-grid-item[data-story-id]',
+      ".profile-story-grid-item[data-story-id]",
     );
     targets.forEach((item) => {
       const itemStoryId = normalizeStoryId(item.getAttribute("data-story-id"));
@@ -1923,7 +2080,9 @@
     const deletedStoryId = readStoryId(detail);
     if (!deletedStoryId) return;
 
-    const deletedAuthorId = normalizeStoryId(detail.authorId || detail.AuthorId || "");
+    const deletedAuthorId = normalizeStoryId(
+      detail.authorId || detail.AuthorId || "",
+    );
     const currentProfileNormalizedId = normalizeStoryId(currentProfileId);
     if (
       deletedAuthorId &&
@@ -1963,21 +2122,25 @@
       const storyId = (item.dataset.storyId || "").toString().trim();
       if (!storyId) return;
       if (typeof window.openStoryViewerByAuthorId !== "function") return;
-      if (!Array.isArray(archivedStoryItems) || !archivedStoryItems.length) return;
+      if (!Array.isArray(archivedStoryItems) || !archivedStoryItems.length)
+        return;
       const author = resolveArchiveAuthorInfo();
 
-      const openStatus = await window.openStoryViewerByAuthorId(currentProfileId, {
-        syncUrl: true,
-        startAtUnviewed: false,
-        targetStoryId: storyId,
-        storyMode: "archive",
-        pageSize: ARCHIVED_STORIES_PAGE_SIZE,
-        page: 1,
-        archiveStories: archivedStoryItems,
-        archiveHasMore: hasMoreArchivedStories,
-        archiveAuthor: author,
-        loadMoreArchiveStories: loadMoreArchivedStoriesForViewer,
-      });
+      const openStatus = await window.openStoryViewerByAuthorId(
+        currentProfileId,
+        {
+          syncUrl: true,
+          startAtUnviewed: false,
+          targetStoryId: storyId,
+          storyMode: "archive",
+          pageSize: ARCHIVED_STORIES_PAGE_SIZE,
+          page: 1,
+          archiveStories: archivedStoryItems,
+          archiveHasMore: hasMoreArchivedStories,
+          archiveAuthor: author,
+          loadMoreArchiveStories: loadMoreArchivedStoriesForViewer,
+        },
+      );
 
       if (openStatus === "unavailable") {
         removeArchivedStoryGridItem(storyId);
@@ -1988,11 +2151,15 @@
     const mediaUrl = escapeAttr(story?.mediaUrl ?? story?.MediaUrl ?? "");
     const viewCount = Math.max(
       0,
-      Number.parseInt(String(story?.viewCount ?? story?.ViewCount ?? 0), 10) || 0,
+      Number.parseInt(String(story?.viewCount ?? story?.ViewCount ?? 0), 10) ||
+        0,
     );
     const reactCount = Math.max(
       0,
-      Number.parseInt(String(story?.reactCount ?? story?.ReactCount ?? 0), 10) || 0,
+      Number.parseInt(
+        String(story?.reactCount ?? story?.ReactCount ?? 0),
+        10,
+      ) || 0,
     );
     const createdAtLabel = formatArchiveStoryCreatedAt(
       story?.createdAt ?? story?.CreatedAt ?? null,
@@ -2019,7 +2186,9 @@
 
     if (contentType === 2) {
       const style = resolveStoryTextThumbnailStyle(story);
-      const textContent = escapeHtml(story?.textContent ?? story?.TextContent ?? "");
+      const textContent = escapeHtml(
+        story?.textContent ?? story?.TextContent ?? "",
+      );
       item.innerHTML = `
         <div class="profile-story-text-thumb" style="background:${style.background};">
           <div class="profile-story-text-content" style="color:${style.color};font-family:${style.fontFamily};font-size:${style.fontSizePx}px;">${textContent}</div>
@@ -2740,11 +2909,13 @@
     const isMe =
       accountId.toLowerCase() === myId?.toLowerCase() ||
       accountId.toLowerCase() === myUsername?.toLowerCase();
+    const normalizedAccountId = (accountId || "").toString().trim().toLowerCase();
 
     if (window.PageCache && !isMe) {
       // Clear all possible profile keys for this account
-      PageCache.clear(`#/profile?id=${accountId}`);
-      PageCache.clear(`#/profile/${accountId}`);
+      if (normalizedAccountId) {
+        PageCache.clear(`profile:${normalizedAccountId}`);
+      }
       // Note: We don't know the username of others easily here,
       // but app.js clears it on entry anyway.
     }
@@ -2836,6 +3007,162 @@
     }
   };
 
+  function getCurrentProfileUsername() {
+    const info =
+      currentProfileData?.accountInfo ||
+      currentProfileData?.AccountInfo ||
+      currentProfileData?.account ||
+      currentProfileData?.Account ||
+      {};
+    return (info.username || info.Username || "").toString().trim();
+  }
+
+  function getCurrentProfileRouteFollowType() {
+    const path = window.RouteHelper?.parseHash
+      ? window.RouteHelper.parseHash(window.location.hash || "").path
+      : "";
+    if (!path || !window.RouteHelper?.extractProfileFollowListType) return "";
+    return window.RouteHelper.extractProfileFollowListType(path);
+  }
+
+  function navigateToFollowListRoute(type) {
+    const normalizedType = window.RouteHelper?.normalizeProfileFollowListType
+      ? window.RouteHelper.normalizeProfileFollowListType(type)
+      : (type || "").toString().trim().toLowerCase();
+
+    if (!normalizedType || !currentProfileId) {
+      return;
+    }
+
+    const username = getCurrentProfileUsername();
+    if (!username || !window.RouteHelper?.buildProfileFollowListHash) {
+      if (window.FollowListModule?.openFollowList) {
+        FollowListModule.openFollowList(currentProfileId, normalizedType, {
+          syncRoute: false,
+          profileUsername: username,
+        });
+      }
+      return;
+    }
+
+    const targetHash = window.RouteHelper.buildProfileFollowListHash(
+      username,
+      normalizedType,
+    );
+    if (!targetHash) return;
+
+    if (window.location.hash !== targetHash) {
+      window.location.hash = targetHash;
+      return;
+    }
+
+    if (typeof syncProfileRouteState === "function") {
+      syncProfileRouteState();
+    }
+  }
+
+  async function syncProfileRouteState() {
+    if (!currentProfileId) return;
+
+    const routeType = getCurrentProfileRouteFollowType();
+    const routeTabExplicit = resolveProfileTabForRoute({
+      includeDefault: false,
+    });
+    const routeTabEffective =
+      resolveProfileTabForRoute({ includeDefault: true }) || PROFILE_POSTS_TAB;
+    const routeTarget = window.RouteHelper?.extractProfileTargetFromHash
+      ? window.RouteHelper.extractProfileTargetFromHash(
+          window.location.hash || "",
+        )
+      : "";
+    const loadedUsername = getCurrentProfileUsername();
+    const followListModule = window.FollowListModule || null;
+    const modalOpen =
+      followListModule?.isModalOpen && followListModule.isModalOpen();
+    const currentTarget =
+      followListModule?.getCurrentTargetId &&
+      followListModule.getCurrentTargetId();
+    const currentType =
+      followListModule?.getCurrentListType &&
+      followListModule.getCurrentListType();
+
+    // Route changed to another profile but current profile data is still old.
+    // Prevent showing stale follow modal from previous user.
+    if (routeTarget) {
+      if (
+        !loadedUsername ||
+        loadedUsername.toLowerCase() !== routeTarget.toLowerCase()
+      ) {
+        if (modalOpen && followListModule?.closeFollowList) {
+          followListModule.closeFollowList();
+        }
+        return;
+      }
+    }
+
+    if (
+      routeTabExplicit &&
+      isOwnerOnlyProfileTab(routeTabExplicit) &&
+      !isCurrentUserProfile()
+    ) {
+      if (window.toastError) {
+        toastError("This tab is private and only visible to the profile owner");
+      }
+      if (activeTab !== PROFILE_POSTS_TAB) {
+        applyProfileTab(PROFILE_POSTS_TAB);
+      }
+      const profileHash = window.RouteHelper?.buildProfileHash
+        ? window.RouteHelper.buildProfileHash(
+            loadedUsername || routeTarget || "",
+          )
+        : "";
+      if (profileHash && window.location.hash !== profileHash) {
+        if (window.RouteHelper?.goTo) {
+          const parsed = window.RouteHelper.parseHash(profileHash);
+          window.RouteHelper.goTo(parsed.path, {
+            query: parsed.params,
+            replace: true,
+          });
+        } else {
+          window.location.hash = profileHash;
+        }
+      }
+      if (modalOpen && followListModule?.closeFollowList) {
+        followListModule.closeFollowList();
+      }
+      return;
+    }
+
+    if (!routeType && routeTabEffective && routeTabEffective !== activeTab) {
+      applyProfileTab(routeTabEffective);
+    }
+
+    if (!followListModule) return;
+
+    if (!routeType) {
+      if (modalOpen && currentTarget === currentProfileId) {
+        followListModule.closeFollowList();
+      }
+      return;
+    }
+
+    if (
+      modalOpen &&
+      currentTarget === currentProfileId &&
+      currentType === routeType
+    ) {
+      return;
+    }
+
+    const username = getCurrentProfileUsername();
+    await followListModule.openFollowList(currentProfileId, routeType, {
+      syncRoute: false,
+      profileUsername: username,
+    });
+  }
+
+  window.syncProfileRouteState = syncProfileRouteState;
+
   function setupFollowStatsListeners() {
     const stats = document.querySelector(".profile-stats");
     if (!stats) return;
@@ -2847,18 +3174,14 @@
     if (followersLi) {
       followersLi.style.cursor = "pointer";
       followersLi.onclick = () => {
-        if (window.FollowListModule && currentProfileId) {
-          FollowListModule.openFollowList(currentProfileId, "followers");
-        }
+        navigateToFollowListRoute("followers");
       };
     }
 
     if (followingLi) {
       followingLi.style.cursor = "pointer";
       followingLi.onclick = () => {
-        if (window.FollowListModule && currentProfileId) {
-          FollowListModule.openFollowList(currentProfileId, "following");
-        }
+        navigateToFollowListRoute("following");
       };
     }
   }

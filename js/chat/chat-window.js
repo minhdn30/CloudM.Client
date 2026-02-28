@@ -3483,7 +3483,7 @@ const ChatWindow = {
                 </button>
             `
       : `
-                <button class="chat-menu-item" onclick="ChatWindow.closeHeaderMenu(); window.location.hash = '#/profile/${profileTarget}';">
+                <button class="chat-menu-item" onclick="ChatWindow.closeHeaderMenu(); (window.ChatCommon && typeof window.ChatCommon.goToProfile === 'function' ? window.ChatCommon.goToProfile('${otherAccountId}', '${otherUsername}') : (window.location.hash = '#/' + encodeURIComponent('${profileTarget}')));">
                     <i data-lucide="user"></i>
                     <span>View profile</span>
                 </button>
@@ -4742,7 +4742,11 @@ const ChatWindow = {
       this.closeMembersModal();
       this.minimizeAll();
       const profileTarget = username || targetAccountId;
-      window.location.hash = `#/profile/${profileTarget}`;
+      if (window.ChatCommon?.goToProfile) {
+        window.ChatCommon.goToProfile(targetAccountId, username);
+      } else {
+        window.location.hash = `#/${encodeURIComponent(profileTarget)}`;
+      }
       return;
     }
 

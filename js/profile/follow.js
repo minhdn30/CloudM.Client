@@ -152,23 +152,27 @@
             const myId = localStorage.getItem("accountId");
             const myUsername = localStorage.getItem("username");
             const isMe = accountId.toLowerCase() === myId?.toLowerCase();
+            const normalizedAccountId = (accountId || "").toString().trim().toLowerCase();
+            const normalizedMyUsername = (myUsername || "").toString().trim().toLowerCase();
+            const normalizedMyId = (myId || "").toString().trim().toLowerCase();
 
             if (!isMe) {
                  // Foreign Profile: Router handles clearing cache on entry.
-                 // We can optionally clear common keys if we have them.
-                 PageCache.clear(`#/profile?id=${accountId}`);
-                 PageCache.clear(`#/profile/${accountId}`);
+                 // We can optionally clear the direct profile cache key if present.
+                 if (normalizedAccountId) {
+                     PageCache.clear(`profile:${normalizedAccountId}`);
+                 }
             } else {
                 // If it IS my profile, we update the CACHE directly so when we return, it shows fresh data immediately.
                 const possibleKeys = [
-                    `#/profile`,
-                    `#/profile/`,
-                    `#/profile/${myUsername}`
+                    normalizedMyUsername ? `profile:${normalizedMyUsername}` : "",
+                    normalizedMyId ? `profile:${normalizedMyId}` : ""
                 ];
                 
                 let patched = false;
                 
                 possibleKeys.forEach(key => {
+                    if (!key) return;
                     if (PageCache.has(key)) {
                         try {
                             const cached = PageCache.get(key);

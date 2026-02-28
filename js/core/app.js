@@ -2,6 +2,575 @@
    GLOBAL
    ========================= */
 const app = document.getElementById("app");
+const AppRouteHelper = window.RouteHelper;
+const APP_ROUTE_PATHS = AppRouteHelper?.PATHS || {
+  ROOT: "/",
+  HOME: "/",
+  ERROR_404: "/404",
+  SEARCH: "/search",
+  EXPLORE: "/explore",
+  REELS: "/reels",
+  CHAT: "/chat",
+  POSTS: "/posts",
+  STORIES: "/stories",
+  STORY: "/story",
+  MESSAGES: "/messages",
+  NOTIFICATIONS: "/notifications",
+  PROFILE: "/profile",
+  PROFILE_ME: "/me",
+  PROFILE_USER_PREFIX: "/u",
+  ACCOUNT_SETTINGS: "/account-settings",
+  SETTINGS_SEGMENT: "settings",
+};
+
+function appBuildHash(path, query) {
+  if (AppRouteHelper?.buildHash) {
+    return AppRouteHelper.buildHash(path, query);
+  }
+  const normalizedPath = (path || APP_ROUTE_PATHS.ROOT).toString().trim();
+  const safePath = normalizedPath.startsWith("/") ? normalizedPath : `/${normalizedPath}`;
+  return `#${safePath}`;
+}
+
+function appParseHash(rawHash) {
+  if (AppRouteHelper?.parseHash) {
+    return AppRouteHelper.parseHash(rawHash);
+  }
+  const normalizedHash = (rawHash || "").toString().trim();
+  const hashBody = normalizedHash.startsWith("#")
+    ? normalizedHash.slice(1)
+    : normalizedHash;
+  const queryIndex = hashBody.indexOf("?");
+  const path = queryIndex >= 0 ? hashBody.slice(0, queryIndex) : hashBody;
+  const query = queryIndex >= 0 ? hashBody.slice(queryIndex + 1) : "";
+  return {
+    path: path.startsWith("/") ? path : `/${path}`,
+    params: new URLSearchParams(query),
+  };
+}
+
+function appIsProfilePath(path) {
+  if (AppRouteHelper?.isProfilePath) {
+    return AppRouteHelper.isProfilePath(path);
+  }
+  return (path || "").toString().startsWith(APP_ROUTE_PATHS.PROFILE);
+}
+
+function appExtractProfileTarget(hash) {
+  if (AppRouteHelper?.extractProfileTargetFromHash) {
+    return AppRouteHelper.extractProfileTargetFromHash(hash);
+  }
+  return "";
+}
+
+function appBuildCanonicalProfileHash(target) {
+  const normalizedTarget = (target || "").toString().trim();
+  if (AppRouteHelper?.buildProfileHash) {
+    return AppRouteHelper.buildProfileHash(normalizedTarget);
+  }
+  if (!normalizedTarget) return appBuildHash(APP_ROUTE_PATHS.PROFILE);
+  return appBuildHash(`/${encodeURIComponent(normalizedTarget)}`);
+}
+
+function appResolveSelfSettingsPath() {
+  if (AppRouteHelper?.buildAccountSettingsPath) {
+    return AppRouteHelper.buildAccountSettingsPath("");
+  }
+  const me = (localStorage.getItem("username") || "").toString().trim();
+  if (!me) return APP_ROUTE_PATHS.ACCOUNT_SETTINGS;
+  return `/${encodeURIComponent(me)}/${APP_ROUTE_PATHS.SETTINGS_SEGMENT || "settings"}`;
+}
+
+function appIsAccountSettingsPath(path) {
+  if (AppRouteHelper?.isAccountSettingsPath) {
+    return AppRouteHelper.isAccountSettingsPath(path);
+  }
+  return (path || "").toString().trim() === APP_ROUTE_PATHS.ACCOUNT_SETTINGS;
+}
+
+function appExtractAccountSettingsUsername(path) {
+  if (AppRouteHelper?.extractAccountSettingsUsername) {
+    return AppRouteHelper.extractAccountSettingsUsername(path);
+  }
+  return "";
+}
+
+function appGoToNotFound(options = {}) {
+  const replace = options.replace !== false;
+  if (AppRouteHelper?.goTo) {
+    AppRouteHelper.goTo(APP_ROUTE_PATHS.ERROR_404, { replace });
+  } else {
+    if (replace && window.history?.replaceState) {
+      const base = `${window.location.pathname || ""}${window.location.search || ""}`;
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${base}#${APP_ROUTE_PATHS.ERROR_404}`,
+      );
+    } else {
+      window.location.hash = `#${APP_ROUTE_PATHS.ERROR_404}`;
+    }
+  }
+}
+
+function appBuildProfileCacheKey(hash) {
+  if (!appIsProfilePath(appParseHash(hash || "").path)) return "";
+  const target = (appExtractProfileTarget(hash) || "")
+    .toString()
+    .trim()
+    .toLowerCase();
+  if (!target) return "profile:me";
+  return `profile:${target}`;
+}
+
+function appIsStoryViewerRoute(path) {
+  const normalizedPath = (path || "").toString().trim();
+  if (!normalizedPath) return false;
+
+  if (
+    normalizedPath === APP_ROUTE_PATHS.STORIES ||
+    normalizedPath.startsWith(`${APP_ROUTE_PATHS.STORIES}/`) ||
+    normalizedPath === APP_ROUTE_PATHS.STORY ||
+    normalizedPath.startsWith(`${APP_ROUTE_PATHS.STORY}/`)
+  ) {
+    return true;
+  }
+
+  if (AppRouteHelper?.isProfileHighlightPath) {
+    return AppRouteHelper.isProfileHighlightPath(normalizedPath);
+  }
+
+  return (
+    normalizedPath.includes("/stories/highlight/") ||
+    normalizedPath.startsWith("/story/highlight/")
+  );
+}
+
+function appIsChatPath(path) {
+  const normalizedPath = (path || "").toString().trim();
+  if (!normalizedPath) return false;
+
+  if (AppRouteHelper?.isChatPath) {
+    return AppRouteHelper.isChatPath(normalizedPath);
+  }
+
+  return (
+    normalizedPath === APP_ROUTE_PATHS.CHAT ||
+    normalizedPath.startsWith(`${APP_ROUTE_PATHS.CHAT}/`) ||
+    normalizedPath === APP_ROUTE_PATHS.MESSAGES ||
+    normalizedPath.startsWith(`${APP_ROUTE_PATHS.MESSAGES}/`)
+  );
+}
+
+function appIsChatConversationPath(path) {
+  const normalizedPath = (path || "").toString().trim();
+  if (!normalizedPath) return false;
+
+  if (AppRouteHelper?.isChatConversationPath) {
+    return AppRouteHelper.isChatConversationPath(normalizedPath);
+  }
+
+  return normalizedPath.startsWith(`${APP_ROUTE_PATHS.CHAT}/`);
+}
+
+function appExtractConversationIdFromHash(hash) {
+  if (AppRouteHelper?.extractConversationIdFromHash) {
+    return (
+      AppRouteHelper.extractConversationIdFromHash(hash || "") || ""
+    )
+      .toString()
+      .trim();
+  }
+
+  return "";
+}
+
+function appIsPostDetailPath(path) {
+  const normalizedPath = (path || "").toString().trim();
+  if (!normalizedPath) return false;
+
+  if (AppRouteHelper?.isPostDetailPath) {
+    return AppRouteHelper.isPostDetailPath(normalizedPath);
+  }
+
+  return (
+    normalizedPath.startsWith(`${APP_ROUTE_PATHS.POSTS || "/posts"}/`) ||
+    normalizedPath.startsWith("/p/")
+  );
+}
+
+function appExtractPostCodeFromPath(path) {
+  const normalizedPath = (path || "").toString().trim();
+  if (!normalizedPath) return "";
+
+  if (AppRouteHelper?.extractPostCodeFromPath) {
+    return (
+      AppRouteHelper.extractPostCodeFromPath(normalizedPath) || ""
+    )
+      .toString()
+      .trim();
+  }
+
+  const canonicalPrefix = `${APP_ROUTE_PATHS.POSTS || "/posts"}/`;
+  if (normalizedPath.startsWith(canonicalPrefix)) {
+    const rawValue = normalizedPath.slice(canonicalPrefix.length).split("/")[0];
+    try {
+      return decodeURIComponent(rawValue || "").trim();
+    } catch (_) {
+      return (rawValue || "").toString().trim();
+    }
+  }
+
+  if (normalizedPath.startsWith("/p/")) {
+    const rawValue = normalizedPath.slice(3).split("/")[0];
+    try {
+      return decodeURIComponent(rawValue || "").trim();
+    } catch (_) {
+      return (rawValue || "").toString().trim();
+    }
+  }
+
+  return "";
+}
+
+function appBuildPostDetailPath(postCode) {
+  const normalizedPostCode = (postCode || "").toString().trim();
+  if (!normalizedPostCode) return APP_ROUTE_PATHS.POSTS || "/posts";
+
+  if (AppRouteHelper?.buildPostDetailPath) {
+    return AppRouteHelper.buildPostDetailPath(normalizedPostCode);
+  }
+
+  return `${APP_ROUTE_PATHS.POSTS || "/posts"}/${encodeURIComponent(normalizedPostCode)}`;
+}
+
+function appTryRedirectLegacyProfile(hash, path, params) {
+  const normalizedPath = (path || "").toString().trim();
+  const currentUsername = (localStorage.getItem("username") || "").toString().trim();
+
+  if (normalizedPath === "/home") {
+    const nextHash = appBuildHash(APP_ROUTE_PATHS.ROOT);
+    if (nextHash !== hash) {
+      window.location.hash = nextHash;
+      return true;
+    }
+    return false;
+  }
+
+  if (normalizedPath === APP_ROUTE_PATHS.PROFILE_ME) {
+    const nextHash = appBuildCanonicalProfileHash(currentUsername);
+    if (nextHash && nextHash !== hash) {
+      window.location.hash = nextHash;
+      return true;
+    }
+    return false;
+  }
+
+  if (normalizedPath === APP_ROUTE_PATHS.ACCOUNT_SETTINGS) {
+    const nextHash = appBuildHash(appResolveSelfSettingsPath());
+    if (nextHash !== hash) {
+      window.location.hash = nextHash;
+      return true;
+    }
+    return false;
+  }
+
+  if (normalizedPath.startsWith(`${APP_ROUTE_PATHS.PROFILE_USER_PREFIX}/`)) {
+    const segments = normalizedPath
+      .slice(APP_ROUTE_PATHS.PROFILE_USER_PREFIX.length)
+      .split("/")
+      .filter(Boolean);
+    const target = (segments[0] || "").toString().trim();
+    if (!target) return false;
+    const nextPath = `/${encodeURIComponent(target)}${
+      segments.length > 1
+        ? `/${segments
+            .slice(1)
+            .map((segment) => encodeURIComponent(segment))
+            .join("/")}`
+        : ""
+    }`;
+    const nextHash = appBuildHash(nextPath);
+    if (nextHash !== hash) {
+      window.location.hash = nextHash;
+      return true;
+    }
+    return false;
+  }
+
+  if (
+    normalizedPath === APP_ROUTE_PATHS.PROFILE ||
+    normalizedPath.startsWith(`${APP_ROUTE_PATHS.PROFILE}/`)
+  ) {
+    const fromQuery =
+      (params.get("u") || "").toString().trim() ||
+      (params.get("id") || "").toString().trim();
+    const segments = normalizedPath
+      .slice(APP_ROUTE_PATHS.PROFILE.length)
+      .split("/")
+      .filter(Boolean);
+
+    const firstSegment = (segments[0] || "").toString().trim();
+    const hasLegacyTargetInPath =
+      firstSegment &&
+      ![
+        "highlight",
+        "highlights",
+        "story",
+        "stories",
+        "follower",
+        "followers",
+        "following",
+        "posts",
+        "reels",
+        "chat",
+        "tagged",
+        "saved",
+        "archived-stories",
+        "settings",
+      ].includes(
+        firstSegment.toLowerCase(),
+      );
+    const target = fromQuery || (hasLegacyTargetInPath ? firstSegment : "");
+
+    if (target) {
+      const tail = hasLegacyTargetInPath ? segments.slice(1) : segments;
+      const nextPath = `/${encodeURIComponent(target)}${
+        tail.length
+          ? `/${tail.map((segment) => encodeURIComponent(segment)).join("/")}`
+          : ""
+      }`;
+      const nextHash = appBuildHash(nextPath);
+      if (nextHash !== hash) {
+        window.location.hash = nextHash;
+        return true;
+      }
+      return false;
+    }
+
+    if (currentUsername) {
+      const nextHash = appBuildCanonicalProfileHash(currentUsername);
+      if (nextHash && nextHash !== hash) {
+        window.location.hash = nextHash;
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function appTryRedirectLegacyStory(hash, path, params) {
+  const normalizedPath = (path || "").toString().trim();
+  const legacyPrefix = `${APP_ROUTE_PATHS.STORY}/`;
+
+  const isLegacyStoryDetail =
+    normalizedPath.startsWith(legacyPrefix) &&
+    !normalizedPath.startsWith(`${APP_ROUTE_PATHS.STORY}/highlight/`);
+
+  if (!isLegacyStoryDetail) {
+    return false;
+  }
+
+  const remainder = normalizedPath.slice(legacyPrefix.length);
+  if (!remainder) {
+    return false;
+  }
+
+  const nextPath = `${APP_ROUTE_PATHS.STORIES}/${remainder}`;
+  const nextHash = appBuildHash(nextPath, params);
+  if (nextHash !== hash) {
+    window.location.hash = nextHash;
+    return true;
+  }
+
+  return false;
+}
+
+function appTryRedirectLegacyChat(hash, path, params) {
+  const normalizedPath = (path || "").toString().trim();
+  const legacyMessagesRoot = APP_ROUTE_PATHS.MESSAGES || "/messages";
+  if (
+    normalizedPath !== legacyMessagesRoot &&
+    !normalizedPath.startsWith(`${legacyMessagesRoot}/`)
+  ) {
+    return false;
+  }
+
+  let conversationId = (params.get("id") || "").toString().trim();
+  if (!conversationId && normalizedPath.startsWith(`${legacyMessagesRoot}/`)) {
+    const rawLegacyConversationId =
+      normalizedPath.slice(legacyMessagesRoot.length + 1).split("/")[0] || "";
+    try {
+      conversationId = decodeURIComponent(rawLegacyConversationId);
+    } catch (_) {
+      conversationId = rawLegacyConversationId;
+    }
+  }
+
+  const nextPath = conversationId
+    ? `${APP_ROUTE_PATHS.CHAT}/${encodeURIComponent(conversationId)}`
+    : APP_ROUTE_PATHS.CHAT;
+  const nextHash = appBuildHash(nextPath);
+  if (nextHash !== hash) {
+    if (AppRouteHelper?.replaceHash) {
+      AppRouteHelper.replaceHash(nextPath);
+    } else {
+      window.location.hash = nextHash;
+    }
+    return true;
+  }
+
+  return false;
+}
+
+function appTryRedirectLegacyPost(hash, path, params) {
+  const normalizedPath = (path || "").toString().trim();
+  const legacyPrefix = "/p/";
+  if (!normalizedPath.startsWith(legacyPrefix)) {
+    return false;
+  }
+
+  const postCode = appExtractPostCodeFromPath(normalizedPath);
+  if (!postCode) {
+    appGoToNotFound({ replace: true });
+    return true;
+  }
+
+  const nextPath = appBuildPostDetailPath(postCode);
+  const nextHash = appBuildHash(nextPath, params);
+  if (nextHash !== hash) {
+    if (AppRouteHelper?.replaceHash) {
+      AppRouteHelper.replaceHash(nextPath, params);
+    } else {
+      window.location.hash = nextHash;
+    }
+    return true;
+  }
+
+  return false;
+}
+
+async function appReadApiMessage(res, fallbackMessage) {
+  if (!res) return fallbackMessage;
+  try {
+    const json = await res.clone().json();
+    const message = (json?.message || json?.Message || "").toString().trim();
+    if (message) return message;
+  } catch (_) {
+    // Ignore JSON parse failure and fallback to text.
+  }
+
+  try {
+    const text = (await res.clone().text()).toString().trim();
+    if (text) return text;
+  } catch (_) {
+    // Ignore read failure.
+  }
+
+  return fallbackMessage;
+}
+
+function appRestoreAcceptedHashAfterChatDenied(currentHash) {
+  const current = (currentHash || "").toString().trim();
+  const accepted =
+    (window._lastAcceptedHashForRouter || "").toString().trim() ||
+    appBuildHash(APP_ROUTE_PATHS.ROOT);
+  const fallbackHash =
+    accepted && accepted !== current ? accepted : appBuildHash(APP_ROUTE_PATHS.ROOT);
+
+  const parsed = appParseHash(fallbackHash);
+  if (AppRouteHelper?.replaceHash) {
+    AppRouteHelper.replaceHash(parsed.path, parsed.params);
+  } else {
+    const base = `${window.location.pathname || ""}${window.location.search || ""}`;
+    window.history.replaceState(window.history.state, "", `${base}${fallbackHash}`);
+    runRouter();
+  }
+}
+
+function appResolvePostDetailReturnHash() {
+  const fallbackHash = appBuildHash(APP_ROUTE_PATHS.ROOT);
+  const candidates = [
+    window._lastAcceptedHashForRouter,
+    window._lastSafeHash,
+    lastHash,
+    window._returnToHash,
+    fallbackHash,
+  ];
+
+  for (let i = 0; i < candidates.length; i += 1) {
+    const candidate = (candidates[i] || "").toString().trim();
+    if (!candidate) continue;
+    const candidatePath = appParseHash(candidate).path;
+    if (!appIsPostDetailPath(candidatePath)) {
+      return candidate;
+    }
+  }
+
+  return fallbackHash;
+}
+
+async function appGuardChatConversationRoute(hash, path) {
+  if (!appIsChatConversationPath(path)) {
+    return true;
+  }
+
+  const conversationId = appExtractConversationIdFromHash(hash);
+  if (!conversationId) {
+    appGoToNotFound({ replace: true });
+    return false;
+  }
+
+  const currentConversationId = (window.ChatPage?.currentChatId || "").toString().trim().toLowerCase();
+  if (currentConversationId && currentConversationId === conversationId.toLowerCase()) {
+    return true;
+  }
+
+  if (!AppRouteHelper?.REGEX?.UUID?.test(conversationId)) {
+    appGoToNotFound({ replace: true });
+    return false;
+  }
+
+  if (!window.API?.Conversations?.getMessages) {
+    return true;
+  }
+
+  let res = null;
+  try {
+    res = await window.API.Conversations.getMessages(conversationId, null, 1);
+  } catch (_) {
+    appRestoreAcceptedHashAfterChatDenied(hash);
+    if (window.toastError) {
+      window.toastError("failed to verify this conversation");
+    }
+    return false;
+  }
+
+  if (res?.ok) return true;
+
+  const status = Number(res?.status);
+  if (status === 404) {
+    appGoToNotFound({ replace: true });
+    return false;
+  }
+
+  if (status === 400 || status === 403) {
+    const message = await appReadApiMessage(
+      res,
+      "you don't have permission to view this conversation",
+    );
+    appRestoreAcceptedHashAfterChatDenied(hash);
+    if (window.toastInfo) window.toastInfo(message);
+    else if (window.toastError) window.toastError(message);
+    return false;
+  }
+
+  // Unknown server status: keep current page unchanged for safety.
+  appRestoreAcceptedHashAfterChatDenied(hash);
+  if (window.toastError) window.toastError("failed to open conversation");
+  return false;
+}
 
 if (window.APP_CONFIG) {
   APP_CONFIG.CURRENT_USER_ID = localStorage.getItem("accountId");
@@ -34,7 +603,35 @@ async function loadPage(pageName) {
   }
 }
 
+function appEnsureChatSidebarOpen() {
+  if (!window.ChatSidebar || typeof window.ChatSidebar.open !== "function") {
+    return;
+  }
+
+  const ensureOpenAsync = async () => {
+    let panel = document.getElementById("chat-panel");
+    if (!panel && typeof window.ChatSidebar.init === "function") {
+      await window.ChatSidebar.init();
+      panel = document.getElementById("chat-panel");
+    }
+
+    if (!panel) return;
+
+    if (window.ChatSidebar.isOpen && panel.classList.contains("show")) {
+      return;
+    }
+
+    await window.ChatSidebar.open();
+  };
+
+  // Fire-and-forget: sidebar open is independent from route render completion.
+  Promise.resolve(ensureOpenAsync()).catch(() => {});
+}
+
 function closeAllOverlayModals() {
+  const currentPath = appParseHash(window.location.hash || "").path;
+  const shouldKeepStoryViewer = appIsStoryViewerRoute(currentPath);
+
   // Post Detail
   const postDetailModal = document.getElementById("postDetailModal");
   if (postDetailModal && postDetailModal.classList.contains("show")) {
@@ -68,7 +665,11 @@ function closeAllOverlayModals() {
 
   // Story Viewer
   const storyViewerModal = document.getElementById("storyViewerModal");
-  if (storyViewerModal && !storyViewerModal.classList.contains("sn-story-viewer-hidden")) {
+  if (
+      !shouldKeepStoryViewer &&
+      storyViewerModal &&
+      !storyViewerModal.classList.contains("sn-story-viewer-hidden")
+  ) {
       if (window.closeStoryViewer) window.closeStoryViewer();
       else storyViewerModal.classList.add("sn-story-viewer-hidden");
   }
@@ -93,8 +694,10 @@ function closeAllOverlayModals() {
       }
   }
 
+  const isMessagesRoute = appIsChatPath(currentPath);
+
   // Chat Sidebar
-  if (window.closeChatSidebar && !window.location.hash.startsWith('#/messages')) {
+  if (window.closeChatSidebar && !isMessagesRoute) {
       window.closeChatSidebar();
   }
 
@@ -102,7 +705,7 @@ function closeAllOverlayModals() {
   // and ChatWindow.minimizeAll().
 
   // SignalR Cleanup (Leave groups when navigating away)
-  if (!window.location.hash.startsWith('#/messages')) {
+  if (!isMessagesRoute) {
       if (window.ChatPage && typeof window.ChatPage.leaveCurrentConversation === 'function') {
           window.ChatPage.leaveCurrentConversation();
       }
@@ -113,7 +716,7 @@ function closeAllOverlayModals() {
       }
   }
 
-  if (!window.location.hash.startsWith('#/profile')) {
+  if (!appIsProfilePath(currentPath)) {
       if (typeof window.leaveCurrentProfileGroup === 'function') {
           window.leaveCurrentProfileGroup();
       }
@@ -124,56 +727,166 @@ function closeAllOverlayModals() {
 window.closeAllOverlayModals = closeAllOverlayModals;
 
 function getCacheKey(hash) {
-    if (!hash || hash === "#/" || hash === "#/home") return "home";
-    if (hash.startsWith("#/messages")) return "#/messages";
+    const parsed = appParseHash(hash || "");
+    if (!hash || parsed.path === APP_ROUTE_PATHS.ROOT || parsed.path === "/home") return "home";
+    if (appIsAccountSettingsPath(parsed.path)) return "#/account-settings";
+    if (appIsProfilePath(parsed.path)) return appBuildProfileCacheKey(hash);
+    if (appIsChatPath(parsed.path)) return "#/chat";
     return hash;
 }
 
 let lastHash = null;
+let routerExecutionToken = 0;
 
-function extractProfileRouteTargetFromHash(hash) {
-  const normalizedHash = (hash || "").toString();
-  const hashPath = normalizedHash.split("?")[0] || "";
-  const marker = "#/profile";
-  const markerIndex = hashPath.indexOf(marker);
-  if (markerIndex < 0) return "";
+async function router() {
+  const executionToken = ++routerExecutionToken;
+  const hash = window.location.hash || appBuildHash(APP_ROUTE_PATHS.ROOT);
+  const parsed = appParseHash(hash);
+  const path = parsed.path;
+  const isProfileHighlightRoute = AppRouteHelper?.isProfileHighlightPath
+    ? AppRouteHelper.isProfileHighlightPath(path)
+    : path.toLowerCase().includes("/stories/highlight/");
 
-  const tail = hashPath.slice(markerIndex + marker.length);
-  const segments = tail.split("/").filter(Boolean);
-  if (!segments.length) return "";
+  const followRouteType = AppRouteHelper?.extractProfileFollowListType
+    ? AppRouteHelper.extractProfileFollowListType(path)
+    : "";
   if (
-    segments[0].toLowerCase() === "story" ||
-    segments[0].toLowerCase() === "highlight"
+    followRouteType === "followers" &&
+    AppRouteHelper?.buildProfileFollowListPath &&
+    AppRouteHelper?.extractProfileTargetFromHash
   ) {
-    return "";
+    const canonicalTarget = AppRouteHelper.extractProfileTargetFromHash(hash);
+    if (canonicalTarget) {
+      const canonicalPath = AppRouteHelper.buildProfileFollowListPath(
+        canonicalTarget,
+        "followers",
+      );
+      if (canonicalPath !== path) {
+        const canonicalHash = appBuildHash(canonicalPath);
+        if (canonicalHash !== hash) {
+          window.location.hash = canonicalHash;
+          return;
+        }
+      }
+    }
   }
 
-  try {
-    return decodeURIComponent(segments[0]);
-  } catch (_) {
-    return segments[0];
+  if (appTryRedirectLegacyProfile(hash, path, parsed.params)) {
+    return;
   }
-}
 
-function router() {
-  const hash = window.location.hash || "#/";
-  const path = hash.slice(1).split("?")[0];
-  const isProfileHighlightRoute = path
-    .toLowerCase()
-    .includes("/highlight/") &&
-    path.toLowerCase().includes("/story/");
-  
+  if (appTryRedirectLegacyStory(hash, path, parsed.params)) {
+    return;
+  }
+
+  if (appTryRedirectLegacyChat(hash, path, parsed.params)) {
+    return;
+  }
+
+  if (appTryRedirectLegacyPost(hash, path, parsed.params)) {
+    return;
+  }
+
+  const routeTabExplicit = AppRouteHelper?.extractProfileTabFromPath
+    ? AppRouteHelper.extractProfileTabFromPath(path, { includeDefault: false })
+    : "";
+  if (routeTabExplicit === "posts") {
+    const profileTarget = appExtractProfileTarget(hash);
+    if (profileTarget) {
+      const canonicalProfileHash = appBuildHash(
+        `/${encodeURIComponent(profileTarget)}`,
+      );
+      if (canonicalProfileHash !== hash) {
+        window.location.hash = canonicalProfileHash;
+        return;
+      }
+    }
+  }
+
+  if (appIsAccountSettingsPath(path)) {
+    const routeUsername = (appExtractAccountSettingsUsername(path) || "")
+      .toString()
+      .trim()
+      .toLowerCase();
+    const currentUsername = (localStorage.getItem("username") || "")
+      .toString()
+      .trim()
+      .toLowerCase();
+
+    if (routeUsername && currentUsername && routeUsername !== currentUsername) {
+      if (window.toastError) {
+        toastError("you can only access your own settings");
+      }
+      const selfSettingsPath = appResolveSelfSettingsPath();
+      if (AppRouteHelper?.goTo) {
+        AppRouteHelper.goTo(selfSettingsPath, { replace: true });
+      } else {
+        window.location.hash = appBuildHash(selfSettingsPath);
+      }
+      return;
+    }
+  }
+
+  if (!(await appGuardChatConversationRoute(hash, path))) {
+    return;
+  }
+
+  if (executionToken !== routerExecutionToken) {
+    return;
+  }
+
+  const isPostDetailRoute = appIsPostDetailPath(path);
+  if (!isPostDetailRoute) {
+    window._lastAcceptedHashForRouter = hash;
+  }
+
   if (
-    !path.startsWith("/p/") &&
+    !isPostDetailRoute &&
+    !path.startsWith("/stories") &&
     !path.startsWith("/story") &&
     !isProfileHighlightRoute
   ) {
-      window._lastSafeHash = hash;
+    window._lastSafeHash = hash;
+  }
+
+  if (isPostDetailRoute) {
+    const postCode = appExtractPostCodeFromPath(path);
+    if (!postCode) {
+      appGoToNotFound({ replace: true });
+      return;
+    }
+
+    if (!lastHash) {
+      app.innerHTML = '<div class="page-loader-container"><div class="spinner spinner-large"></div></div>';
+      await loadHome();
+      if (executionToken !== routerExecutionToken) {
+        return;
+      }
+    }
+
+    if (typeof window.openPostDetailByCode === "function") {
+      const returnHash = appResolvePostDetailReturnHash();
+      await window.openPostDetailByCode(postCode, {
+        fromRoute: true,
+        returnHash,
+      });
+
+      if (executionToken !== routerExecutionToken) {
+        return;
+      }
+
+      const basePath = appParseHash(returnHash).path || APP_ROUTE_PATHS.ROOT;
+      setActiveSidebar(basePath);
+      return;
+    }
+
+    appGoToNotFound({ replace: true });
+    return;
   }
   
+  const prevPath = appParseHash(lastHash || "").path;
   const prevKey = getCacheKey(lastHash);
   const nextKey = getCacheKey(hash);
-
   if (lastHash && prevKey !== nextKey) {
       if (prevKey !== "#/account-settings") {
           const pageData = window.getPageData ? window.getPageData() : null;
@@ -189,30 +902,38 @@ function router() {
   // IMPORTANT: Close overlays first, which calls unlockScroll()
   closeAllOverlayModals();
 
-  if (path.startsWith("/profile")) {
+  // Keep profile surface stable when switching sub-routes in the same profile
+  // (tabs/follow-lists/highlight, etc.) to avoid full page rerender flicker.
+  if (
+    lastHash &&
+    appIsProfilePath(path) &&
+    appIsProfilePath(prevPath) &&
+    !appIsAccountSettingsPath(path) &&
+    !appIsAccountSettingsPath(prevPath) &&
+    prevKey === nextKey &&
+    typeof window.syncProfileRouteState === "function"
+  ) {
+    window.syncProfileRouteState();
+    setActiveSidebar(path);
+    return;
+  }
+
+  if (appIsProfilePath(path)) {
       const myId = localStorage.getItem("accountId");
       const myUsername = localStorage.getItem("username");
-      let targetId = null;
-      
-      if (hash.includes("?id=")) {
-          targetId = hash.split("?id=")[1].split("&")[0];
-      } else if (hash.includes("?u=")) {
-          targetId = hash.split("?u=")[1].split("&")[0];
-      } else {
-          targetId = extractProfileRouteTargetFromHash(hash) || null;
-      }
+      const targetId = appExtractProfileTarget(hash) || null;
 
       const isMe = !targetId || 
                    (myId && targetId.toLowerCase() === myId.toLowerCase()) || 
                    (myUsername && targetId.toLowerCase() === myUsername.toLowerCase());
 
-      if (!isMe) {
+      if (!isMe && prevKey !== nextKey) {
           PageCache.clear(nextKey);
       }
   }
 
   // Update body class for chat-page UI hiding roaming windows
-  if (path === "/messages") {
+  if (appIsChatPath(path)) {
       document.body.classList.add('is-chat-page');
       if (window.ChatWindow && typeof window.ChatWindow.minimizeAll === 'function') {
           window.ChatWindow.minimizeAll();
@@ -223,8 +944,12 @@ function router() {
 
   if (PageCache.has(nextKey)) {
       if (prevKey === nextKey) {
-          if (path === "/messages" && window.ChatPage && typeof window.ChatPage.handleUrlNavigation === 'function') {
+          if (appIsChatPath(path) && window.ChatPage && typeof window.ChatPage.handleUrlNavigation === 'function') {
               window.ChatPage.handleUrlNavigation();
+              appEnsureChatSidebarOpen();
+          }
+          if (appIsProfilePath(path) && typeof window.syncProfileRouteState === "function") {
+              window.syncProfileRouteState();
           }
           setActiveSidebar(path);
           return;
@@ -232,7 +957,7 @@ function router() {
 
       const cached = PageCache.get(nextKey);
       
-      if (path.startsWith("/profile") && window.ProfileState && cached.data) {
+      if (appIsProfilePath(path) && window.ProfileState && cached.data) {
           window.ProfileState.setPageData(cached.data);
       } 
       else if (window.setPageData && cached.data) {
@@ -241,12 +966,16 @@ function router() {
       
       PageCache.restore(nextKey, app);
       
-      if (path === "/messages" && window.ChatPage && typeof window.ChatPage.handleUrlNavigation === 'function') {
+      if (appIsChatPath(path) && window.ChatPage && typeof window.ChatPage.handleUrlNavigation === 'function') {
           window.ChatPage.handleUrlNavigation();
+          appEnsureChatSidebarOpen();
       }
 
-      if (path.startsWith("/profile") && window.triggerProfileSilentUpdate) {
+      if (appIsProfilePath(path) && window.triggerProfileSilentUpdate) {
           window.triggerProfileSilentUpdate();
+      }
+      if (appIsProfilePath(path) && typeof window.syncProfileRouteState === "function") {
+          window.syncProfileRouteState();
       }
 
       setActiveSidebar(path);
@@ -256,65 +985,68 @@ function router() {
   app.innerHTML = '<div class="page-loader-container"><div class="spinner spinner-large"></div></div>';
   const mc = document.querySelector('.main-content');
   if (mc) mc.scrollTop = 0;
+
+  if (appIsAccountSettingsPath(path)) {
+      loadAccountSettings();
+      setActiveSidebar(path);
+      return;
+  }
   
-  if (path.startsWith("/profile")) {
+  if (appIsProfilePath(path)) {
       loadProfilePage();
       setActiveSidebar(path); 
       return; 
   }
 
-  if (path.startsWith("/p/")) {
-      const postCode = path.split("/p/")[1];
-      if (postCode) {
-          loadHome().then(() => {
-              if (window.openPostDetailByCode) {
-                  window.openPostDetailByCode(postCode);
-              }
-          });
-          return;
-      }
+  // Story deep-link route (e.g. #/stories/{storyId}) should render home surface,
+  // then story viewer module will open from URL.
+  if (
+    path === APP_ROUTE_PATHS.STORIES ||
+    path.startsWith(`${APP_ROUTE_PATHS.STORIES}/`) ||
+    path === APP_ROUTE_PATHS.STORY ||
+    path.startsWith(`${APP_ROUTE_PATHS.STORY}/`)
+  ) {
+      loadHome();
+      setActiveSidebar(APP_ROUTE_PATHS.ROOT);
+      return;
   }
 
-  // Story deep-link route (e.g. #/story/{storyId}) should render home surface,
-  // then story viewer module will open from URL.
-  if (path === "/story" || path.startsWith("/story/")) {
-      loadHome();
-      setActiveSidebar("/home");
+  if (appIsChatPath(path)) {
+      appEnsureChatSidebarOpen();
+      loadChatPage();
+      setActiveSidebar(path);
       return;
   }
 
   switch (path) {
-    case "/":
+    case APP_ROUTE_PATHS.ERROR_404:
+      showErrorPage("404", "Sorry, the page you are looking for doesn't exist or has been removed.");
+      break;
+
+    case APP_ROUTE_PATHS.ROOT:
     case "/home":
       loadHome();
       break;
 
-    case "/search":
+    case APP_ROUTE_PATHS.SEARCH:
       loadPlaceholder("Search", "search");
       break;
 
-    case "/explore":
+    case APP_ROUTE_PATHS.EXPLORE:
       loadPlaceholder("Explore", "compass");
       break;
 
-    case "/reels":
+    case APP_ROUTE_PATHS.REELS:
       loadPlaceholder("Reels", "clapperboard");
       break;
 
-    case "/messages":
-      loadChatPage();
-      break;
-
-    case "/notifications":
+    case APP_ROUTE_PATHS.NOTIFICATIONS:
       loadPlaceholder("Notifications", "bell");
       break;
 
-    case "/account-settings":
-      loadAccountSettings();
-      break;
-
     default:
-      showErrorPage("404", "Sorry, the page you are looking for doesn't exist or has been removed.");
+      appGoToNotFound({ replace: true });
+      return;
   }
   
   setActiveSidebar(path);
@@ -335,6 +1067,7 @@ async function showErrorPage(title, message) {
 window.showErrorPage = showErrorPage;
 
 function loadPlaceholder(title, iconName) {
+    const homeHash = appBuildHash(APP_ROUTE_PATHS.ROOT);
     app.innerHTML = `
         <div class="placeholder-container">
             <div class="placeholder-content">
@@ -343,7 +1076,7 @@ function loadPlaceholder(title, iconName) {
                 </div>
                 <h1>${title} coming soon</h1>
                 <p>We're working hard to bring this feature to you. Stay tuned!</p>
-                <button class="placeholder-btn" onclick="window.location.hash='#/home'">Go back Home</button>
+                <button class="placeholder-btn" onclick="window.location.hash='${homeHash}'">Go back Home</button>
             </div>
         </div>
     `;
@@ -376,13 +1109,28 @@ async function reloadPage() {
     console.log("Forcing Page Reload...");
     const key = getCacheKey(window.location.hash);
     PageCache.clear(key);
-    router();
+    runRouter();
 }
 window.reloadPage = reloadPage;
 window.reloadHome = reloadPage;
 
-window.addEventListener("hashchange", router);
-window.addEventListener("DOMContentLoaded", router);
+function runRouter() {
+  router().catch((error) => {
+    console.error("Router error:", error);
+  });
+}
+
+if (AppRouteHelper?.observeRoute) {
+  AppRouteHelper.observeRoute(
+    () => {
+      runRouter();
+    },
+    { immediate: false },
+  );
+} else {
+  window.addEventListener("hashchange", runRouter);
+}
+window.addEventListener("DOMContentLoaded", runRouter);
 
 document.addEventListener("click", (e) => {
     const link = e.target.closest("a");
