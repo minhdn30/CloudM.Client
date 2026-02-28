@@ -1095,12 +1095,21 @@ const ChatPage = {
     },
 
     handleUrlNavigation() {
-        const hash = window.location.hash;
-        if (hash.includes('?id=')) {
-            const id = hash.split('?id=')[1].split('&')[0];
-            if (id) this.loadConversation(id);
+        let conversationId = '';
+        if (window.RouteHelper && typeof window.RouteHelper.extractConversationIdFromHash === 'function') {
+            conversationId = (window.RouteHelper.extractConversationIdFromHash(window.location.hash || '') || '').toString().trim();
+        } else {
+            const hash = window.location.hash || '';
+            if (hash.includes('?id=')) {
+                conversationId = hash.split('?id=')[1].split('&')[0];
+            }
+        }
+
+        if (conversationId) {
+            this.loadConversation(conversationId);
             return;
         }
+
         this.renderNoConversationState();
     },
 
@@ -1258,9 +1267,11 @@ const ChatPage = {
 
     async loadConversation(conversationId) {
         if (!conversationId) return;
+        const targetConversationId = conversationId.toString().trim();
+        if (!targetConversationId) return;
         
         // 1. If clicking the same conversation, skip only when it already has content
-        if (this.currentChatId === conversationId) {
+        if (this.currentChatId === targetConversationId) {
             const msgContainer = document.getElementById('chat-view-messages');
             const hasMessages = !!msgContainer?.querySelector('.msg-bubble-wrapper');
             if (hasMessages || this.isLoading) {
@@ -1268,6 +1279,10 @@ const ChatPage = {
                 return;
             }
         }
+
+        const previousConversationId = (this.currentChatId && this.currentChatId !== targetConversationId)
+            ? this.currentChatId
+            : null;
 
         // 2. Increment generation to cancel any in-flight requests from previous conversation
         this._loadGeneration = (this._loadGeneration || 0) + 1;
@@ -1277,14 +1292,8 @@ const ChatPage = {
         const msgContainer = document.getElementById('chat-view-messages');
         if (msgContainer) msgContainer.innerHTML = '';
         
-        // Optimization: Leave PREVIOUS conversation if it's different
-        if (this.currentChatId && this.currentChatId !== conversationId) {
-            if (window.ChatRealtime && typeof window.ChatRealtime.leaveConversation === 'function') {
-                window.ChatRealtime.leaveConversation(this.currentChatId);
-            }
-        }
-
-        this.currentChatId = conversationId;
+        // Keep old realtime connection until new conversation is confirmed loaded.
+        this.currentChatId = targetConversationId;
         this.currentMetaData = null;
         this.messages = [];
         this.page = null;
@@ -1293,20 +1302,20 @@ const ChatPage = {
         this.resetContextMode();
         this._savedInfoHtml = null;
         this._activeInfoPanel = null;
-        this.resetMediaPanelState(conversationId);
-        this.resetMembersPanelState(conversationId);
+        this.resetMediaPanelState(targetConversationId);
+        this.resetMembersPanelState(targetConversationId);
         this.getRuntimeCtx();
         
         // 4. Cleanup overlapping floating windows for THIS conversationId
         if (window.ChatWindow && typeof window.ChatWindow.closeChat === 'function') {
-            window.ChatWindow.closeChat(conversationId);
+            window.ChatWindow.closeChat(targetConversationId);
         }
 
         // 5. Visual update in Sidebar and Header pre-load
         if (window.ChatSidebar) {
-            window.ChatSidebar.updateActiveId(conversationId);
+            window.ChatSidebar.updateActiveId(targetConversationId);
             if (window.ChatSidebar.conversations) {
-                const sidebarConv = window.ChatSidebar.conversations.find(c => c.conversationId === conversationId);
+                const sidebarConv = window.ChatSidebar.conversations.find(c => c.conversationId === targetConversationId);
                 if (sidebarConv) {
                     this.currentMetaData = sidebarConv;
                     this.renderHeader(sidebarConv);
@@ -1317,15 +1326,29 @@ const ChatPage = {
             }
         }
 
-        const loaded = await this.loadMessages(conversationId, false, gen);
+        const loaded = await this.loadMessages(targetConversationId, false, gen);
         if (
             loaded &&
-            this.currentChatId === conversationId &&
+            this.currentChatId === targetConversationId &&
             this._loadGeneration === gen &&
             window.ChatRealtime &&
             typeof window.ChatRealtime.joinConversation === 'function'
         ) {
-            window.ChatRealtime.joinConversation(conversationId);
+            if (previousConversationId && previousConversationId !== targetConversationId &&
+                window.ChatRealtime && typeof window.ChatRealtime.leaveConversation === 'function') {
+                window.ChatRealtime.leaveConversation(previousConversationId);
+            }
+            window.ChatRealtime.joinConversation(targetConversationId);
+            return;
+        }
+
+        // Failed to switch: keep previous realtime membership + active marker intact.
+        if (!loaded && previousConversationId) {
+            this.currentChatId = previousConversationId;
+            this.getRuntimeCtx();
+            if (window.ChatSidebar && typeof window.ChatSidebar.updateActiveId === 'function') {
+                window.ChatSidebar.updateActiveId(previousConversationId);
+            }
         }
     },
 
@@ -1359,7 +1382,11 @@ const ChatPage = {
                 const targetId = meta.otherMember?.accountId || meta.otherMemberId;
                 const profileTarget = targetUsername || targetId;
                 if (!meta.isGroup && profileTarget) {
-                    window.location.hash = `#/profile/${profileTarget}`;
+                    if (window.ChatCommon?.goToProfile) {
+                        window.ChatCommon.goToProfile(targetId, targetUsername);
+                    } else {
+                        window.location.hash = `#/${encodeURIComponent(profileTarget)}`;
+                    }
                 }
             };
             // Style hint
@@ -1393,6 +1420,28 @@ const ChatPage = {
     },
 
     renderNoConversationState() {
+        const previousConversationId = this.currentChatId;
+        if (previousConversationId) {
+            const oldKey = previousConversationId.toLowerCase();
+            this.pendingSeenByConv.delete(oldKey);
+
+            const refreshTimer = this._permissionRefreshTimers.get(oldKey);
+            if (refreshTimer) {
+                clearTimeout(refreshTimer);
+                this._permissionRefreshTimers.delete(oldKey);
+            }
+            this._permissionRefreshInFlight.delete(oldKey);
+
+            if (window.ChatTyping) {
+                ChatTyping.cancelTyping(previousConversationId);
+                ChatTyping.hideIndicator('typing-indicator-page', previousConversationId);
+            }
+
+            if (window.ChatRealtime && typeof window.ChatRealtime.leaveConversation === 'function') {
+                window.ChatRealtime.leaveConversation(previousConversationId);
+            }
+        }
+
         this.currentChatId = null;
         this.currentMetaData = null;
         this._savedInfoHtml = null;
@@ -1443,8 +1492,20 @@ const ChatPage = {
             window.ChatSidebar.updateActiveId(null);
         }
 
-        if (window.location.hash.startsWith('#/messages?id=')) {
-            window.location.hash = '#/messages';
+        const currentPath = (window.RouteHelper && typeof window.RouteHelper.parseHash === 'function')
+            ? window.RouteHelper.parseHash(window.location.hash || '').path
+            : '';
+
+        if (
+            (currentPath && currentPath.startsWith('/chat/')) ||
+            window.location.hash.startsWith('#/messages?id=') ||
+            window.location.hash.startsWith('#/messages/')
+        ) {
+            if (window.RouteHelper && typeof window.RouteHelper.replaceHash === 'function') {
+                window.RouteHelper.replaceHash('/chat');
+            } else {
+                window.location.hash = '#/chat';
+            }
         }
     },
 
@@ -3113,7 +3174,10 @@ const ChatPage = {
             return true;
         }
 
-        const targetHash = `#/messages?id=${conversationId}`;
+        const targetPath = `/chat/${encodeURIComponent(conversationId)}`;
+        const targetHash = (window.RouteHelper && typeof window.RouteHelper.buildHash === 'function')
+            ? window.RouteHelper.buildHash(targetPath)
+            : `#${targetPath}`;
         if (window.location.hash !== targetHash) {
             window.location.hash = targetHash;
         } else if (typeof this.loadConversation === 'function') {
@@ -3200,7 +3264,11 @@ const ChatPage = {
         if (normalizedAction === 'profile') {
             this.minimizeToBubble();
             const profileTarget = username || targetAccountId;
-            window.location.hash = `#/profile/${profileTarget}`;
+            if (window.ChatCommon?.goToProfile) {
+                window.ChatCommon.goToProfile(targetAccountId, username);
+            } else {
+                window.location.hash = `#/${encodeURIComponent(profileTarget)}`;
+            }
             return;
         }
 
@@ -4806,7 +4874,7 @@ const ChatPage = {
                     <span>Members</span>
                 </button>
                 ` : `
-                <button class="chat-info-quick-btn" onclick="${profileTarget ? `ChatPage.minimizeToBubble(); window.location.hash = '#/profile/${profileTarget}'` : "window.toastInfo('Profile is unavailable')" }">
+                <button class="chat-info-quick-btn" onclick="${profileTarget ? `ChatPage.minimizeToBubble(); (window.ChatCommon && typeof window.ChatCommon.goToProfile === 'function' ? window.ChatCommon.goToProfile('${privateTargetId}', '${privateTargetUsername}') : (window.location.hash = '#/' + encodeURIComponent('${profileTarget}')))` : "window.toastInfo('Profile is unavailable')" }">
                     <div class="chat-info-quick-icon"><i data-lucide="user"></i></div>
                     <span>Profile</span>
                 </button>

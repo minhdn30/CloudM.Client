@@ -1,4 +1,6 @@
 const POST_DETAIL_MODAL_ID = "postDetailModal";
+const POST_DETAIL_CANONICAL_PREFIX = "/posts/";
+const POST_DETAIL_LEGACY_PREFIX = "/p/";
 let currentPostId = null;
 let currentPostCreatedAt = null;
 
@@ -7,6 +9,79 @@ let navigationContext = null; // { source, postList, currentIndex, accountId, ha
 
 // Track state of all posts viewed during navigation session (for profile sync)
 let viewedPostsState = new Map(); // postId -> { reactCount, isReacted, commentCount, createdAt, fullContent, privacyVal }
+
+function pdParseHashPath(rawHash = window.location.hash || "") {
+    if (window.RouteHelper && typeof window.RouteHelper.parseHash === "function") {
+        return window.RouteHelper.parseHash(rawHash).path || "";
+    }
+    const hash = (rawHash || "").toString();
+    const body = hash.startsWith("#") ? hash.slice(1) : hash;
+    const pathOnly = body.split("?")[0] || "";
+    return pathOnly.startsWith("/") ? pathOnly : `/${pathOnly}`;
+}
+
+function pdIsPostDetailPath(path) {
+    const normalizedPath = (path || "").toString().trim();
+    if (!normalizedPath) return false;
+    if (window.RouteHelper && typeof window.RouteHelper.isPostDetailPath === "function") {
+        return window.RouteHelper.isPostDetailPath(normalizedPath);
+    }
+    return normalizedPath.startsWith(POST_DETAIL_CANONICAL_PREFIX) || normalizedPath.startsWith(POST_DETAIL_LEGACY_PREFIX);
+}
+
+function pdIsPostDetailHashRoute(rawHash = window.location.hash || "") {
+    return pdIsPostDetailPath(pdParseHashPath(rawHash));
+}
+
+function pdBuildPostDetailPath(postCode) {
+    if (window.RouteHelper && typeof window.RouteHelper.buildPostDetailPath === "function") {
+        return window.RouteHelper.buildPostDetailPath(postCode);
+    }
+    const normalizedPostCode = (postCode || "").toString().trim();
+    if (!normalizedPostCode) return "/posts";
+    return `${POST_DETAIL_CANONICAL_PREFIX}${encodeURIComponent(normalizedPostCode)}`;
+}
+
+function pdBuildPostDetailHash(postCode) {
+    const path = pdBuildPostDetailPath(postCode);
+    if (window.RouteHelper && typeof window.RouteHelper.buildHash === "function") {
+        return window.RouteHelper.buildHash(path);
+    }
+    return `#${path}`;
+}
+
+function pdBuildProfileHash(profileTarget) {
+    const safe = (profileTarget || "").toString().trim();
+    if (window.RouteHelper && typeof window.RouteHelper.buildProfileHash === "function") {
+        return window.RouteHelper.buildProfileHash(safe);
+    }
+    if (!safe) return "#/";
+    return `#/${encodeURIComponent(safe)}`;
+}
+
+async function pdReadApiMessage(res, fallbackMessage) {
+    let message = fallbackMessage || "request failed";
+    if (!res) return message;
+
+    try {
+        const data = await res.clone().json();
+        if (data && typeof data === "object") {
+            const m = (data.message || data.Message || "").toString().trim();
+            if (m) return m;
+        }
+    } catch (_) {
+        // Ignore parse failures.
+    }
+
+    try {
+        const text = (await res.clone().text()).toString().trim();
+        if (text) return text;
+    } catch (_) {
+        // Ignore read failures.
+    }
+
+    return message;
+}
 
 
 
@@ -93,13 +168,13 @@ async function openPostDetail(postId, postCode = null, navContext = null, naviga
     navigationContext = navContext;
     // Capture the current safe hash before we mess with the URL
     // This allows us to restore exactly where the user was (Profile, Home, etc.)
-    if (!window.location.hash.includes("/p/")) {
-        window._returnToHash = window.location.hash || "#/home";
+    if (!pdIsPostDetailHashRoute(window.location.hash || "")) {
+        window._returnToHash = window.location.hash || "#/";
     }
 
     // If postCode is provided (from UI), push URL immediately for better UX
-    if (postCode && !window.location.hash.includes("/p/")) {
-        history.pushState({ postCode: postCode }, "", `#/p/${postCode}`);
+    if (postCode && !pdIsPostDetailHashRoute(window.location.hash || "")) {
+        history.pushState({ postCode: postCode }, "", pdBuildPostDetailHash(postCode));
     }
     
     // 1. Check if modal exists
@@ -193,8 +268,9 @@ async function openPostDetail(postId, postCode = null, navContext = null, naviga
         window.currentPostId = data.postId;
 
         // Push History with PostCode (if not already done or if different)
-        if (!window.location.hash.includes(`/p/${data.postCode}`)) {
-             history.replaceState({ postCode: data.postCode }, "", `#/p/${data.postCode}`);
+        const canonicalPath = pdBuildPostDetailPath(data.postCode);
+        if (pdParseHashPath(window.location.hash || "") !== canonicalPath) {
+             history.replaceState({ postCode: data.postCode }, "", pdBuildPostDetailHash(data.postCode));
         }
         
         renderPostDetail(data, navigateDirection);        
@@ -217,7 +293,16 @@ async function openPostDetail(postId, postCode = null, navContext = null, naviga
 
 }
 
-async function openPostDetailByCode(postCode) {
+async function openPostDetailByCode(postCode, options = null) {
+    const routeOptions = options && typeof options === "object" ? options : {};
+    const isRouteDriven = routeOptions.fromRoute === true;
+    if (isRouteDriven) {
+        const candidateReturnHash = (routeOptions.returnHash || window._returnToHash || window._lastAcceptedHashForRouter || window._lastSafeHash || "#/").toString();
+        if (!pdIsPostDetailHashRoute(candidateReturnHash)) {
+            window._returnToHash = candidateReturnHash;
+        }
+    }
+
     let modal = document.getElementById(POST_DETAIL_MODAL_ID);
     if (!modal) {
         await loadPostDetailHTML();
@@ -235,13 +320,43 @@ async function openPostDetailByCode(postCode) {
         const res = await API.Posts.getByPostCode(postCode);
         if (!res.ok) {
             if (mainLoader) mainLoader.style.display = "none";
-            if (res.status === 403 || res.status === 404 || res.status === 400) {
-                if (window.toastInfo) toastInfo("This post is no longer available or you don't have permission to view it.");
+            if (res.status === 404 || res.status === 400) {
+                if (isRouteDriven) {
+                    if (window.RouteHelper && typeof window.RouteHelper.goTo === "function") {
+                        window.RouteHelper.goTo("/404", { replace: true });
+                    } else {
+                        window.location.hash = "#/404";
+                    }
+                } else if (window.toastInfo) {
+                    toastInfo("This post is no longer available or you don't have permission to view it.");
+                }
                 if (typeof window.forceClosePostDetail === "function") forceClosePostDetail();
                 else closePostDetailModal();
                 return;
             }
+
+            if (res.status === 403) {
+                const message = await pdReadApiMessage(res, "You don't have permission to view this post.");
+                if (window.toastInfo) toastInfo(message);
+                else if (window.toastError) toastError(message);
+
+                if (isRouteDriven) {
+                    const targetHash = (window._returnToHash || window._lastAcceptedHashForRouter || window._lastSafeHash || "#/").toString();
+                    history.replaceState(null, "", targetHash);
+                    window._lastAcceptedHashForRouter = targetHash;
+                }
+
+                if (typeof window.forceClosePostDetail === "function") forceClosePostDetail();
+                else closePostDetailModal();
+                return;
+            }
+
             if (window.toastError) toastError("Failed to open this post.");
+            if (isRouteDriven) {
+                const targetHash = (window._returnToHash || window._lastAcceptedHashForRouter || window._lastSafeHash || "#/").toString();
+                history.replaceState(null, "", targetHash);
+                window._lastAcceptedHashForRouter = targetHash;
+            }
             if (typeof window.forceClosePostDetail === "function") forceClosePostDetail();
             else closePostDetailModal();
             return;
@@ -250,6 +365,11 @@ async function openPostDetailByCode(postCode) {
         const data = await res.json();
         currentPostId = data.postId;
         window.currentPostId = data.postId;
+
+        const canonicalPath = pdBuildPostDetailPath(data.postCode);
+        if (pdParseHashPath(window.location.hash || "") !== canonicalPath) {
+            history.replaceState({ postCode: data.postCode }, "", pdBuildPostDetailHash(data.postCode));
+        }
 
         renderPostDetail(data);        
         if (mainLoader) mainLoader.style.display = "none";
@@ -264,6 +384,11 @@ async function openPostDetailByCode(postCode) {
         console.error(err);
 
         if (window.toastError) toastError("Failed to open this post.");
+        if (isRouteDriven) {
+            const targetHash = (window._returnToHash || window._lastAcceptedHashForRouter || window._lastSafeHash || "#/").toString();
+            history.replaceState(null, "", targetHash);
+            window._lastAcceptedHashForRouter = targetHash;
+        }
         if (typeof window.forceClosePostDetail === "function") forceClosePostDetail();
         else closePostDetailModal();
     }
@@ -520,12 +645,13 @@ function performClosePostDetail() {
         if (window.unlockScroll) unlockScroll(); // Restore scroll
 
         // Reset URL if it's currently on a post
-        if (window.location.hash.startsWith("#/p/")) {
+        if (pdIsPostDetailHashRoute(window.location.hash || "")) {
              // Use replaceState to change URL WITHOUT triggering router/reload
              // This keeps the current view (Home/Profile) intact while fixing the URL bar
              // Prefer the explicitly captured return hash, fallback to safeHash, then home
-             const targetHash = window._returnToHash || window._lastSafeHash || "#/home";
+             const targetHash = window._returnToHash || window._lastSafeHash || "#/";
              history.replaceState(null, "", targetHash);
+             window._lastAcceptedHashForRouter = targetHash;
         }
         
         // Close emoji picker if open
@@ -755,12 +881,14 @@ function renderPostDetail(post, navigateDirection = null) {
     const usernameLink = document.getElementById("detailUsernameLink");
     const avatarUrl = post.owner.avatarUrl || APP_CONFIG.DEFAULT_AVATAR;
     const isCurrentUserAvatar = isCurrentViewerAccount(post.owner?.accountId);
+    const ownerProfileTarget = (post.owner?.username || post.owner?.accountId || "").toString().trim();
+    const ownerProfileHash = pdBuildProfileHash(ownerProfileTarget);
 
     if (avatarLink) {
-        avatarLink.href = `#/profile/${post.owner.username}`;
+        avatarLink.href = ownerProfileHash;
         renderDetailAvatar(avatarLink, avatarUrl, post.owner?.storyRingState, isCurrentUserAvatar, post.owner?.accountId);
     }
-    if (usernameLink) usernameLink.href = `#/profile/${post.owner.username}`;
+    if (usernameLink) usernameLink.href = ownerProfileHash;
 
     // Enable Profile Preview
     const avatar = document.getElementById("detailAvatar");

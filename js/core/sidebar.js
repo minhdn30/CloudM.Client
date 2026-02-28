@@ -1,3 +1,92 @@
+const SidebarRouteHelper = window.RouteHelper;
+const SIDEBAR_ROUTE_PATHS = SidebarRouteHelper?.PATHS || {
+  ROOT: "/",
+  HOME: "/",
+  SEARCH: "/search",
+  EXPLORE: "/explore",
+  REELS: "/reels",
+  CHAT: "/chat",
+  MESSAGES: "/messages",
+  NOTIFICATIONS: "/notifications",
+  ACCOUNT_SETTINGS: "/account-settings",
+  SETTINGS_SEGMENT: "settings",
+  PROFILE: "/profile",
+};
+
+function sidebarBuildHash(path, query) {
+  if (SidebarRouteHelper?.buildHash) {
+    return SidebarRouteHelper.buildHash(path, query);
+  }
+  const normalized = (path || SIDEBAR_ROUTE_PATHS.ROOT).toString().trim();
+  const safePath = normalized.startsWith("/") ? normalized : `/${normalized}`;
+  return `#${safePath}`;
+}
+
+function sidebarParseHash(rawHash) {
+  if (SidebarRouteHelper?.parseHash) {
+    return SidebarRouteHelper.parseHash(rawHash);
+  }
+  const normalizedHash = (rawHash || "").toString();
+  const hashPath = (normalizedHash.split("?")[0] || "").replace(/^#/, "");
+  const path = hashPath.startsWith("/") ? hashPath : `/${hashPath}`;
+  return { path };
+}
+
+function sidebarResolveSelfProfilePath() {
+  if (SidebarRouteHelper?.buildProfilePath) {
+    return SidebarRouteHelper.buildProfilePath("");
+  }
+  const username = (localStorage.getItem("username") || "").toString().trim();
+  if (username) return `/${encodeURIComponent(username)}`;
+  return SIDEBAR_ROUTE_PATHS.PROFILE;
+}
+
+function sidebarResolveSelfSettingsPath() {
+  if (SidebarRouteHelper?.buildAccountSettingsPath) {
+    return SidebarRouteHelper.buildAccountSettingsPath("");
+  }
+  const username = (localStorage.getItem("username") || "").toString().trim();
+  if (!username) return SIDEBAR_ROUTE_PATHS.ACCOUNT_SETTINGS;
+  return `/${encodeURIComponent(username)}/${SIDEBAR_ROUTE_PATHS.SETTINGS_SEGMENT}`;
+}
+
+function sidebarIsAccountSettingsPath(path) {
+  if (SidebarRouteHelper?.isAccountSettingsPath) {
+    return SidebarRouteHelper.isAccountSettingsPath(path);
+  }
+  return (
+    (path || "").toString().trim() === SIDEBAR_ROUTE_PATHS.ACCOUNT_SETTINGS
+  );
+}
+
+function applySidebarProfileRoutes() {
+  const selfProfilePath = sidebarResolveSelfProfilePath();
+  const selfSettingsPath = sidebarResolveSelfSettingsPath();
+  const profileItem = document.querySelector(".sidebar .menu-item.profile");
+  if (profileItem) {
+    profileItem.dataset.route = selfProfilePath;
+    profileItem.setAttribute("href", sidebarBuildHash(selfProfilePath));
+  }
+
+  document
+    .querySelectorAll(".sidebar [data-route='/profile']")
+    .forEach((el) => {
+      el.dataset.route = selfProfilePath;
+      if (el.tagName.toLowerCase() === "a") {
+        el.setAttribute("href", sidebarBuildHash(selfProfilePath));
+      }
+    });
+
+  document
+    .querySelectorAll(".sidebar [data-route='/account-settings']")
+    .forEach((el) => {
+      el.dataset.route = selfSettingsPath;
+      if (el.tagName.toLowerCase() === "a") {
+        el.setAttribute("href", sidebarBuildHash(selfSettingsPath));
+      }
+    });
+}
+
 // EXPOSE: Function to update sidebar avatar and info from other scripts
 window.updateSidebarInfo = function (url, name) {
   const avatarElement = document.getElementById("sidebar-avatar");
@@ -18,11 +107,14 @@ window.updateSidebarInfo = function (url, name) {
       localStorage.getItem("fullname") ||
       "User";
   }
+
+  applySidebarProfileRoutes();
 };
 
 async function loadSidebar() {
   const res = await fetch("pages/core/sidebar.html");
   document.getElementById("sidebar").innerHTML = await res.text();
+  applySidebarProfileRoutes();
   lucide.createIcons();
 
   const avatarUrl = localStorage.getItem("avatarUrl");
@@ -63,8 +155,20 @@ async function loadSidebar() {
   });
 
   // Set initial active state based on current hash after sidebar HTML is in DOM
-  const path = (window.location.hash || "#/home").slice(1).split("?")[0];
+  const path = sidebarParseHash(
+    window.location.hash || sidebarBuildHash(SIDEBAR_ROUTE_PATHS.HOME),
+  ).path;
   setActiveSidebar(path);
+
+  if (
+    SidebarRouteHelper?.observeRoute &&
+    !window.__sidebarRouteObserverUnsubscribe
+  ) {
+    window.__sidebarRouteObserverUnsubscribe = SidebarRouteHelper.observeRoute(
+      ({ path: routePath }) => setActiveSidebar(routePath),
+      { immediate: false },
+    );
+  }
 
   // Load unread message count for global badge
   loadGlobalMessageBadge();
@@ -306,44 +410,98 @@ document.addEventListener("click", (e) => {
 function setActiveSidebar(route) {
   // Normalize route to plain path
   let targetRoute =
-    route || (window.location.hash || "#/home").slice(1).split("?")[0];
-
-  // Ensure targetRoute starts with /
-  if (targetRoute && !targetRoute.startsWith("/")) {
-    targetRoute = "/" + targetRoute;
-  }
+    route ||
+    sidebarParseHash(
+      window.location.hash || sidebarBuildHash(SIDEBAR_ROUTE_PATHS.HOME),
+    ).path;
+  targetRoute = (targetRoute || "").toString().trim();
+  if (!targetRoute.startsWith("/")) targetRoute = `/${targetRoute}`;
 
   const myId = localStorage.getItem("accountId")?.toLowerCase();
   const myUsername = localStorage.getItem("username")?.toLowerCase();
+  const selfProfilePath = sidebarResolveSelfProfilePath();
+  const selfSettingsPath = sidebarResolveSelfSettingsPath();
+
+  if (sidebarIsAccountSettingsPath(targetRoute)) {
+    targetRoute = selfProfilePath;
+  }
 
   // Helper inside to check if a route belongs to ME
   const isRouteMine = (r) => {
-    if (r === "/profile") return true;
-    if (!r.startsWith("/profile/")) return false;
-    const param = r.replace("/profile/", "").toLowerCase();
+    const routePath = (r || "").toString().trim();
+    if (!routePath) return false;
+    if (routePath === SIDEBAR_ROUTE_PATHS.PROFILE) return true;
+    const isProfileRoute = SidebarRouteHelper?.isProfilePath
+      ? SidebarRouteHelper.isProfilePath(routePath)
+      : routePath === SIDEBAR_ROUTE_PATHS.PROFILE ||
+        routePath.startsWith(`${SIDEBAR_ROUTE_PATHS.PROFILE}/`);
+    if (!isProfileRoute) return false;
+
+    const param = (
+      SidebarRouteHelper?.extractProfileTargetFromHash
+        ? SidebarRouteHelper.extractProfileTargetFromHash(
+            sidebarBuildHash(routePath),
+          )
+        : routePath.replace("/profile/", "")
+    )
+      .toString()
+      .toLowerCase();
+    if (!param) return true;
     return param === myId || param === myUsername;
   };
 
-  const hash = window.location.hash || "";
+  const currentPath = sidebarParseHash(window.location.hash || "").path;
   const isViewingOtherProfile =
-    (hash.includes("/profile/") || hash.includes("/profile?")) &&
-    !isRouteMine(targetRoute);
+    (SidebarRouteHelper?.isProfilePath
+      ? SidebarRouteHelper.isProfilePath(currentPath)
+      : currentPath === SIDEBAR_ROUTE_PATHS.PROFILE ||
+        currentPath.startsWith(`${SIDEBAR_ROUTE_PATHS.PROFILE}/`)) &&
+    !isRouteMine(currentPath);
 
   // Helper for home route equivalence
-  const isHome = (r) => r === "/" || r === "/home" || r === "";
+  const isHome = (r) =>
+    SidebarRouteHelper?.isHomePath
+      ? SidebarRouteHelper.isHomePath(r)
+      : r === "/" || r === "/home" || r === "";
+
+  const isChatRoute = (r) => {
+    const routePath = (r || "").toString().trim();
+    if (!routePath) return false;
+    if (SidebarRouteHelper?.isPathPrefix) {
+      return (
+        SidebarRouteHelper.isPathPrefix(routePath, SIDEBAR_ROUTE_PATHS.CHAT) ||
+        SidebarRouteHelper.isPathPrefix(routePath, SIDEBAR_ROUTE_PATHS.MESSAGES)
+      );
+    }
+    return (
+      routePath === SIDEBAR_ROUTE_PATHS.CHAT ||
+      routePath.startsWith(`${SIDEBAR_ROUTE_PATHS.CHAT}/`) ||
+      routePath === SIDEBAR_ROUTE_PATHS.MESSAGES ||
+      routePath.startsWith(`${SIDEBAR_ROUTE_PATHS.MESSAGES}/`)
+    );
+  };
 
   document.querySelectorAll(".sidebar .menu-item").forEach((item) => {
     const dataRoute = item.dataset.route;
     const href = item.getAttribute("href")?.replace("#", "");
 
+    if (!dataRoute && !href) {
+      item.classList.remove("active");
+      return;
+    }
+
     let isActive =
       dataRoute === targetRoute ||
       href === targetRoute ||
       (isHome(dataRoute) && isHome(targetRoute)) ||
-      (dataRoute === "/profile" && isRouteMine(targetRoute));
+      (dataRoute === selfProfilePath && isRouteMine(targetRoute));
+
+    if (dataRoute === SIDEBAR_ROUTE_PATHS.MESSAGES) {
+      isActive = isChatRoute(targetRoute);
+    }
 
     // Special case: Profile button only active if it's our OWN profile (no params)
-    if (dataRoute === "/profile" && isViewingOtherProfile) {
+    if (dataRoute === selfProfilePath && isViewingOtherProfile) {
       isActive = false;
     }
 
@@ -354,39 +512,54 @@ function setActiveSidebar(route) {
 // Global navigate function to handle page changes and reloads
 function navigate(e, route, clickedEl = null) {
   const targetEl = clickedEl || e.currentTarget;
+  const selfProfilePath = sidebarResolveSelfProfilePath();
+  const selfSettingsPath = sidebarResolveSelfSettingsPath();
+  const normalizedRoute = (route || "").toString().trim() || "/";
+  const finalRoute =
+    normalizedRoute === SIDEBAR_ROUTE_PATHS.PROFILE
+      ? selfProfilePath
+      : normalizedRoute === SIDEBAR_ROUTE_PATHS.ACCOUNT_SETTINGS
+        ? selfSettingsPath
+        : normalizedRoute;
 
   // 1. Special actions
-  if (route === "/create/post") {
+  if (finalRoute === "/create/post") {
     e.preventDefault();
     if (window.openCreatePostModal) openCreatePostModal();
     closeAllDropdowns();
     return;
   }
 
-  if (route === "/create/story") {
+  if (finalRoute === "/create/story") {
     e.preventDefault();
     if (window.openCreateStoryModal) openCreateStoryModal();
     closeAllDropdowns();
     return;
   }
 
-  if (route === "/messages") {
+  if (finalRoute === "/messages") {
     e.preventDefault();
     if (window.toggleChatSidebar) window.toggleChatSidebar();
     closeAllDropdowns();
     return;
   }
 
-  const currentHash = window.location.hash || "#/";
-  const targetHash = route.startsWith("#") ? route : `#${route}`;
+  const currentHash =
+    window.location.hash || sidebarBuildHash(SIDEBAR_ROUTE_PATHS.ROOT);
+  const targetHash = finalRoute.startsWith("#")
+    ? finalRoute
+    : sidebarBuildHash(finalRoute);
 
   // Helper to check if a hash is "Home"
-  const isHome = (h) => h === "#/" || h === "#/home" || h === "";
+  const isHome = (rawPath) =>
+    SidebarRouteHelper?.isHomePath
+      ? SidebarRouteHelper.isHomePath(rawPath)
+      : !rawPath || rawPath === "/" || rawPath === "/home";
 
   // 2. Check if clicking same page (ignoring parameters for reload check) -> Force Reload
   // Path-based same page check
-  const currentPath = currentHash.split("?")[0];
-  const targetPath = targetHash.split("?")[0];
+  const currentPath = sidebarParseHash(currentHash).path;
+  const targetPath = sidebarParseHash(targetHash).path;
   const isSamePath =
     currentPath === targetPath || (isHome(currentPath) && isHome(targetPath));
 
@@ -397,20 +570,40 @@ function navigate(e, route, clickedEl = null) {
     const myId = localStorage.getItem("accountId")?.toLowerCase();
     const myUsername = localStorage.getItem("username")?.toLowerCase();
     const isRouteMine = (r) => {
-      if (r === "/profile") return true;
-      if (!r.startsWith("/profile/")) return false;
-      const param = r.replace("/profile/", "").toLowerCase();
+      const routePath = (r || "").toString().trim();
+      if (!routePath) return false;
+      const isProfileRoute = SidebarRouteHelper?.isProfilePath
+        ? SidebarRouteHelper.isProfilePath(routePath)
+        : routePath === SIDEBAR_ROUTE_PATHS.PROFILE ||
+          routePath.startsWith(`${SIDEBAR_ROUTE_PATHS.PROFILE}/`);
+      if (!isProfileRoute) return false;
+      const param = (
+        SidebarRouteHelper?.extractProfileTargetFromHash
+          ? SidebarRouteHelper.extractProfileTargetFromHash(
+              sidebarBuildHash(routePath),
+            )
+          : routePath.replace("/profile/", "")
+      )
+        .toString()
+        .toLowerCase();
+      if (!param) return true;
       return param === myId || param === myUsername;
     };
 
-    const currentPathOnly = currentHash.slice(1).split("?")[0];
+    const currentPathOnly = sidebarParseHash(currentHash).path;
     const isViewingOtherProfile =
-      (currentHash.includes("/profile/") ||
-        currentHash.includes("/profile?")) &&
+      (SidebarRouteHelper?.isProfilePath
+        ? SidebarRouteHelper.isProfilePath(currentPathOnly)
+        : currentPathOnly === SIDEBAR_ROUTE_PATHS.PROFILE ||
+          currentPathOnly.startsWith(`${SIDEBAR_ROUTE_PATHS.PROFILE}/`)) &&
       !isRouteMine(currentPathOnly);
 
-    if (route === "/profile" && isViewingOtherProfile) {
-      window.location.hash = "#/profile";
+    if (finalRoute === selfProfilePath && isViewingOtherProfile) {
+      if (SidebarRouteHelper?.goTo) {
+        SidebarRouteHelper.goTo(selfProfilePath);
+      } else {
+        window.location.hash = sidebarBuildHash(selfProfilePath);
+      }
       closeAllDropdowns();
       return;
     }
@@ -421,18 +614,21 @@ function navigate(e, route, clickedEl = null) {
   }
 
   // 3. Different page: Navigate
-  const hasHref = targetEl && targetEl.getAttribute("href");
-
   // NORMALIZE navigation function
   const executeFinalNavigation = () => {
     // Clear account settings cache if we are leaving it
-    if (window.location.hash === "#/account-settings") {
+    const currentPath = sidebarParseHash(window.location.hash || "").path;
+    if (sidebarIsAccountSettingsPath(currentPath)) {
       if (window.PageCache) PageCache.clear("#/account-settings");
     }
 
     // Manually update hash since we might have prevented default
     if (window.location.hash !== targetHash) {
-      window.location.hash = targetHash;
+      if (SidebarRouteHelper?.goTo) {
+        SidebarRouteHelper.goTo(targetPath);
+      } else {
+        window.location.hash = targetHash;
+      }
     }
 
     window.onbeforeunload = null; // Clear guard
@@ -441,7 +637,9 @@ function navigate(e, route, clickedEl = null) {
 
   // INTERCEPT: Check for dirty Account Settings
   if (
-    window.location.hash === "#/account-settings" &&
+    sidebarIsAccountSettingsPath(
+      sidebarParseHash(window.location.hash || "").path,
+    ) &&
     window.getAccountSettingsModified &&
     window.getAccountSettingsModified()
   ) {
