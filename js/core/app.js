@@ -628,7 +628,8 @@ function appEnsureChatSidebarOpen() {
   Promise.resolve(ensureOpenAsync()).catch(() => {});
 }
 
-function closeAllOverlayModals() {
+function closeAllOverlayModals(options = {}) {
+  const keepChatSurface = options.keepChatSurface === true;
   const currentPath = appParseHash(window.location.hash || "").path;
   const shouldKeepStoryViewer = appIsStoryViewerRoute(currentPath);
 
@@ -694,7 +695,7 @@ function closeAllOverlayModals() {
       }
   }
 
-  const isMessagesRoute = appIsChatPath(currentPath);
+  const isMessagesRoute = appIsChatPath(currentPath) || keepChatSurface;
 
   // Chat Sidebar
   if (window.closeChatSidebar && !isMessagesRoute) {
@@ -743,6 +744,13 @@ async function router() {
   const hash = window.location.hash || appBuildHash(APP_ROUTE_PATHS.ROOT);
   const parsed = appParseHash(hash);
   const path = parsed.path;
+  const prevPath = appParseHash(lastHash || "").path;
+  const hasActiveChatSurface =
+    document.body.classList.contains("is-chat-page") &&
+    !!document.getElementById("chat-view");
+  const shouldPreserveChatSurfaceForStoryRoute =
+    appIsStoryViewerRoute(path) &&
+    (appIsChatPath(prevPath) || hasActiveChatSurface);
   const isProfileHighlightRoute = AppRouteHelper?.isProfileHighlightPath
     ? AppRouteHelper.isProfileHighlightPath(path)
     : path.toLowerCase().includes("/stories/highlight/");
@@ -835,6 +843,15 @@ async function router() {
     return;
   }
 
+  // Story deep-link opened while user is already on chat-page should behave
+  // like opening story from ring: keep chat surface mounted, only open overlay.
+  if (shouldPreserveChatSurfaceForStoryRoute) {
+    appEnsureChatSidebarOpen();
+    document.body.classList.add("is-chat-page");
+    setActiveSidebar(prevPath || APP_ROUTE_PATHS.CHAT);
+    return;
+  }
+
   const isPostDetailRoute = appIsPostDetailPath(path);
   if (!isPostDetailRoute) {
     window._lastAcceptedHashForRouter = hash;
@@ -884,7 +901,6 @@ async function router() {
     return;
   }
   
-  const prevPath = appParseHash(lastHash || "").path;
   const prevKey = getCacheKey(lastHash);
   const nextKey = getCacheKey(hash);
   if (lastHash && prevKey !== nextKey) {

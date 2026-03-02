@@ -188,6 +188,6 @@
     STORY_HIGHLIGHT_GROUP_NAME_MAX_LENGTH: 50, // Max ký tự tên nhóm highlight
     STORY_HIGHLIGHT_MAX_GROUPS: 20, // Số lượng nhóm highlight tối đa mỗi user
     STORY_HIGHLIGHT_MAX_STORIES_PER_GROUP: 50, // Số lượng story tối đa trong 1 nhóm highlight
-    STORY_HIGHLIGHT_ARCHIVE_PAGE_SIZE: 24, // Page size cho modal chọn story archive của highlight
+    STORY_HIGHLIGHT_ARCHIVE_PAGE_SIZE: 18, // Page size cho modal chọn story archive của highlight
   };
 })(window);
