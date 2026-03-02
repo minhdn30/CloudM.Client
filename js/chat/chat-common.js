@@ -9,8 +9,9 @@ const ChatCommon = {
   getAvatar(conv) {
     const explicitAvatarRaw = conv?.displayAvatar || conv?.DisplayAvatar || "";
     const explicitAvatar = (explicitAvatarRaw || "").toString().trim();
+    const isGroup = !!(conv?.isGroup ?? conv?.IsGroup);
 
-    if (!conv?.isGroup) {
+    if (!isGroup) {
       return explicitAvatar || APP_CONFIG.DEFAULT_AVATAR;
     }
 
@@ -3446,7 +3447,11 @@ const ChatCommon = {
                                 : rt.content;
                             rtPreview = escapeHtml(trimmed);
                           } else {
-                            rtPreview = "<em>Media</em>";
+                            const replyMessageType = this.getMessageType(rt);
+                            rtPreview =
+                              replyMessageType === 5
+                                ? "<em>Shared a post</em>"
+                                : "<em>Media</em>";
                           }
                           return `<div class="msg-reply-preview"
                                 data-reply-id="${rt.messageId}"
@@ -4645,13 +4650,27 @@ const ChatCommon = {
 
     const pageSize = ctx.getPageSize();
     const conversationId = ctx.getConversationId();
+    const preJumpContainer = document.getElementById(ctx.getContainerId());
+    const prefersReducedMotion = !!(
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    );
+    const shouldAnimateContextJump =
+      !!preJumpContainer &&
+      !prefersReducedMotion &&
+      preJumpContainer.scrollHeight - preJumpContainer.clientHeight > 8 &&
+      preJumpContainer.scrollTop > 4;
 
     try {
-      const res = await window.API.Conversations.getMessageContext(
+      const preJumpAnimation = shouldAnimateContextJump
+        ? ChatCommon.contextAnimateScrollToTop(preJumpContainer, 320)
+        : Promise.resolve();
+      const resPromise = window.API.Conversations.getMessageContext(
         conversationId,
         messageId,
         pageSize,
       );
+      const [res] = await Promise.all([resPromise, preJumpAnimation]);
       if (!res.ok) {
         window.toastError && window.toastError("Failed to jump to message");
         ctx.setState({ isLoading: false });
@@ -4801,14 +4820,140 @@ const ChatCommon = {
   /**
    * Jump to bottom — exit context mode and reload latest.
    */
-  contextJumpToBottom(ctx) {
-    ChatCommon.contextResetMode(ctx);
-    ChatCommon.contextRemoveJumpBtn(ctx, true);
-    ctx.setState({ page: null, hasMore: true, isLoading: false });
+  contextAnimateScrollToTop(msgContainer, maxDurationMs = 320) {
+    return new Promise((resolve) => {
+      if (!msgContainer) {
+        resolve();
+        return;
+      }
 
+      const currentTop = msgContainer.scrollTop || 0;
+      if (currentTop <= 4) {
+        resolve();
+        return;
+      }
+
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        resolve();
+      };
+
+      try {
+        msgContainer.scrollTo({ top: 0, behavior: "smooth" });
+      } catch {
+        msgContainer.scrollTop = 0;
+        finish();
+        return;
+      }
+
+      const startedAt = Date.now();
+      let rafId = 0;
+      const tick = () => {
+        if (!msgContainer.isConnected) {
+          finish();
+          return;
+        }
+
+        const nearTop = (msgContainer.scrollTop || 0) <= 6;
+        const timedOut = Date.now() - startedAt >= maxDurationMs;
+        if (nearTop || timedOut) {
+          finish();
+          return;
+        }
+
+        rafId = requestAnimationFrame(tick);
+      };
+
+      rafId = requestAnimationFrame(tick);
+      setTimeout(() => {
+        if (rafId) cancelAnimationFrame(rafId);
+        finish();
+      }, maxDurationMs + 24);
+    });
+  },
+
+  contextAnimateScrollToBottom(msgContainer, maxDurationMs = 420) {
+    return new Promise((resolve) => {
+      if (!msgContainer) {
+        resolve();
+        return;
+      }
+
+      const targetTop = Math.max(
+        0,
+        msgContainer.scrollHeight - msgContainer.clientHeight,
+      );
+      const distance = targetTop - (msgContainer.scrollTop || 0);
+      if (distance <= 4) {
+        resolve();
+        return;
+      }
+
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        resolve();
+      };
+
+      try {
+        msgContainer.scrollTo({ top: targetTop, behavior: "smooth" });
+      } catch {
+        msgContainer.scrollTop = targetTop;
+        finish();
+        return;
+      }
+
+      const startedAt = Date.now();
+      let rafId = 0;
+      const tick = () => {
+        if (!msgContainer.isConnected) {
+          finish();
+          return;
+        }
+
+        const nearBottom =
+          msgContainer.scrollHeight -
+            msgContainer.scrollTop -
+            msgContainer.clientHeight <=
+          6;
+        const timedOut = Date.now() - startedAt >= maxDurationMs;
+        if (nearBottom || timedOut) {
+          finish();
+          return;
+        }
+
+        rafId = requestAnimationFrame(tick);
+      };
+
+      rafId = requestAnimationFrame(tick);
+      setTimeout(() => {
+        if (rafId) cancelAnimationFrame(rafId);
+        finish();
+      }, maxDurationMs + 24);
+    });
+  },
+
+  contextJumpToBottom(ctx, options = {}) {
+    const shouldAnimate = !!options.animate;
     const msgContainer = document.getElementById(ctx.getContainerId());
-    if (msgContainer) msgContainer.innerHTML = "";
 
+    ChatCommon.contextRemoveJumpBtn(ctx, true);
+    if (shouldAnimate && msgContainer) {
+      ChatCommon.contextAnimateScrollToBottom(msgContainer).finally(() => {
+        ChatCommon.contextResetMode(ctx);
+        ctx.setState({ page: null, hasMore: true, isLoading: false });
+        if (msgContainer) msgContainer.innerHTML = "";
+        ctx.reloadLatest();
+      });
+      return;
+    }
+
+    ChatCommon.contextResetMode(ctx);
+    ctx.setState({ page: null, hasMore: true, isLoading: false });
+    if (msgContainer) msgContainer.innerHTML = "";
     ctx.reloadLatest();
   },
 
@@ -4842,8 +4987,7 @@ const ChatCommon = {
     btn.onclick = () => {
       const state = ctx.getState();
       if (state._isContextMode) {
-        // For context mode, we reload, usually no time for animation
-        ChatCommon.contextJumpToBottom(ctx);
+        ChatCommon.contextJumpToBottom(ctx, { animate: true });
       } else {
         ChatCommon.contextRemoveJumpBtn(ctx, true);
         ctx.scrollToBottom("smooth");

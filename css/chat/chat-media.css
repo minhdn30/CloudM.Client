@@ -30,15 +30,23 @@
 }
 
 /* Logic layouts for different counts */
-.msg-media-grid.count-1 { grid-template-columns: 1fr; }
-.msg-media-grid.count-2 { grid-template-columns: repeat(2, 1fr); }
-.msg-media-grid.count-3 { grid-template-columns: repeat(2, 1fr); }
-.msg-media-grid.count-4 { grid-template-columns: repeat(2, 1fr); }
+.msg-media-grid.count-1 {
+  grid-template-columns: 1fr;
+}
+.msg-media-grid.count-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.msg-media-grid.count-3 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.msg-media-grid.count-4 {
+  grid-template-columns: repeat(2, 1fr);
+}
 
 /* In a 3-item grid, make the first item span 2 rows if desired, 
    but for simplicity and consistency with 4-item grid, we'll use 2x2 logic */
 .msg-media-grid.count-3 .msg-media-item:first-child {
-    grid-row: span 2;
+  grid-row: span 2;
 }
 
 .msg-media-item {
@@ -49,12 +57,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 1/1; 
+  aspect-ratio: 1/1;
 }
 
 /* For single items, don't force square */
 .msg-media-grid.count-1 .msg-media-item {
-    aspect-ratio: auto;
+  aspect-ratio: auto;
 }
 
 .msg-media-item img,
@@ -123,7 +131,7 @@
   color: #fff;
   fill: #fff; /* Make it solid play icon */
   margin-left: 4px; /* Fix visual centering for triangle */
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
   transition: all 0.2s ease;
 }
 
@@ -188,7 +196,9 @@
   background: var(--chat-theme-surface-alt, var(--bg-secondary));
   color: var(--text-primary);
   text-decoration: none;
-  transition: background 0.2s, transform 0.2s;
+  transition:
+    background 0.2s,
+    transform 0.2s;
   width: 100%;
   max-width: 100%;
   overflow: hidden;
@@ -248,30 +258,29 @@
 
 /* Chat Link Styles */
 .msg-bubble a {
-    cursor: pointer;
-    word-break: break-all;
-    transition: opacity 0.2s;
+  cursor: pointer;
+  word-break: break-all;
+  transition: opacity 0.2s;
 }
 
 /* Link in sent bubble (usually blue background) */
 .sent .msg-bubble a {
-    color: #fff;
-    text-decoration: underline;
-    font-weight: 500;
+  color: #fff;
+  text-decoration: underline;
+  font-weight: 500;
 }
 
 .sent .msg-bubble a:hover {
-    opacity: 0.8;
+  opacity: 0.8;
 }
 
 /* Link in received bubble (usually gray background) */
 .received .msg-bubble a {
-    color: var(--accent-primary);
-    text-decoration: none;
-    font-weight: 500;
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 500;
 }
 
 .received .msg-bubble a:hover {
-    text-decoration: underline;
+  text-decoration: underline;
 }
-

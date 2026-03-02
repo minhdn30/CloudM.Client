@@ -288,8 +288,12 @@
               })
               .join("")}
           </div>
-          <button class="nav prev">‹</button>
-          <button class="nav next">›</button>
+          <button class="nav prev" aria-label="Previous media">
+            <i data-lucide="chevron-left"></i>
+          </button>
+          <button class="nav next" aria-label="Next media">
+            <i data-lucide="chevron-right"></i>
+          </button>
         </div>
         <div class="media-dots"></div>
       </div>

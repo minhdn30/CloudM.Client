@@ -1192,11 +1192,19 @@ const CommentModule = (function () {
         const detailBody = document.getElementById("detailBody");
         const bodyRect = detailBody
           ? detailBody.getBoundingClientRect()
-          : { top: 0 };
+          : { top: 0, right: window.innerWidth };
 
         const spaceAbove = btnRect.top - bodyRect.top;
         if (spaceAbove < 320) emojiPickerContainer.classList.add("show-below");
         else emojiPickerContainer.classList.remove("show-below");
+
+        const pickerWidth = Math.min(352, window.innerWidth - 24);
+        const spaceRight = bodyRect.right - btnRect.right;
+        if (spaceRight < pickerWidth) {
+          emojiPickerContainer.classList.add("align-right");
+        } else {
+          emojiPickerContainer.classList.remove("align-right");
+        }
 
         EmojiUtils.togglePicker(emojiPickerContainer, (emoji) => {
           EmojiUtils.insertAtCursor(input, emoji.native);
