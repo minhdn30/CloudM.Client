@@ -52,6 +52,7 @@
   };
   let pendingTabScrollRestoreTop = null;
   let tabScrollRestoreVersion = 0;
+  let tabScrollRestoreTimerId = null;
 
   function normalizePresenceId(value) {
     if (
@@ -544,13 +545,20 @@
       const mc = document.querySelector(".main-content");
       if (!mc) return;
       const maxScrollTop = Math.max(0, mc.scrollHeight - mc.clientHeight);
-      mc.scrollTop = Math.min(targetScrollTop, maxScrollTop);
+      const nextScrollTop = Math.min(targetScrollTop, maxScrollTop);
+      if (Math.abs(mc.scrollTop - nextScrollTop) <= 1) return;
+      mc.scrollTop = nextScrollTop;
     };
 
     requestAnimationFrame(apply);
-    setTimeout(apply, 32);
-    setTimeout(apply, 96);
-    setTimeout(apply, 220);
+    if (tabScrollRestoreTimerId) {
+      clearTimeout(tabScrollRestoreTimerId);
+      tabScrollRestoreTimerId = null;
+    }
+    tabScrollRestoreTimerId = setTimeout(() => {
+      tabScrollRestoreTimerId = null;
+      apply();
+    }, 72);
   }
 
   function applyPendingTabScrollRestore() {

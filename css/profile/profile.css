@@ -1,4 +1,23 @@
 /* Reset common elements for profile page */
+body.is-profile-page .main-content {
+  overflow-x: hidden !important;
+  scrollbar-gutter: stable both-edges;
+}
+
+body.is-profile-page .main-content::-webkit-scrollbar:horizontal {
+  height: 0;
+}
+
+/* Fallback by DOM presence: profile rendered inside main-content */
+.main-content:has(.profile-container) {
+  overflow-x: hidden !important;
+  scrollbar-gutter: stable both-edges;
+}
+
+.main-content:has(.profile-container)::-webkit-scrollbar:horizontal {
+  height: 0;
+}
+
 .profile-container {
   margin: 0 !important;
   padding: 0 !important;

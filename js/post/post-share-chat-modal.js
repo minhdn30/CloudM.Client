@@ -1,6 +1,7 @@
 (function (global) {
   const state = {
     modal: null,
+    mode: "postShare",
     selectedTargets: new Map(),
     targetResults: [],
     searchKeyword: "",
@@ -11,6 +12,7 @@
     isSending: false,
     postId: "",
     postCode: "",
+    sourceMessageId: "",
     ownsScrollLock: false,
   };
 
@@ -71,6 +73,14 @@
     return 20;
   }
 
+  function isForwardMode() {
+    return state.mode === "forward";
+  }
+
+  function getActionVerb() {
+    return isForwardMode() ? "Forward" : "Send";
+  }
+
   function isMainContentScrollLocked() {
     const mainContent = document.querySelector(".main-content");
     if (!mainContent) return false;
@@ -100,11 +110,13 @@
   function getModalElements() {
     if (!state.modal) return {};
     return {
+      title: state.modal.querySelector("#postShareChatModalTitle"),
       selectedCount: state.modal.querySelector("#postShareChatSelectedCount"),
       selectedList: state.modal.querySelector("#postShareChatSelectedList"),
       selectedHint: state.modal.querySelector("#postShareChatSelectedHint"),
       searchInput: state.modal.querySelector("#postShareChatSearchInput"),
       contentInput: state.modal.querySelector("#postShareChatContentInput"),
+      contentWrap: state.modal.querySelector("#postShareChatContentWrap"),
       contentEmojiBtn: state.modal.querySelector("#postShareChatContentEmojiBtn"),
       contentEmojiPicker: state.modal.querySelector(
         "#postShareChatContentEmojiPicker",
@@ -370,13 +382,58 @@
     }
   }
 
+  function updateModalModeUi() {
+    const {
+      title,
+      searchInput,
+      contentWrap,
+      contentInput,
+      contentEmojiPicker,
+      selectedHint,
+      sendBtn,
+    } = getModalElements();
+
+    if (title) {
+      title.textContent = isForwardMode() ? "Forward message" : "Share post";
+    }
+
+    if (selectedHint) {
+      selectedHint.textContent = isForwardMode()
+        ? "Select one or more chats to forward to."
+        : "Select one or more users or groups.";
+    }
+
+    if (searchInput) {
+      searchInput.placeholder = isForwardMode()
+        ? "Search chat recipients..."
+        : "Search username, full name, or group name...";
+    }
+
+    if (contentWrap) {
+      contentWrap.classList.toggle("hidden", isForwardMode());
+      contentWrap.style.display = isForwardMode() ? "none" : "";
+    }
+
+    if (isForwardMode() && contentInput) {
+      contentInput.value = "";
+      autoResizeContentInput(contentInput);
+      if (contentEmojiPicker && global.EmojiUtils?.closePicker) {
+        global.EmojiUtils.closePicker(contentEmojiPicker);
+      }
+    }
+
+    if (sendBtn && !state.isSending) {
+      sendBtn.textContent = getActionVerb();
+    }
+  }
+
   function updateSendButtonState() {
     const { sendBtn } = getModalElements();
     if (!sendBtn) return;
 
     const hasRecipients = state.selectedTargets.size > 0;
     sendBtn.disabled = !hasRecipients || state.isSending;
-    sendBtn.textContent = state.isSending ? "Sending..." : "Send";
+    sendBtn.textContent = state.isSending ? `${getActionVerb()}ing...` : getActionVerb();
   }
 
   function toggleTarget(key) {
@@ -437,18 +494,115 @@
     };
   }
 
-  async function sendPostShare() {
-    if (state.isSending || !state.postId) return;
-
+  function extractSelectedRecipientIds() {
     const targets = Array.from(state.selectedTargets.values());
-    if (!targets.length) return;
-
     const conversationIds = targets
       .filter((target) => target.type === "conversation")
       .map((target) => target.id);
     const receiverIds = targets
       .filter((target) => target.type === "receiver")
       .map((target) => target.id);
+    return { targets, conversationIds, receiverIds };
+  }
+
+  function syncConversationListAfterSend(successResults) {
+    const chatSidebar = global.ChatSidebar;
+    if (!chatSidebar) return;
+
+    const processedConversationIds = new Set();
+    let shouldReloadConversationList = false;
+
+    successResults.forEach((result) => {
+      const conversationId = normalizeId(result.conversationId);
+      if (!conversationId || processedConversationIds.has(conversationId)) {
+        return;
+      }
+      processedConversationIds.add(conversationId);
+      if (!result.message) return;
+
+      const hasRenderedConversationItem = !!document.querySelector(
+        `.chat-item[data-conversation-id="${conversationId}"]`,
+      );
+
+      if (
+        hasRenderedConversationItem &&
+        typeof chatSidebar.incrementUnread === "function"
+      ) {
+        chatSidebar.incrementUnread(conversationId, result.message, true);
+        return;
+      }
+
+      if (Array.isArray(chatSidebar.conversations)) {
+        const conversation = chatSidebar.conversations.find(
+          (item) => normalizeId(item?.conversationId) === conversationId,
+        );
+        if (conversation) {
+          conversation.lastMessage = result.message;
+          conversation.lastMessageSentAt =
+            result.message.sentAt ||
+            result.message.SentAt ||
+            new Date().toISOString();
+        }
+      }
+
+      shouldReloadConversationList = true;
+    });
+
+    if (
+      shouldReloadConversationList &&
+      !chatSidebar.searchTerm &&
+      typeof chatSidebar.loadConversations === "function" &&
+      document.getElementById("chat-conversation-list")
+    ) {
+      chatSidebar.page = 1;
+      chatSidebar.hasMore = true;
+      chatSidebar.loadConversations(false);
+    }
+  }
+
+  function handleSendResults(results, action) {
+    const successResults = results.filter((result) => result.isSuccess);
+    const failedResults = results.filter((result) => !result.isSuccess);
+
+    syncConversationListAfterSend(successResults);
+
+    const verbPast = action === "forward" ? "Forwarded" : "Shared";
+    const fallbackError =
+      action === "forward" ? "Failed to forward message." : "Failed to share post.";
+
+    if (successResults.length > 0 && failedResults.length === 0) {
+      if (global.toastSuccess) {
+        global.toastSuccess(
+          `${verbPast} to ${successResults.length} chat${successResults.length > 1 ? "s" : ""}.`,
+        );
+      }
+      closeModal({ force: true });
+      return;
+    }
+
+    if (successResults.length > 0) {
+      if (global.toastInfo) {
+        global.toastInfo(
+          `${verbPast} to ${successResults.length} chat${successResults.length > 1 ? "s" : ""}. ${failedResults.length} failed.`,
+        );
+      }
+      closeModal({ force: true });
+      return;
+    }
+
+    const firstError =
+      failedResults.find((result) => result.errorMessage)?.errorMessage ||
+      fallbackError;
+    if (global.toastError) {
+      global.toastError(firstError);
+    }
+  }
+
+  async function sendPostShare() {
+    if (state.isSending || !state.postId) return;
+
+    const { targets, conversationIds, receiverIds } = extractSelectedRecipientIds();
+    if (!targets.length) return;
 
     if (!conversationIds.length && !receiverIds.length) return;
     if (!global.API?.Messages?.sharePost) {
@@ -484,88 +638,7 @@
           ? payload.Results
           : [];
       const results = rawResults.map(normalizeSendResult).filter(Boolean);
-      const successResults = results.filter((result) => result.isSuccess);
-      const failedResults = results.filter((result) => !result.isSuccess);
-
-      const chatSidebar = global.ChatSidebar;
-      if (chatSidebar) {
-        const processedConversationIds = new Set();
-        let shouldReloadConversationList = false;
-
-        successResults.forEach((result) => {
-          const conversationId = normalizeId(result.conversationId);
-          if (!conversationId || processedConversationIds.has(conversationId)) {
-            return;
-          }
-          processedConversationIds.add(conversationId);
-          if (!result.message) return;
-
-          const hasRenderedConversationItem = !!document.querySelector(
-            `.chat-item[data-conversation-id="${conversationId}"]`,
-          );
-
-          if (
-            hasRenderedConversationItem &&
-            typeof chatSidebar.incrementUnread === "function"
-          ) {
-            chatSidebar.incrementUnread(conversationId, result.message, true);
-            return;
-          }
-
-          if (Array.isArray(chatSidebar.conversations)) {
-            const conversation = chatSidebar.conversations.find(
-              (item) => normalizeId(item?.conversationId) === conversationId,
-            );
-            if (conversation) {
-              conversation.lastMessage = result.message;
-              conversation.lastMessageSentAt =
-                result.message.sentAt ||
-                result.message.SentAt ||
-                new Date().toISOString();
-            }
-          }
-
-          shouldReloadConversationList = true;
-        });
-
-        if (
-          shouldReloadConversationList &&
-          !chatSidebar.searchTerm &&
-          typeof chatSidebar.loadConversations === "function" &&
-          document.getElementById("chat-conversation-list")
-        ) {
-          chatSidebar.page = 1;
-          chatSidebar.hasMore = true;
-          chatSidebar.loadConversations(false);
-        }
-      }
-
-      if (successResults.length > 0 && failedResults.length === 0) {
-        if (global.toastSuccess) {
-          global.toastSuccess(
-            `Shared to ${successResults.length} chat${successResults.length > 1 ? "s" : ""}.`,
-          );
-        }
-        closeModal({ force: true });
-        return;
-      }
-
-      if (successResults.length > 0) {
-        if (global.toastInfo) {
-          global.toastInfo(
-            `Shared to ${successResults.length} chat${successResults.length > 1 ? "s" : ""}. ${failedResults.length} failed.`,
-          );
-        }
-        closeModal({ force: true });
-        return;
-      }
-
-      const firstError =
-        failedResults.find((result) => result.errorMessage)?.errorMessage ||
-        "Failed to share post.";
-      if (global.toastError) {
-        global.toastError(firstError);
-      }
+      handleSendResults(results, "share");
     } catch (error) {
       console.error("Failed to share post:", error);
       if (global.toastError) {
@@ -575,6 +648,64 @@
       state.isSending = false;
       updateSendButtonState();
     }
+  }
+
+  async function sendForwardMessage() {
+    if (state.isSending || !state.sourceMessageId) return;
+
+    const { targets, conversationIds, receiverIds } = extractSelectedRecipientIds();
+    if (!targets.length) return;
+
+    if (!conversationIds.length && !receiverIds.length) return;
+    if (!global.API?.Messages?.forward) {
+      if (global.toastError) global.toastError("Forward API is unavailable.");
+      return;
+    }
+
+    state.isSending = true;
+    updateSendButtonState();
+
+    try {
+      const res = await global.API.Messages.forward({
+        sourceMessageId: state.sourceMessageId,
+        conversationIds,
+        receiverIds,
+        tempId:
+          global.crypto?.randomUUID?.() ||
+          `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      });
+
+      if (!res.ok) {
+        const errorMessage = await readApiError(res, "Failed to forward message.");
+        if (global.toastError) global.toastError(errorMessage);
+        return;
+      }
+
+      const payload = await res.json().catch(() => ({}));
+      const rawResults = Array.isArray(payload?.results)
+        ? payload.results
+        : Array.isArray(payload?.Results)
+          ? payload.Results
+          : [];
+      const results = rawResults.map(normalizeSendResult).filter(Boolean);
+      handleSendResults(results, "forward");
+    } catch (error) {
+      console.error("Failed to forward message:", error);
+      if (global.toastError) {
+        global.toastError("Failed to forward message.");
+      }
+    } finally {
+      state.isSending = false;
+      updateSendButtonState();
+    }
+  }
+
+  async function sendCurrentAction() {
+    if (isForwardMode()) {
+      await sendForwardMessage();
+      return;
+    }
+    await sendPostShare();
   }
 
   async function searchTargets(keyword, { showLoading = true } = {}) {
@@ -722,7 +853,7 @@
 
     closeBtn?.addEventListener("click", closeModal);
     cancelBtn?.addEventListener("click", closeModal);
-    sendBtn?.addEventListener("click", sendPostShare);
+    sendBtn?.addEventListener("click", sendCurrentAction);
 
     state.modal.addEventListener("click", (event) => {
       if (event.target === state.modal) {
@@ -794,7 +925,7 @@
     modal.innerHTML = `
       <div class="modal-container post-share-chat-modal">
         <div class="modal-header post-share-chat-header">
-          <h2 class="modal-title">Share post</h2>
+          <h2 class="modal-title" id="postShareChatModalTitle">Share post</h2>
           <button type="button" class="modal-back-btn" id="postShareChatCloseBtn" aria-label="Close">
             <i data-lucide="x"></i>
           </button>
@@ -809,7 +940,7 @@
             <div class="post-share-chat-selected-hint" id="postShareChatSelectedHint">Select one or more users or groups.</div>
           </div>
 
-          <div class="post-share-chat-search-wrap">
+          <div class="post-share-chat-search-wrap" id="postShareChatSearchWrap">
             <i data-lucide="search" class="post-share-chat-search-icon"></i>
             <input
               type="text"
@@ -822,7 +953,7 @@
 
           <div class="post-share-chat-result-list" id="postShareChatResultList"></div>
 
-          <div class="post-share-chat-content-wrap">
+          <div class="post-share-chat-content-wrap" id="postShareChatContentWrap">
             <div class="post-share-chat-content-input-wrapper">
               <textarea
                 class="post-share-chat-content-input"
@@ -872,8 +1003,47 @@
     }
 
     ensureModal();
+    state.mode = "postShare";
     state.postId = normalizedPostId;
     state.postCode = (options?.postCode || "").toString().trim();
+    state.sourceMessageId = "";
+    updateModalModeUi();
+    resetModalState();
+
+    const isAlreadyOpen = state.modal.classList.contains("show");
+    if (!isAlreadyOpen) {
+      const wasLockedBeforeOpen = isMainContentScrollLocked();
+      if (!wasLockedBeforeOpen && typeof global.lockScroll === "function") {
+        global.lockScroll();
+        state.ownsScrollLock = true;
+      } else {
+        state.ownsScrollLock = false;
+      }
+    }
+
+    state.modal.classList.add("show");
+
+    searchTargets("", { showLoading: true });
+
+    const { searchInput } = getModalElements();
+    setTimeout(() => {
+      searchInput?.focus();
+    }, 120);
+  }
+
+  function openForwardModal(messageId) {
+    const normalizedMessageId = normalizeId(messageId);
+    if (!normalizedMessageId) {
+      if (global.toastError) global.toastError("Message is unavailable.");
+      return;
+    }
+
+    ensureModal();
+    state.mode = "forward";
+    state.sourceMessageId = normalizedMessageId;
+    state.postId = "";
+    state.postCode = "";
+    updateModalModeUi();
     resetModalState();
 
     const isAlreadyOpen = state.modal.classList.contains("show");
@@ -898,5 +1068,6 @@
   }
 
   global.openPostShareChatModal = openModal;
+  global.openForwardMessageModal = openForwardModal;
   global.closePostShareChatModal = (options = {}) => closeModal(options);
 })(window);

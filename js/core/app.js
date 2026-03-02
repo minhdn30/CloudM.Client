@@ -581,13 +581,15 @@ if (window.APP_CONFIG) {
    ========================= */
 function lockScroll() {
   const mc = document.querySelector('.main-content');
-  if (mc) mc.style.overflow = "hidden";
+  if (!mc) return;
+  mc.style.overflowY = "hidden";
 }
 window.lockScroll = lockScroll;
 
 function unlockScroll() {
   const mc = document.querySelector('.main-content');
-  if (mc) mc.style.overflow = "auto";
+  if (!mc) return;
+  mc.style.overflowY = "auto";
 }
 window.unlockScroll = unlockScroll;
 
@@ -962,6 +964,20 @@ async function router() {
       document.body.classList.remove('is-chat-page');
   }
 
+  // Hide horizontal page scrollbar only on profile surface
+  const profileScrollContainer = document.querySelector('.main-content');
+  if (appIsProfilePath(path)) {
+      document.body.classList.add('is-profile-page');
+      if (profileScrollContainer) {
+          profileScrollContainer.style.overflowX = "hidden";
+      }
+  } else {
+      document.body.classList.remove('is-profile-page');
+      if (profileScrollContainer) {
+          profileScrollContainer.style.overflowX = "";
+      }
+  }
+
   if (PageCache.has(nextKey)) {
       if (prevKey === nextKey) {
           if (appIsChatPath(path) && window.ChatPage && typeof window.ChatPage.handleUrlNavigation === 'function') {
@@ -1129,6 +1145,8 @@ async function reloadPage() {
     console.log("Forcing Page Reload...");
     const key = getCacheKey(window.location.hash);
     PageCache.clear(key);
+    // Force router to bypass same-route short-circuit (especially profile surface preserve).
+    lastHash = null;
     runRouter();
 }
 window.reloadPage = reloadPage;

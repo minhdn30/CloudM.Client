@@ -7,20 +7,46 @@ const PageCache = (function() {
     let _lastScrollY = 0;
     let _snapshotScrollY = null;
 
+    const _isContainerScrollLocked = (mc) => {
+        if (!mc) return false;
+        const inlineOverflow = (mc.style.overflow || "").toString().trim().toLowerCase();
+        const inlineOverflowY = (mc.style.overflowY || "").toString().trim().toLowerCase();
+        if (
+            inlineOverflow === "hidden" ||
+            inlineOverflow === "clip" ||
+            inlineOverflowY === "hidden" ||
+            inlineOverflowY === "clip"
+        ) {
+            return true;
+        }
+
+        if (typeof window.getComputedStyle !== "function") return false;
+        const computed = window.getComputedStyle(mc);
+        if (!computed) return false;
+        const overflow = (computed.overflow || "").toString().trim().toLowerCase();
+        const overflowY = (computed.overflowY || "").toString().trim().toLowerCase();
+        return (
+            overflow === "hidden" ||
+            overflow === "clip" ||
+            overflowY === "hidden" ||
+            overflowY === "clip"
+        );
+    };
+
     // Track scroll position continuously to avoid losing it during navigation/hashreset
     const _getScrollContainer = () => document.querySelector('.main-content');
     const _trackScroll = () => {
         const mc = _getScrollContainer();
         if (!mc) return;
         // Only track if not locked by a modal
-        if (mc.style.overflow !== "hidden") {
+        if (!_isContainerScrollLocked(mc)) {
             _lastScrollY = mc.scrollTop;
         }
     };
     const _trackScrollPassive = () => {
         const mc = _getScrollContainer();
         if (!mc) return;
-        if (mc.style.overflow !== "hidden") {
+        if (!_isContainerScrollLocked(mc)) {
             _snapshotScrollY = mc ? mc.scrollTop : 0;
         }
     };
@@ -32,7 +58,7 @@ const PageCache = (function() {
 
     function snapshot() {
         const mc = _getScrollContainer();
-        if (mc && mc.style.overflow !== "hidden") {
+        if (mc && !_isContainerScrollLocked(mc)) {
             _snapshotScrollY = mc ? mc.scrollTop : 0;
         }
     }

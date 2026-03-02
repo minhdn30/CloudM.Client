@@ -19,6 +19,13 @@
   position: relative;
   display: flow-root;
   overflow: visible;
+  padding-inline: 0;
+}
+
+.profile-highlights-shell.is-scrollable {
+  padding-inline: calc(
+    var(--profile-highlights-nav-size) + var(--profile-highlights-nav-gap)
+  );
 }
 
 .profile-highlights-track {
@@ -29,7 +36,6 @@
   overflow-y: visible;
   scrollbar-width: none;
   scroll-padding-inline: 12px;
-  scrollbar-gutter: stable both-edges;
   padding: 36px 12px 8px;
   margin: -36px 0 0;
 }
@@ -79,17 +85,11 @@
 }
 
 .profile-highlights-nav-prev {
-  left: calc(
-    -1 *
-      (var(--profile-highlights-nav-size) + var(--profile-highlights-nav-gap))
-  );
+  left: 0;
 }
 
 .profile-highlights-nav-next {
-  right: calc(
-    -1 *
-      (var(--profile-highlights-nav-size) + var(--profile-highlights-nav-gap))
-  );
+  right: 0;
 }
 
 .profile-highlights-nav i,

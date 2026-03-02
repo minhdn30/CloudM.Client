@@ -191,19 +191,31 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--text-secondary);
+  background: var(--text-primary);
   color: var(--bg-primary);
   border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   cursor: pointer;
   z-index: 10;
 }
 
 .media-slider .prev {
-  left: 8px;
+  left: 10px;
 }
 
 .media-slider .next {
-  right: 8px;
+  right: 10px;
+}
+
+.media-slider .nav i,
+.media-slider .nav svg {
+  width: 20px;
+  height: 20px;
+  color: var(--bg-primary);
+  stroke-width: 2.5;
 }
 
 /* dots */

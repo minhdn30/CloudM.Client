@@ -1832,6 +1832,8 @@ const ChatActions = {
       .toLowerCase();
     const isRecalled =
       (wrapper?.dataset?.isRecalled || "").toString().toLowerCase() === "true";
+    const messageType = Number(wrapper?.dataset?.messageType ?? 0);
+    const canForward = !isRecalled && messageType !== 3 && messageType !== 4;
     const isPinned =
       (wrapper?.dataset?.isPinned || "").toString().toLowerCase() === "true";
     const conversationId = this.resolveConversationId(wrapper);
@@ -1875,9 +1877,9 @@ const ChatActions = {
             </div>
         `;
 
-    if (!isRecalled) {
+    if (canForward) {
       itemsHtml += `
-            <div class="msg-more-item" onclick="window.toastInfo('Forwarding coming soon')">
+            <div class="msg-more-item" onclick="window.ChatActions && ChatActions.closeAllMenus(); if(window.openForwardMessageModal){ window.openForwardMessageModal('${resolvedMessageId}'); } else if(window.toastInfo){ window.toastInfo('Forward is unavailable'); }">
                 <i data-lucide="forward"></i>
                 <span>Forward</span>
             </div>
