@@ -755,7 +755,12 @@
 
     setProfileHighlightsHiddenState(container, false);
 
-    const addButtonHtml = isOwner
+    const ownerCanAddNew =
+      isOwner &&
+      (!Array.isArray(highlightGroups) ||
+        highlightGroups.length < HIGHLIGHT_GROUP_MAX_LIMIT);
+
+    const addButtonHtml = ownerCanAddNew
       ? `
         <div class="profile-highlight-item profile-highlight-add-item profile-highlight-owner" data-action="add-highlight-group">
           <div class="profile-highlight-ring">
@@ -1239,11 +1244,6 @@
     if (!isCurrentProfileOwner()) return;
 
     if (highlightGroups.length >= HIGHLIGHT_GROUP_MAX_LIMIT) {
-      if (window.toastError) {
-        toastError(
-          `Maximum ${HIGHLIGHT_GROUP_MAX_LIMIT} highlight groups are allowed.`,
-        );
-      }
       return;
     }
 
@@ -1605,15 +1605,6 @@
         </div>
         <div class="profile-highlight-candidates-scroll-area">
           <div class="profile-highlight-candidates-grid">${candidatesHtml}</div>
-          ${
-            state.hasMore
-              ? `
-            <div class="profile-highlight-load-more-wrap">
-              <button type="button" class="profile-highlight-btn" data-action="load-more-candidates"${state.isLoadingCandidates ? " disabled" : ""}>Load more</button>
-            </div>
-          `
-              : ""
-          }
         </div>
       `;
 
@@ -1622,13 +1613,25 @@
       );
       if (candidatesScrollEl) {
         candidatesScrollEl.scrollTop = Math.max(0, state.stepTwoScrollTop || 0);
+        const tryLoadMoreOnScroll = () => {
+          if (state.isLoadingCandidates || !state.hasMore) return;
+          const remaining =
+            candidatesScrollEl.scrollHeight -
+            candidatesScrollEl.scrollTop -
+            candidatesScrollEl.clientHeight;
+          if (remaining <= 160) {
+            loadCandidates();
+          }
+        };
         candidatesScrollEl.addEventListener(
           "scroll",
           () => {
             state.stepTwoScrollTop = candidatesScrollEl.scrollTop;
+            tryLoadMoreOnScroll();
           },
           { passive: true },
         );
+        requestAnimationFrame(tryLoadMoreOnScroll);
       }
 
       if (shell.backEl) {
@@ -1647,20 +1650,32 @@
 
       shell.bodyEl.querySelectorAll("[data-story-id]").forEach((itemEl) => {
         itemEl.addEventListener("click", () => {
-          const currentScrollEl = shell.bodyEl.querySelector(
-            ".profile-highlight-candidates-scroll-area",
-          );
-          if (currentScrollEl) {
-            state.stepTwoScrollTop = currentScrollEl.scrollTop;
-          }
-
           const storyId = itemEl.getAttribute("data-story-id") || "";
           const normalizedStoryId = normalizeEntityId(storyId);
           if (!normalizedStoryId) return;
 
+          const setCandidateSelectedState = (isSelected) => {
+            itemEl.classList.toggle("selected", isSelected);
+            const checkEl = itemEl.querySelector(
+              ".profile-highlight-candidate-check",
+            );
+            if (checkEl) {
+              checkEl.textContent = isSelected ? "\u2713" : "";
+            }
+          };
+
+          const selectedCounterEl = shell.bodyEl.querySelector(
+            ".profile-highlight-candidates-toolbar .profile-highlight-selected-counter",
+          );
+          const updateSelectedCounterText = () => {
+            if (!selectedCounterEl) return;
+            selectedCounterEl.textContent = `Selected: ${state.selectedStoryIds.size}/${HIGHLIGHT_STORY_MAX_PER_GROUP}`;
+          };
+
           if (state.selectedStoryIds.has(normalizedStoryId)) {
             state.selectedStoryIds.delete(normalizedStoryId);
-            render();
+            setCandidateSelectedState(false);
+            updateSelectedCounterText();
             return;
           }
 
@@ -1674,16 +1689,10 @@
           }
 
           state.selectedStoryIds.add(normalizedStoryId);
-          render();
+          setCandidateSelectedState(true);
+          updateSelectedCounterText();
         });
       });
-
-      const loadMoreBtn = shell.bodyEl.querySelector(
-        '[data-action="load-more-candidates"]',
-      );
-      if (loadMoreBtn) {
-        loadMoreBtn.addEventListener("click", () => loadCandidates());
-      }
     };
 
     const bindFooterEvents = () => {
@@ -1763,6 +1772,7 @@
       hasMore: true,
       isLoadingCandidates: false,
       isSubmitting: false,
+      candidatesScrollTop: 0,
     };
 
     const loadCandidates = async ({ reset } = {}) => {
@@ -1921,15 +1931,6 @@
         </div>
         <div class="profile-highlight-candidates-scroll-area">
           <div class="profile-highlight-candidates-grid">${candidatesHtml}</div>
-          ${
-            state.hasMore
-              ? `
-            <div class="profile-highlight-load-more-wrap">
-              <button type="button" class="profile-highlight-btn" data-action="load-more-candidates"${state.isLoadingCandidates ? " disabled" : ""}>Load more</button>
-            </div>
-          `
-              : ""
-          }
         </div>
       `;
 
@@ -1945,9 +1946,30 @@
           const normalizedStoryId = normalizeEntityId(storyId);
           if (!normalizedStoryId) return;
 
+          const setCandidateSelectedState = (isSelected) => {
+            itemEl.classList.toggle("selected", isSelected);
+            const checkEl = itemEl.querySelector(
+              ".profile-highlight-candidate-check",
+            );
+            if (checkEl) {
+              checkEl.textContent = isSelected ? "\u2713" : "";
+            }
+          };
+
+          const selectedCounterEl = shell.bodyEl.querySelector(
+            ".profile-highlight-candidates-toolbar .profile-highlight-selected-counter",
+          );
+          const updateSelectedCounterText = () => {
+            if (!selectedCounterEl) return;
+            const selectedCount = state.selectedStoryIds.size;
+            const totalAfterAdd = group.storyCount + selectedCount;
+            selectedCounterEl.textContent = `Selected: ${selectedCount} | total after add: ${totalAfterAdd}/${HIGHLIGHT_STORY_MAX_PER_GROUP}`;
+          };
+
           if (state.selectedStoryIds.has(normalizedStoryId)) {
             state.selectedStoryIds.delete(normalizedStoryId);
-            render();
+            setCandidateSelectedState(false);
+            updateSelectedCounterText();
             return;
           }
 
@@ -1964,15 +1986,38 @@
           }
 
           state.selectedStoryIds.add(normalizedStoryId);
-          render();
+          setCandidateSelectedState(true);
+          updateSelectedCounterText();
         });
       });
 
-      const loadMoreBtn = shell.bodyEl.querySelector(
-        '[data-action="load-more-candidates"]',
+      const candidatesScrollEl = shell.bodyEl.querySelector(
+        ".profile-highlight-candidates-scroll-area",
       );
-      if (loadMoreBtn) {
-        loadMoreBtn.addEventListener("click", () => loadCandidates());
+      if (candidatesScrollEl) {
+        candidatesScrollEl.scrollTop = Math.max(
+          0,
+          state.candidatesScrollTop || 0,
+        );
+        const tryLoadMoreOnScroll = () => {
+          if (state.isLoadingCandidates || !state.hasMore) return;
+          const remaining =
+            candidatesScrollEl.scrollHeight -
+            candidatesScrollEl.scrollTop -
+            candidatesScrollEl.clientHeight;
+          if (remaining <= 160) {
+            loadCandidates();
+          }
+        };
+        candidatesScrollEl.addEventListener(
+          "scroll",
+          () => {
+            state.candidatesScrollTop = candidatesScrollEl.scrollTop;
+            tryLoadMoreOnScroll();
+          },
+          { passive: true },
+        );
+        requestAnimationFrame(tryLoadMoreOnScroll);
       }
 
       const submitBtn = shell.footerEl.querySelector(
