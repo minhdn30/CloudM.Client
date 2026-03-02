@@ -92,6 +92,8 @@
     // Story list (queue) mode
     authorQueue: [],
     authorQueueIndex: -1,
+    highlightGroupQueue: [],
+    highlightGroupQueueIndex: -1,
     queueHasMore: false,
     viewedAuthors: new Map(), // authorId → "seen" | "partial"
   };
@@ -994,10 +996,14 @@
     const { prevBtn, nextBtn } = viewerState.dom;
     if (!prevBtn || !nextBtn) return;
 
+    stEnsureCurrentStoryIndexInBounds();
     const totalStories = Array.isArray(viewerState.stories)
       ? viewerState.stories.length
       : 0;
-    const isQueue = stHasQueue();
+    const isAuthorQueue = stHasQueue();
+    const isHighlightGroupQueue =
+      stIsHighlightMode() && stHasHighlightGroupQueue();
+    const isQueue = isAuthorQueue || isHighlightGroupQueue;
     const archiveCanLoadMore =
       !isQueue && stIsArchiveMode() && viewerState.archiveHasMore;
 
@@ -1006,12 +1012,22 @@
       prevBtn.classList.remove("sn-story-viewer-hidden");
       nextBtn.classList.remove("sn-story-viewer-hidden");
 
-      const isAbsoluteFirst =
-        viewerState.authorQueueIndex <= 0 && viewerState.currentIndex <= 0;
-      const isAbsoluteLast =
-        viewerState.authorQueueIndex >= viewerState.authorQueue.length - 1 &&
-        viewerState.currentIndex >= totalStories - 1 &&
-        !viewerState.queueHasMore;
+      let isAbsoluteFirst = false;
+      let isAbsoluteLast = false;
+      if (isAuthorQueue) {
+        isAbsoluteFirst =
+          viewerState.authorQueueIndex <= 0 && viewerState.currentIndex <= 0;
+        isAbsoluteLast =
+          viewerState.authorQueueIndex >= viewerState.authorQueue.length - 1 &&
+          viewerState.currentIndex >= totalStories - 1 &&
+          !viewerState.queueHasMore;
+      } else {
+        const groupIndex = stClampHighlightGroupQueueIndex();
+        isAbsoluteFirst = groupIndex <= 0 && viewerState.currentIndex <= 0;
+        isAbsoluteLast =
+          groupIndex >= viewerState.highlightGroupQueue.length - 1 &&
+          viewerState.currentIndex >= totalStories - 1;
+      }
 
       prevBtn.classList.toggle("sn-story-viewer-nav-disabled", isAbsoluteFirst);
       nextBtn.classList.toggle("sn-story-viewer-nav-disabled", isAbsoluteLast);
@@ -1656,7 +1672,9 @@
     stToggleStoryPause(true);
 
     try {
-      const result = await viewerState.highlightOnRemoveStory(story);
+      const result = await viewerState.highlightOnRemoveStory(story, {
+        groupId: viewerState.highlightGroupId,
+      });
       if (!result?.ok) {
         stToggleStoryPause(false);
         return;
@@ -2238,6 +2256,10 @@
 
   function stRenderCurrentStory(direction = "fade") {
     stCloseViewersList();
+    if (!stEnsureCurrentStoryIndexInBounds()) {
+      stCloseViewer();
+      return;
+    }
     const story = stCurrentStory();
     if (!story) {
       stCloseViewer();
@@ -2503,8 +2525,232 @@
 
   /* ─── Story list (queue) mode helpers ─── */
 
+  function stReadHighlightGroupId(rawGroup) {
+    return (
+      rawGroup?.groupId ??
+      rawGroup?.GroupId ??
+      rawGroup?.storyHighlightGroupId ??
+      rawGroup?.StoryHighlightGroupId ??
+      ""
+    )
+      .toString()
+      .trim();
+  }
+
+  function stNormalizeHighlightGroupItem(
+    rawGroup,
+    fallbackTargetAccountId = "",
+  ) {
+    const groupId = stReadHighlightGroupId(rawGroup);
+    if (!groupId) return null;
+
+    const fallbackStoryRaw =
+      rawGroup?.fallbackStory ??
+      rawGroup?.FallbackStory ??
+      rawGroup?.previewStory ??
+      rawGroup?.PreviewStory ??
+      null;
+    const fallbackStory =
+      fallbackStoryRaw && typeof fallbackStoryRaw === "object"
+        ? stResolveStoryItem(fallbackStoryRaw)
+        : null;
+
+    const storyCount = Math.max(
+      0,
+      stParseInt(rawGroup?.storyCount ?? rawGroup?.StoryCount, 0),
+    );
+
+    return {
+      groupId,
+      accountId: (
+        rawGroup?.accountId ??
+        rawGroup?.AccountId ??
+        fallbackTargetAccountId ??
+        ""
+      )
+        .toString()
+        .trim(),
+      name: (
+        rawGroup?.name ??
+        rawGroup?.Name ??
+        rawGroup?.title ??
+        rawGroup?.Title ??
+        "highlight"
+      )
+        .toString()
+        .trim(),
+      coverImageUrl: (
+        rawGroup?.coverImageUrl ??
+        rawGroup?.CoverImageUrl ??
+        rawGroup?.thumbnailUrl ??
+        rawGroup?.ThumbnailUrl ??
+        ""
+      )
+        .toString()
+        .trim(),
+      storyCount,
+      fallbackStory:
+        fallbackStory && fallbackStory.storyId ? fallbackStory : null,
+    };
+  }
+
+  function stNormalizeHighlightGroupQueue(
+    rawQueue,
+    fallbackTargetAccountId = "",
+  ) {
+    const queue = [];
+    const seen = new Set();
+    const source = Array.isArray(rawQueue) ? rawQueue : [];
+
+    source.forEach((rawGroup) => {
+      const normalizedItem = stNormalizeHighlightGroupItem(
+        rawGroup,
+        fallbackTargetAccountId,
+      );
+      if (!normalizedItem?.groupId) return;
+
+      const normalizedGroupId = stNormalizeId(normalizedItem.groupId);
+      if (!normalizedGroupId || seen.has(normalizedGroupId)) {
+        return;
+      }
+      seen.add(normalizedGroupId);
+      queue.push(normalizedItem);
+    });
+
+    return queue;
+  }
+
+  function stResolveHighlightGroupQueueIndex(
+    queue,
+    targetGroupId,
+    preferredIndex = -1,
+  ) {
+    const list = Array.isArray(queue) ? queue : [];
+    if (!list.length) return -1;
+
+    const preferred = stParseInt(preferredIndex, -1);
+    if (preferred >= 0 && preferred < list.length) {
+      return preferred;
+    }
+
+    const normalizedTargetGroupId = stNormalizeId(targetGroupId);
+    if (!normalizedTargetGroupId) return 0;
+
+    const matchedIndex = list.findIndex(
+      (item) => stNormalizeId(item?.groupId) === normalizedTargetGroupId,
+    );
+    return matchedIndex >= 0 ? matchedIndex : 0;
+  }
+
+  function stHasHighlightGroupQueue() {
+    return (
+      Array.isArray(viewerState.highlightGroupQueue) &&
+      viewerState.highlightGroupQueue.length > 0
+    );
+  }
+
+  function stClampHighlightGroupQueueIndex() {
+    if (!stHasHighlightGroupQueue()) {
+      viewerState.highlightGroupQueueIndex = -1;
+      return -1;
+    }
+
+    const clamped = stClamp(
+      stParseInt(viewerState.highlightGroupQueueIndex, 0),
+      0,
+      viewerState.highlightGroupQueue.length - 1,
+    );
+    viewerState.highlightGroupQueueIndex = clamped;
+    return clamped;
+  }
+
+  function stEnsureCurrentStoryIndexInBounds() {
+    const totalStories = Array.isArray(viewerState.stories)
+      ? viewerState.stories.length
+      : 0;
+    if (!totalStories) {
+      viewerState.currentIndex = 0;
+      return false;
+    }
+
+    const clampedIndex = stClamp(
+      stParseInt(viewerState.currentIndex, 0),
+      0,
+      totalStories - 1,
+    );
+    viewerState.currentIndex = clampedIndex;
+    return true;
+  }
+
+  function stUpsertHighlightGroupQueueItem(
+    rawGroup,
+    fallbackTargetAccountId = "",
+  ) {
+    const normalizedItem = stNormalizeHighlightGroupItem(
+      rawGroup,
+      fallbackTargetAccountId,
+    );
+    if (!normalizedItem?.groupId) return;
+
+    const normalizedGroupId = stNormalizeId(normalizedItem.groupId);
+    const queue = Array.isArray(viewerState.highlightGroupQueue)
+      ? viewerState.highlightGroupQueue.slice()
+      : [];
+    const existingIndex = queue.findIndex(
+      (item) => stNormalizeId(item?.groupId) === normalizedGroupId,
+    );
+
+    if (existingIndex >= 0) {
+      queue[existingIndex] = {
+        ...queue[existingIndex],
+        ...normalizedItem,
+      };
+      viewerState.highlightGroupQueue = queue;
+      viewerState.highlightGroupQueueIndex = existingIndex;
+      return;
+    }
+
+    queue.push(normalizedItem);
+    viewerState.highlightGroupQueue = queue;
+    viewerState.highlightGroupQueueIndex = queue.length - 1;
+  }
+
   function stHasQueue() {
     return viewerState.authorQueue.length > 0;
+  }
+
+  function stBuildHighlightGroupStripThumbMarkup(group, defaultAvatar) {
+    const fallbackThumb = stEscapeAttr(defaultAvatar || "");
+    const coverImageUrl = (group?.coverImageUrl || "").toString().trim();
+    if (coverImageUrl) {
+      return `<img class="sn-story-viewer-strip-avatar" src="${stEscapeAttr(coverImageUrl)}" alt="" loading="lazy">`;
+    }
+
+    const fallbackStory = group?.fallbackStory || null;
+    if (fallbackStory?.contentType === 2) {
+      const style = stResolveTextStyle(fallbackStory);
+      const rawText = (fallbackStory.textContent || "").toString().trim();
+      const text = stEscapeHtml(rawText || "Text");
+      const bg = stEscapeAttr(style.background || "var(--bg-tertiary)");
+      const color = stEscapeAttr(style.color || "var(--text-primary)");
+      const fontFamily = stEscapeAttr(style.fontFamily || "inherit");
+      return `
+        <div
+          class="sn-story-viewer-strip-avatar"
+          style="display:flex;align-items:center;justify-content:center;padding:6px;background:${bg};color:${color};font-family:${fontFamily};font-size:9px;font-weight:700;line-height:1.1;text-align:center;overflow:hidden;word-break:break-word;"
+        >${text}</div>
+      `;
+    }
+
+    if (fallbackStory?.contentType === 1 && fallbackStory.mediaUrl) {
+      return `<video class="sn-story-viewer-strip-avatar" src="${stEscapeAttr(fallbackStory.mediaUrl)}" muted playsinline preload="metadata"></video>`;
+    }
+
+    if (fallbackStory?.mediaUrl) {
+      return `<img class="sn-story-viewer-strip-avatar" src="${stEscapeAttr(fallbackStory.mediaUrl)}" alt="" loading="lazy">`;
+    }
+
+    return `<img class="sn-story-viewer-strip-avatar" src="${fallbackThumb}" alt="" loading="lazy">`;
   }
 
   /** Render story strip (mini avatar list) beside viewer card - Vertical Sidebar */
@@ -2519,68 +2765,97 @@
       .querySelectorAll(".sn-story-viewer-author-nav")
       .forEach((btn) => btn.remove());
 
-    if (!stHasQueue()) return;
+    const isAuthorQueueMode = stHasQueue();
+    const isHighlightQueueMode =
+      stIsHighlightMode() && stHasHighlightGroupQueue();
+    if (!isAuthorQueueMode && !isHighlightQueueMode) return;
 
     const defaultAvatar =
       global.APP_CONFIG?.DEFAULT_AVATAR || "assets/images/default-avatar.jpg";
-    const queue = viewerState.authorQueue;
-    const activeIndex = viewerState.authorQueueIndex;
     const myId = (localStorage.getItem("accountId") || "").toLowerCase();
 
     // Build strip HTML
     let stripHtml = "";
-    queue.forEach((author, i) => {
-      const isActive = i === activeIndex;
-      const viewedState = stGetViewedAuthorState(author.accountId);
+    if (isAuthorQueueMode) {
+      const queue = viewerState.authorQueue;
+      const activeIndex = viewerState.authorQueueIndex;
 
-      let finalRingClass = "ring-none";
-      let isSeen = viewedState === "seen";
-      let isUnseen = false;
+      queue.forEach((author, i) => {
+        const isActive = i === activeIndex;
+        const viewedState = stGetViewedAuthorState(author.accountId);
 
-      if (viewedState === "seen") {
-        finalRingClass = "ring-seen";
-        isSeen = true;
-      } else if (viewedState === "partial") {
-        finalRingClass = "ring-unseen";
-        isUnseen = true;
-      } else {
-        // No session state, use initial backend state
-        const srs = author.storyRingState;
-        if (srs === 2 || srs === "unseen" || String(srs) === "2") {
-          finalRingClass = "ring-unseen";
-          isUnseen = true;
-        } else if (srs === 1 || srs === "seen" || String(srs) === "1") {
+        let finalRingClass = "ring-none";
+        let isSeen = viewedState === "seen";
+        let isUnseen = false;
+
+        if (viewedState === "seen") {
           finalRingClass = "ring-seen";
           isSeen = true;
+        } else if (viewedState === "partial") {
+          finalRingClass = "ring-unseen";
+          isUnseen = true;
+        } else {
+          // No session state, use initial backend state
+          const srs = author.storyRingState;
+          if (srs === 2 || srs === "unseen" || String(srs) === "2") {
+            finalRingClass = "ring-unseen";
+            isUnseen = true;
+          } else if (srs === 1 || srs === "seen" || String(srs) === "1") {
+            finalRingClass = "ring-seen";
+            isSeen = true;
+          }
         }
+
+        const displayName =
+          author.isCurrentUser || author.accountId === myId
+            ? "You"
+            : stEscapeHtml(author.username);
+
+        const classes = [
+          "sn-story-viewer-strip-item",
+          isActive ? "active" : "",
+          isSeen ? "strip-seen" : "",
+          isUnseen ? "strip-unseen" : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+        stripHtml += `
+          <div class="${classes}" data-strip-index="${i}" data-strip-author="${stEscapeAttr(author.accountId)}">
+            <div class="sn-story-viewer-strip-ring ${finalRingClass}">
+              <img class="sn-story-viewer-strip-avatar" src="${stEscapeAttr(author.avatarUrl || defaultAvatar)}" alt="" loading="lazy">
+            </div>
+            <span class="sn-story-viewer-strip-name">${displayName}</span>
+          </div>`;
+      });
+
+      // Add a sentinel
+      if (viewerState.queueHasMore) {
+        stripHtml += `<div class="sn-story-viewer-strip-sentinel"></div>`;
       }
+    } else {
+      const queue = viewerState.highlightGroupQueue;
+      const activeIndex = stClampHighlightGroupQueueIndex();
 
-      const displayName =
-        author.isCurrentUser || author.accountId === myId
-          ? "You"
-          : stEscapeHtml(author.username);
+      queue.forEach((group, i) => {
+        const isActive = i === activeIndex;
+        const classes = ["sn-story-viewer-strip-item", isActive ? "active" : ""]
+          .filter(Boolean)
+          .join(" ");
+        const displayName = stEscapeHtml(group?.name || "highlight");
+        const thumbHtml = stBuildHighlightGroupStripThumbMarkup(
+          group,
+          defaultAvatar,
+        );
 
-      const classes = [
-        "sn-story-viewer-strip-item",
-        isActive ? "active" : "",
-        isSeen ? "strip-seen" : "",
-        isUnseen ? "strip-unseen" : "",
-      ]
-        .filter(Boolean)
-        .join(" ");
-
-      stripHtml += `
-        <div class="${classes}" data-strip-index="${i}" data-strip-author="${stEscapeAttr(author.accountId)}">
-          <div class="sn-story-viewer-strip-ring ${finalRingClass}">
-            <img class="sn-story-viewer-strip-avatar" src="${stEscapeAttr(author.avatarUrl || defaultAvatar)}" alt="" loading="lazy">
-          </div>
-          <span class="sn-story-viewer-strip-name">${displayName}</span>
-        </div>`;
-    });
-
-    // Add a sentinel
-    if (viewerState.queueHasMore) {
-      stripHtml += `<div class="sn-story-viewer-strip-sentinel"></div>`;
+        stripHtml += `
+          <div class="${classes}" data-strip-index="${i}" data-strip-group="${stEscapeAttr(group?.groupId || "")}">
+            <div class="sn-story-viewer-strip-ring ring-none">
+              ${thumbHtml}
+            </div>
+            <span class="sn-story-viewer-strip-name">${displayName}</span>
+          </div>`;
+      });
     }
 
     const wrapper = document.createElement("div");
@@ -2591,8 +2866,17 @@
       const item = e.target.closest(".sn-story-viewer-strip-item");
       if (!item) return;
       const index = parseInt(item.getAttribute("data-strip-index"), 10);
-      if (!isNaN(index) && index !== viewerState.authorQueueIndex) {
-        stJumpToAuthor(index);
+      if (Number.isNaN(index)) return;
+
+      if (isAuthorQueueMode) {
+        if (index !== viewerState.authorQueueIndex) {
+          stJumpToAuthor(index);
+        }
+        return;
+      }
+
+      if (index !== viewerState.highlightGroupQueueIndex) {
+        stJumpToHighlightGroup(index);
       }
     });
 
@@ -2607,6 +2891,7 @@
     if (stripEl) {
       // 1. Infinity Scroll Logic
       stripEl.addEventListener("scroll", async () => {
+        if (!isAuthorQueueMode) return;
         if (!viewerState.queueHasMore || viewerState.isLoadingMore) return;
         const nearEnd =
           stripEl.scrollHeight - stripEl.scrollTop - stripEl.clientHeight < 100;
@@ -2700,9 +2985,26 @@
     if (!viewerState.modal) return;
     const strip = viewerState.modal.querySelector(".sn-story-viewer-strip");
     if (!strip) return;
-    const previousActive = strip.querySelector(
-      ".sn-story-viewer-strip-item.active",
-    );
+
+    if (stIsHighlightMode() && stHasHighlightGroupQueue()) {
+      const activeIndex = stClampHighlightGroupQueueIndex();
+      strip.querySelectorAll(".sn-story-viewer-strip-item").forEach((item) => {
+        const idx = parseInt(item.getAttribute("data-strip-index"), 10);
+        const isActive = idx === activeIndex;
+        item.classList.toggle("active", isActive);
+        item.classList.remove("strip-seen", "strip-unseen");
+
+        const ring = item.querySelector(".sn-story-viewer-strip-ring");
+        if (ring) {
+          ring.className = "sn-story-viewer-strip-ring ring-none";
+        }
+      });
+
+      stScrollStripToActive();
+      return;
+    }
+
+    if (!stHasQueue()) return;
 
     strip.querySelectorAll(".sn-story-viewer-strip-item").forEach((item) => {
       const idx = parseInt(item.getAttribute("data-strip-index"), 10);
@@ -2864,6 +3166,83 @@
     return stSwitchToAuthor(index, { direction });
   }
 
+  async function stSwitchToHighlightGroup(targetIndex, options = {}) {
+    if (!stHasHighlightGroupQueue()) return false;
+    if (
+      targetIndex < 0 ||
+      targetIndex >= viewerState.highlightGroupQueue.length
+    ) {
+      return false;
+    }
+
+    const group = viewerState.highlightGroupQueue[targetIndex];
+    if (!group?.groupId) return false;
+
+    const targetAccountId = (
+      group.accountId ||
+      viewerState.highlightTargetAccountId ||
+      viewerState.author?.accountId ||
+      ""
+    )
+      .toString()
+      .trim();
+    if (!targetAccountId) return false;
+
+    viewerState.highlightGroupQueueIndex = targetIndex;
+
+    const openStatus = await stOpenHighlightViewerByGroup(
+      targetAccountId,
+      group.groupId,
+      {
+        syncUrl: true,
+        direction: options.direction || "fade",
+        startAtLastStory: options.startAtLastStory === true,
+        targetStoryId: options.targetStoryId || "",
+        highlightAuthor: options.highlightAuthor || viewerState.author || {},
+        onRemoveCurrentStory: viewerState.highlightOnRemoveStory,
+        _keepHighlightQueue: true,
+      },
+    );
+
+    if (openStatus !== STORY_OPEN_STATUS.SUCCESS) {
+      return false;
+    }
+
+    stUpdateStripHighlight();
+    return true;
+  }
+
+  async function stGoNextHighlightGroup() {
+    if (!stHasHighlightGroupQueue()) return false;
+    const currentQueueIndex = stClampHighlightGroupQueueIndex();
+    const nextIndex = currentQueueIndex + 1;
+    if (nextIndex >= viewerState.highlightGroupQueue.length) {
+      return false;
+    }
+    return stSwitchToHighlightGroup(nextIndex, { direction: "next" });
+  }
+
+  async function stGoPrevHighlightGroup() {
+    if (!stHasHighlightGroupQueue()) return false;
+    const currentQueueIndex = stClampHighlightGroupQueueIndex();
+    const prevIndex = currentQueueIndex - 1;
+    if (prevIndex < 0) {
+      return false;
+    }
+    return stSwitchToHighlightGroup(prevIndex, {
+      direction: "prev",
+      startAtLastStory: true,
+    });
+  }
+
+  async function stJumpToHighlightGroup(index) {
+    if (!stHasHighlightGroupQueue()) return false;
+    const currentQueueIndex = stClampHighlightGroupQueueIndex();
+    if (index === currentQueueIndex) return true;
+    const direction = index > currentQueueIndex ? "next" : "prev";
+    return stSwitchToHighlightGroup(index, { direction });
+  }
+
   /** Sync all viewed authors' ring states on viewer close */
   function stSyncAllRingsOnClose() {
     viewerState.viewedAuthors.forEach((state, authorId) => {
@@ -2878,10 +3257,13 @@
   async function stGoNext() {
     if (!viewerState.isOpen) return;
     stCloseMoreMenu();
+    if (!stEnsureCurrentStoryIndexInBounds()) return;
     if (viewerState.currentIndex >= viewerState.stories.length - 1) {
       // At last story — if in queue mode, go to next author
       if (stHasQueue()) {
-        stGoNextAuthor();
+        await stGoNextAuthor();
+      } else if (stIsHighlightMode() && stHasHighlightGroupQueue()) {
+        await stGoNextHighlightGroup();
       } else if (stIsArchiveMode() && viewerState.archiveHasMore) {
         const loadedMore = await stLoadMoreArchiveStories();
         if (
@@ -2893,6 +3275,8 @@
           return;
         }
         stCloseViewer();
+      } else if (stIsHighlightMode()) {
+        return;
       } else {
         stCloseViewer();
       }
@@ -2902,13 +3286,16 @@
     stRenderCurrentStory("next");
   }
 
-  function stGoPrev() {
+  async function stGoPrev() {
     if (!viewerState.isOpen) return;
     stCloseMoreMenu();
+    if (!stEnsureCurrentStoryIndexInBounds()) return;
     if (viewerState.currentIndex <= 0) {
       // At first story — if in queue mode, go to prev author
       if (stHasQueue() && viewerState.authorQueueIndex > 0) {
-        stGoPrevAuthor();
+        await stGoPrevAuthor();
+      } else if (stIsHighlightMode() && stHasHighlightGroupQueue()) {
+        await stGoPrevHighlightGroup();
       }
       return;
     }
@@ -3521,6 +3908,8 @@
     viewerState.authorQueueIndex = -1;
     viewerState.queueHasMore = false;
     viewerState.viewedAuthors = new Map();
+    viewerState.highlightGroupQueue = [];
+    viewerState.highlightGroupQueueIndex = -1;
     stPruneAuthorResumeMap([]);
 
     const targetStoryId = stNormalizeId(options.targetStoryId);
@@ -3604,6 +3993,7 @@
 
     stRenderProgressBars(stories.length);
     stRenderCurrentStory(options.direction || "fade");
+    stRenderStrip();
     return STORY_OPEN_STATUS.SUCCESS;
   }
 
@@ -3638,15 +4028,20 @@
     viewerState.markedStoryIds.clear();
     viewerState.requestId += 1;
     const requestId = viewerState.requestId;
+    const previousRemoveHighlightCallback = viewerState.highlightOnRemoveStory;
 
     viewerState.storyMode = STORY_VIEW_MODE.HIGHLIGHT;
     viewerState.highlightTargetAccountId = normalizedTargetAccountId;
     viewerState.highlightGroupId = normalizedGroupId;
     viewerState.highlightGroupName = "";
-    viewerState.highlightOnRemoveStory =
-      typeof options.onRemoveCurrentStory === "function"
-        ? options.onRemoveCurrentStory
-        : null;
+    if (typeof options.onRemoveCurrentStory === "function") {
+      viewerState.highlightOnRemoveStory = options.onRemoveCurrentStory;
+    } else if (options._keepHighlightQueue) {
+      viewerState.highlightOnRemoveStory =
+        previousRemoveHighlightCallback || null;
+    } else {
+      viewerState.highlightOnRemoveStory = null;
+    }
 
     viewerState.archivePage = 0;
     viewerState.archiveHasMore = false;
@@ -3659,6 +4054,34 @@
     viewerState.queueHasMore = false;
     viewerState.viewedAuthors = new Map();
     stPruneAuthorResumeMap([]);
+
+    if (!options._keepHighlightQueue) {
+      viewerState.highlightGroupQueue = stNormalizeHighlightGroupQueue(
+        options.highlightGroupQueue,
+        normalizedTargetAccountId,
+      );
+      viewerState.highlightGroupQueueIndex = stResolveHighlightGroupQueueIndex(
+        viewerState.highlightGroupQueue,
+        normalizedGroupId,
+        options.highlightGroupIndex,
+      );
+    } else if (stHasHighlightGroupQueue()) {
+      viewerState.highlightGroupQueueIndex = stResolveHighlightGroupQueueIndex(
+        viewerState.highlightGroupQueue,
+        normalizedGroupId,
+        viewerState.highlightGroupQueueIndex,
+      );
+    } else {
+      viewerState.highlightGroupQueue = stNormalizeHighlightGroupQueue(
+        options.highlightGroupQueue,
+        normalizedTargetAccountId,
+      );
+      viewerState.highlightGroupQueueIndex = stResolveHighlightGroupQueueIndex(
+        viewerState.highlightGroupQueue,
+        normalizedGroupId,
+        options.highlightGroupIndex,
+      );
+    }
 
     try {
       let payload = options.prefetchedGroup || null;
@@ -3713,6 +4136,50 @@
         stCloseViewer();
         return STORY_OPEN_STATUS.UNAVAILABLE;
       }
+
+      if (
+        !stHasHighlightGroupQueue() &&
+        global.API?.Stories?.getHighlightGroupsByProfile
+      ) {
+        const groupsResponse =
+          await global.API.Stories.getHighlightGroupsByProfile(
+            normalizedTargetAccountId,
+          );
+        if (requestId !== viewerState.requestId) {
+          return STORY_OPEN_STATUS.ERROR;
+        }
+
+        if (groupsResponse?.ok) {
+          const groupsPayload = await groupsResponse.json().catch(() => []);
+          viewerState.highlightGroupQueue = stNormalizeHighlightGroupQueue(
+            groupsPayload,
+            normalizedTargetAccountId,
+          );
+          viewerState.highlightGroupQueueIndex =
+            stResolveHighlightGroupQueueIndex(
+              viewerState.highlightGroupQueue,
+              normalizedGroupId,
+              options.highlightGroupIndex,
+            );
+        }
+      }
+
+      stUpsertHighlightGroupQueueItem(
+        {
+          groupId: normalizedGroupId,
+          accountId: normalizedTargetAccountId,
+          name: viewerState.highlightGroupName || "highlight",
+          coverImageUrl: payload?.coverImageUrl ?? payload?.CoverImageUrl ?? "",
+          storyCount: stories.length,
+          fallbackStory: stories[0] || null,
+        },
+        normalizedTargetAccountId,
+      );
+      viewerState.highlightGroupQueueIndex = stResolveHighlightGroupQueueIndex(
+        viewerState.highlightGroupQueue,
+        normalizedGroupId,
+        viewerState.highlightGroupQueueIndex,
+      );
 
       const highlightAuthor = options.highlightAuthor || {};
       viewerState.author = {
@@ -3773,12 +4240,23 @@
         viewerState.currentIndex = targetStoryIndex;
       } else if (resumeStoryIndex >= 0) {
         viewerState.currentIndex = resumeStoryIndex;
+      } else if (options.startAtLastStory) {
+        viewerState.currentIndex = stories.length - 1;
       } else {
         viewerState.currentIndex = 0;
       }
 
       stRenderProgressBars(stories.length);
       stRenderCurrentStory(options.direction || "fade");
+      if (stHasHighlightGroupQueue()) {
+        if (options._keepHighlightQueue) {
+          stUpdateStripHighlight();
+        } else {
+          stRenderStrip();
+        }
+      } else {
+        stRenderStrip();
+      }
       return STORY_OPEN_STATUS.SUCCESS;
     } catch (error) {
       if (requestId !== viewerState.requestId) {
@@ -3834,6 +4312,8 @@
     viewerState.highlightGroupId = "";
     viewerState.highlightGroupName = "";
     viewerState.highlightOnRemoveStory = null;
+    viewerState.highlightGroupQueue = [];
+    viewerState.highlightGroupQueueIndex = -1;
     viewerState.archivePage = 0;
     viewerState.archiveHasMore = false;
     viewerState.archiveIsLoadingMore = false;
@@ -3993,9 +4473,10 @@
       stRenderProgressBars(stories.length);
       stRenderCurrentStory(options.direction || "fade");
 
-      // Render strip if in queue mode
-      if (stHasQueue() && !options._keepQueue) {
+      if (!options._keepQueue) {
         stRenderStrip();
+      } else if (stHasQueue()) {
+        stUpdateStripHighlight();
       }
       return STORY_OPEN_STATUS.SUCCESS;
     } catch (error) {
@@ -4068,6 +4549,8 @@
     viewerState.authorQueueIndex = -1;
     viewerState.queueHasMore = false;
     viewerState.viewedAuthors = new Map();
+    viewerState.highlightGroupQueue = [];
+    viewerState.highlightGroupQueueIndex = -1;
 
     if (viewerState.dom.privacy) {
       viewerState.dom.privacy.classList.remove("sn-story-viewer-hidden");

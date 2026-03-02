@@ -6,6 +6,7 @@
 window.EmojiUtils = {
   _loading: false,
   _loaded: false,
+  _outsideHandlerRegistry: new Set(),
 
   _syncChatPickerState: function (container, isOpen) {
     if (!container) return;
@@ -259,16 +260,26 @@ window.EmojiUtils = {
    * @param {string} triggerSelector - CSS selector for the trigger button
    */
   setupClickOutsideHandler: function (containerSelector, triggerSelector) {
+    const normalizedContainerSelector = (containerSelector || "").toString().trim();
+    const normalizedTriggerSelector = (triggerSelector || "").toString().trim();
+    if (!normalizedContainerSelector || !normalizedTriggerSelector) return;
+
+    const handlerKey = `${normalizedContainerSelector}__${normalizedTriggerSelector}`;
+    if (this._outsideHandlerRegistry.has(handlerKey)) {
+      return;
+    }
+    this._outsideHandlerRegistry.add(handlerKey);
+
     document.addEventListener("click", (e) => {
       // Support comma-separated selectors by appending .show to each part
-      const fullSelector = containerSelector
+      const fullSelector = normalizedContainerSelector
         .split(",")
         .map((s) => s.trim() + ".show")
         .join(", ");
       const containers = document.querySelectorAll(fullSelector);
 
       containers.forEach((container) => {
-        const isTrigger = e.target.closest(triggerSelector);
+        const isTrigger = e.target.closest(normalizedTriggerSelector);
         if (!container.contains(e.target) && !isTrigger) {
           this.closePicker(container);
         }

@@ -21,7 +21,7 @@
   let activeHighlightMenu = null;
   let activeHighlightModal = null;
   let highlightGroupsRequestVersion = 0;
-  let highlightTrackResizeHandler = null;
+  let highlightTrackLayoutBinding = null;
 
   let resolveStoryTextThumbnailStyle = () => ({
     background: "var(--bg-tertiary)",
@@ -329,29 +329,212 @@
   }
 
   function cleanupHighlightTrackLayoutWatcher() {
-    if (!highlightTrackResizeHandler) return;
-    window.removeEventListener("resize", highlightTrackResizeHandler);
-    highlightTrackResizeHandler = null;
+    if (!highlightTrackLayoutBinding) return;
+
+    const {
+      shellEl,
+      trackEl,
+      prevBtn,
+      nextBtn,
+      onResize,
+      onScroll,
+      onPrevClick,
+      onNextClick,
+    } = highlightTrackLayoutBinding;
+
+    if (onResize) {
+      window.removeEventListener("resize", onResize);
+    }
+    if (trackEl && onScroll) {
+      trackEl.removeEventListener("scroll", onScroll);
+    }
+    if (prevBtn && onPrevClick) {
+      prevBtn.removeEventListener("click", onPrevClick);
+    }
+    if (nextBtn && onNextClick) {
+      nextBtn.removeEventListener("click", onNextClick);
+    }
+    if (shellEl) {
+      shellEl.style.removeProperty("--profile-highlights-nav-top");
+    }
+
+    highlightTrackLayoutBinding = null;
   }
 
-  function applyHighlightTrackOverflowState(trackEl) {
+  function resolveHighlightTrackMaxScroll(trackEl) {
+    if (!trackEl) return 0;
+    const maxScroll = trackEl.scrollWidth - trackEl.clientWidth;
+    if (!Number.isFinite(maxScroll)) return 0;
+    return Math.max(0, maxScroll);
+  }
+
+  function resolveHighlightTrackScrollStep(trackEl) {
+    if (!trackEl) return 0;
+
+    const firstItem = trackEl.querySelector(".profile-highlight-item");
+    const computedStyle = window.getComputedStyle(trackEl);
+    const gapValue = Number.parseFloat(
+      computedStyle.columnGap || computedStyle.gap || "0",
+    );
+    const gap = Number.isFinite(gapValue) ? gapValue : 0;
+
+    if (firstItem) {
+      const itemWidth = firstItem.getBoundingClientRect().width + gap;
+      if (itemWidth > 0) {
+        const itemsPerViewport = Math.max(
+          1,
+          Math.floor((trackEl.clientWidth + gap) / itemWidth),
+        );
+        const pageStep = Math.max(1, itemsPerViewport - 1) * itemWidth;
+        return Math.round(pageStep);
+      }
+    }
+
+    return Math.max(120, Math.round(trackEl.clientWidth * 0.82));
+  }
+
+  function syncHighlightTrackNavVerticalPosition(shellEl, trackEl) {
+    if (!shellEl || !trackEl) return;
+
+    const ringEl = trackEl.querySelector(".profile-highlight-ring");
+    if (!ringEl) {
+      shellEl.style.removeProperty("--profile-highlights-nav-top");
+      return;
+    }
+
+    const shellRect = shellEl.getBoundingClientRect();
+    const ringRect = ringEl.getBoundingClientRect();
+    const centerY = ringRect.top - shellRect.top + ringRect.height / 2;
+    if (!Number.isFinite(centerY)) return;
+
+    shellEl.style.setProperty(
+      "--profile-highlights-nav-top",
+      `${Math.round(centerY)}px`,
+    );
+  }
+
+  function applyHighlightTrackOverflowState(
+    trackEl,
+    shellEl,
+    prevBtn,
+    nextBtn,
+  ) {
     if (!trackEl) return;
-    const hasOverflow = trackEl.scrollWidth > trackEl.clientWidth + 1;
+
+    const maxScroll = resolveHighlightTrackMaxScroll(trackEl);
+    const hasOverflow = maxScroll > 1;
+    const clampedScrollLeft = Math.max(
+      0,
+      Math.min(trackEl.scrollLeft, maxScroll),
+    );
+    const canNavigatePrev = hasOverflow && clampedScrollLeft > 1;
+    const canNavigateNext = hasOverflow && clampedScrollLeft < maxScroll - 1;
+
     trackEl.classList.toggle("is-overflowing", hasOverflow);
+    if (shellEl) {
+      shellEl.classList.toggle("is-scrollable", hasOverflow);
+    }
+
+    if (prevBtn) {
+      prevBtn.classList.toggle("is-hidden", !canNavigatePrev);
+    }
+    if (nextBtn) {
+      nextBtn.classList.toggle("is-hidden", !canNavigateNext);
+    }
   }
 
   function bindHighlightTrackLayoutWatcher(container) {
     cleanupHighlightTrackLayoutWatcher();
 
+    const shellEl = container?.querySelector(".profile-highlights-shell");
     const trackEl = container?.querySelector(".profile-highlights-track");
+    const prevBtn = container?.querySelector(
+      '[data-action="scroll-highlights-prev"]',
+    );
+    const nextBtn = container?.querySelector(
+      '[data-action="scroll-highlights-next"]',
+    );
     if (!trackEl) return;
 
-    const updateLayout = () => applyHighlightTrackOverflowState(trackEl);
-    requestAnimationFrame(updateLayout);
-    highlightTrackResizeHandler = updateLayout;
-    window.addEventListener("resize", highlightTrackResizeHandler, {
-      passive: true,
-    });
+    const updateLayout = () =>
+      applyHighlightTrackOverflowState(trackEl, shellEl, prevBtn, nextBtn);
+
+    let layoutFrameRequested = false;
+    const scheduleLayoutUpdate = () => {
+      if (layoutFrameRequested) return;
+      layoutFrameRequested = true;
+      requestAnimationFrame(() => {
+        layoutFrameRequested = false;
+        updateLayout();
+      });
+    };
+
+    let navPositionFrameRequested = false;
+    const scheduleNavPositionUpdate = () => {
+      if (navPositionFrameRequested) return;
+      navPositionFrameRequested = true;
+      requestAnimationFrame(() => {
+        navPositionFrameRequested = false;
+        syncHighlightTrackNavVerticalPosition(shellEl, trackEl);
+      });
+    };
+
+    const scrollByDirection = (direction) => {
+      const maxScroll = resolveHighlightTrackMaxScroll(trackEl);
+      if (maxScroll <= 1) {
+        updateLayout();
+        return;
+      }
+
+      const step = resolveHighlightTrackScrollStep(trackEl);
+      if (step <= 0) {
+        updateLayout();
+        return;
+      }
+
+      const targetScrollLeft = Math.max(
+        0,
+        Math.min(maxScroll, trackEl.scrollLeft + direction * step),
+      );
+
+      trackEl.scrollTo({
+        left: targetScrollLeft,
+        behavior: "smooth",
+      });
+
+      scheduleLayoutUpdate();
+    };
+
+    const onPrevClick = () => scrollByDirection(-1);
+    const onNextClick = () => scrollByDirection(1);
+    const onScroll = scheduleLayoutUpdate;
+    const onResize = () => {
+      scheduleLayoutUpdate();
+      scheduleNavPositionUpdate();
+    };
+
+    if (prevBtn) {
+      prevBtn.addEventListener("click", onPrevClick);
+    }
+    if (nextBtn) {
+      nextBtn.addEventListener("click", onNextClick);
+    }
+
+    trackEl.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize, { passive: true });
+    scheduleLayoutUpdate();
+    scheduleNavPositionUpdate();
+
+    highlightTrackLayoutBinding = {
+      shellEl,
+      trackEl,
+      prevBtn,
+      nextBtn,
+      onResize,
+      onScroll,
+      onPrevClick,
+      onNextClick,
+    };
   }
 
   function closeHighlightModal() {
@@ -615,9 +798,27 @@
       .join("");
 
     container.innerHTML = `
-      <div class="profile-highlights-track">
-        ${groupItemsHtml}
-        ${addButtonHtml}
+      <div class="profile-highlights-shell">
+        <button
+          type="button"
+          class="profile-highlights-nav profile-highlights-nav-prev is-hidden"
+          data-action="scroll-highlights-prev"
+          aria-label="Previous highlight groups"
+        >
+          <i data-lucide="chevron-left"></i>
+        </button>
+        <div class="profile-highlights-track">
+          ${groupItemsHtml}
+          ${addButtonHtml}
+        </div>
+        <button
+          type="button"
+          class="profile-highlights-nav profile-highlights-nav-next is-hidden"
+          data-action="scroll-highlights-next"
+          aria-label="Next highlight groups"
+        >
+          <i data-lucide="chevron-right"></i>
+        </button>
       </div>
     `;
     bindHighlightTrackLayoutWatcher(container);
@@ -781,6 +982,23 @@
 
     const highlightAuthor = resolveCurrentProfileHighlightAuthor();
     const isOwner = isCurrentProfileOwner();
+    const highlightGroupQueue = Array.isArray(highlightGroups)
+      ? highlightGroups
+          .map((group) => ({
+            storyHighlightGroupId: group.storyHighlightGroupId,
+            accountId: group.accountId || targetAccountId,
+            name: group.name,
+            coverImageUrl: group.coverImageUrl,
+            storyCount: group.storyCount,
+            fallbackStory: group.fallbackStory || null,
+          }))
+          .filter((group) => !!group.storyHighlightGroupId)
+      : [];
+    const highlightGroupIndex = highlightGroupQueue.findIndex(
+      (group) =>
+        normalizeEntityId(group.storyHighlightGroupId) ===
+        normalizeEntityId(normalizedGroupId),
+    );
 
     const openStatus = await window.openStoryViewerByHighlightGroup(
       targetAccountId,
@@ -788,10 +1006,15 @@
       {
         syncUrl: true,
         targetStoryId,
+        highlightGroupQueue,
+        highlightGroupIndex,
         highlightAuthor,
         onRemoveCurrentStory: isOwner
-          ? (story) =>
-              handleViewerRemoveHighlightStory(normalizedGroupId, story)
+          ? (story, context = {}) =>
+              handleViewerRemoveHighlightStory(
+                (context?.groupId || normalizedGroupId).toString().trim(),
+                story,
+              )
           : null,
       },
     );
@@ -1223,6 +1446,10 @@
             <label for="highlightGroupNameInput">Group name</label>
             <div class="profile-highlight-input-wrapper">
               <input id="highlightGroupNameInput" class="profile-highlight-input" type="text" maxlength="${HIGHLIGHT_GROUP_NAME_MAX_LENGTH}" placeholder="Enter group name">
+              <button type="button" class="profile-highlight-emoji-btn" id="highlightGroupNameEmojiBtn" aria-label="Add emoji">
+                <i data-lucide="smile"></i>
+              </button>
+              <div class="profile-highlight-emoji-picker-container" id="highlightGroupNameEmojiPicker"></div>
               <div class="profile-highlight-selected-counter">${escapeHtml(String((state.name || "").length))}/${HIGHLIGHT_GROUP_NAME_MAX_LENGTH}</div>
             </div>
           </div>
@@ -1277,6 +1504,30 @@
           }
         });
         nameInput.focus();
+      }
+
+      const emojiBtn = shell.bodyEl.querySelector(
+        "#highlightGroupNameEmojiBtn",
+      );
+      const emojiContainer = shell.bodyEl.querySelector(
+        "#highlightGroupNameEmojiPicker",
+      );
+
+      if (emojiBtn && window.EmojiUtils) {
+        emojiBtn.addEventListener("click", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          await window.EmojiUtils.togglePicker(emojiContainer, (emoji) => {
+            if (nameInput) {
+              window.EmojiUtils.insertAtCursor(nameInput, emoji.native);
+            }
+          });
+        });
+
+        window.EmojiUtils.setupClickOutsideHandler(
+          "#highlightGroupNameEmojiPicker",
+          "#highlightGroupNameEmojiBtn",
+        );
       }
 
       const fileInput = shell.bodyEl.querySelector("#highlightCoverFileInput");
@@ -1352,22 +1603,22 @@
           <div class="profile-highlight-selected-counter">Selected: ${state.selectedStoryIds.size}/${HIGHLIGHT_STORY_MAX_PER_GROUP}</div>
           ${state.isLoadingCandidates ? '<span class="profile-highlight-selected-counter">loading...</span>' : ""}
         </div>
-        <div class="profile-highlight-candidates-scroll">
+        <div class="profile-highlight-candidates-scroll-area">
           <div class="profile-highlight-candidates-grid">${candidatesHtml}</div>
+          ${
+            state.hasMore
+              ? `
+            <div class="profile-highlight-load-more-wrap">
+              <button type="button" class="profile-highlight-btn" data-action="load-more-candidates"${state.isLoadingCandidates ? " disabled" : ""}>Load more</button>
+            </div>
+          `
+              : ""
+          }
         </div>
-        ${
-          state.hasMore
-            ? `
-          <div class="profile-highlight-load-more-wrap">
-            <button type="button" class="profile-highlight-btn" data-action="load-more-candidates"${state.isLoadingCandidates ? " disabled" : ""}>Load more</button>
-          </div>
-        `
-            : ""
-        }
       `;
 
       const candidatesScrollEl = shell.bodyEl.querySelector(
-        ".profile-highlight-candidates-scroll",
+        ".profile-highlight-candidates-scroll-area",
       );
       if (candidatesScrollEl) {
         candidatesScrollEl.scrollTop = Math.max(0, state.stepTwoScrollTop || 0);
@@ -1397,7 +1648,7 @@
       shell.bodyEl.querySelectorAll("[data-story-id]").forEach((itemEl) => {
         itemEl.addEventListener("click", () => {
           const currentScrollEl = shell.bodyEl.querySelector(
-            ".profile-highlight-candidates-scroll",
+            ".profile-highlight-candidates-scroll-area",
           );
           if (currentScrollEl) {
             state.stepTwoScrollTop = currentScrollEl.scrollTop;
@@ -1668,16 +1919,18 @@
           <div class="profile-highlight-selected-counter">Selected: ${selectedCount} | total after add: ${totalAfterAdd}/${HIGHLIGHT_STORY_MAX_PER_GROUP}</div>
           ${state.isLoadingCandidates ? '<span class="profile-highlight-selected-counter">loading...</span>' : ""}
         </div>
-        <div class="profile-highlight-candidates-grid">${candidatesHtml}</div>
-        ${
-          state.hasMore
-            ? `
-          <div class="profile-highlight-load-more-wrap">
-            <button type="button" class="profile-highlight-btn" data-action="load-more-candidates"${state.isLoadingCandidates ? " disabled" : ""}>Load more</button>
-          </div>
-        `
-            : ""
-        }
+        <div class="profile-highlight-candidates-scroll-area">
+          <div class="profile-highlight-candidates-grid">${candidatesHtml}</div>
+          ${
+            state.hasMore
+              ? `
+            <div class="profile-highlight-load-more-wrap">
+              <button type="button" class="profile-highlight-btn" data-action="load-more-candidates"${state.isLoadingCandidates ? " disabled" : ""}>Load more</button>
+            </div>
+          `
+              : ""
+          }
+        </div>
       `;
 
       shell.footerEl.innerHTML = `
@@ -1774,7 +2027,6 @@
       coverObjectUrl: "",
       removeCover: false,
       isSubmitting: false,
-      errorMessage: "",
     };
 
     activeHighlightModal.cleanup = () => {
@@ -1788,18 +2040,21 @@
 
       const normalizedName = (state.name || "").trim();
       if (!normalizedName) {
-        state.errorMessage = "Group name is required.";
-        render();
+        if (window.toastError) {
+          toastError("Group name is required.");
+        }
         return;
       }
       if (normalizedName.length > HIGHLIGHT_GROUP_NAME_MAX_LENGTH) {
-        state.errorMessage = `Group name must be at most ${HIGHLIGHT_GROUP_NAME_MAX_LENGTH} characters.`;
-        render();
+        if (window.toastError) {
+          toastError(
+            `Group name must be at most ${HIGHLIGHT_GROUP_NAME_MAX_LENGTH} characters.`,
+          );
+        }
         return;
       }
 
       state.isSubmitting = true;
-      state.errorMessage = "";
       render();
 
       try {
@@ -1816,11 +2071,13 @@
           formData,
         );
         if (!response.ok) {
-          state.errorMessage = await readApiErrorMessage(
+          const message = await readApiErrorMessage(
             response,
             "Failed to update highlight group.",
           );
-          render();
+          if (window.toastError) {
+            toastError(message);
+          }
           return;
         }
 
@@ -1831,8 +2088,9 @@
         loadProfileHighlightGroups({ silent: true, force: true });
       } catch (error) {
         console.error(error);
-        state.errorMessage = "Failed to update highlight group.";
-        render();
+        if (window.toastError) {
+          toastError("Failed to update highlight group.");
+        }
       } finally {
         state.isSubmitting = false;
         if (isHighlightModalShellActive(shell)) {
@@ -1864,6 +2122,10 @@
             <label for="editHighlightGroupNameInput">Group name</label>
             <div class="profile-highlight-input-wrapper">
               <input id="editHighlightGroupNameInput" class="profile-highlight-input" type="text" maxlength="${HIGHLIGHT_GROUP_NAME_MAX_LENGTH}" placeholder="Enter group name">
+              <button type="button" class="profile-highlight-emoji-btn" id="editHighlightGroupNameEmojiBtn" aria-label="Add emoji">
+                <i data-lucide="smile"></i>
+              </button>
+              <div class="profile-highlight-emoji-picker-container" id="editHighlightGroupNameEmojiPicker"></div>
               <div class="profile-highlight-selected-counter">${escapeHtml(String((state.name || "").length))}/${HIGHLIGHT_GROUP_NAME_MAX_LENGTH}</div>
             </div>
           </div>
@@ -1888,7 +2150,6 @@
             </div>
           </div>
         </div>
-        ${state.errorMessage ? `<div class="profile-highlight-modal-error">${escapeHtml(state.errorMessage)}</div>` : ""}
       `;
 
       shell.footerEl.innerHTML = `
@@ -1915,6 +2176,30 @@
             counter.textContent = `${state.name.length}/${HIGHLIGHT_GROUP_NAME_MAX_LENGTH}`;
           }
         });
+      }
+
+      const emojiBtn = shell.bodyEl.querySelector(
+        "#editHighlightGroupNameEmojiBtn",
+      );
+      const emojiContainer = shell.bodyEl.querySelector(
+        "#editHighlightGroupNameEmojiPicker",
+      );
+
+      if (emojiBtn && window.EmojiUtils) {
+        emojiBtn.addEventListener("click", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          await window.EmojiUtils.togglePicker(emojiContainer, (emoji) => {
+            if (nameInput) {
+              window.EmojiUtils.insertAtCursor(nameInput, emoji.native);
+            }
+          });
+        });
+
+        window.EmojiUtils.setupClickOutsideHandler(
+          "#editHighlightGroupNameEmojiPicker",
+          "#editHighlightGroupNameEmojiBtn",
+        );
       }
 
       const fileInput = shell.bodyEl.querySelector(

@@ -1,176 +1,271 @@
 <div class="profile-container">
-    <div class="profile-content-wrapper">
-        <!-- Cover Image -->
-        <div class="profile-cover">
-            <img id="profile-cover-img" src="assets/gradients/orb-1.png" alt="Cover Image">
-        </div>
-
-        <!-- Header Section -->
-        <header class="profile-header">
-            <div class="profile-avatar-container">
-                <div class="profile-avatar-wrapper">
-                    <img id="profile-avatar" src="assets/default-avatar.png" alt="Profile Picture">
-                </div>
-            </div>
-            
-            <div class="profile-info-container">
-                <div class="profile-name-row">
-                    <div class="profile-title-col">
-                        <h1 class="profile-username-header" id="profile-username-header">username</h1>
-                        <div id="profile-fullname" class="profile-fullname-label">Display Name</div>
-                    </div>
-                    <div class="profile-actions" id="profile-action-btn">
-                        <!-- All buttons (Edit/Follow, Message/Settings, More) will be rendered here dynamically -->
-                    </div>
-                </div>
-                
-                <div class="profile-bio-section">
-                    <div id="profile-bio-text" class="profile-bio-text"></div>
-                </div>
-
-                <div class="profile-details-section">
-                    <div class="profile-detail-item" id="profile-detail-phone-wrapper" style="display: none;">
-                        <i data-lucide="phone"></i>
-                        <span id="profile-detail-phone"></span>
-                    </div>
-                    <div class="profile-detail-item" id="profile-detail-address-wrapper" style="display: none;">
-                        <i data-lucide="map-pin"></i>
-                        <span id="profile-detail-address"></span>
-                    </div>
-                </div>
-            </div>
-        </header>
-        
-        <!-- Stats Block (Full Width) -->
-        <ul class="profile-stats">
-            <li><span class="stat-count" id="profile-posts-count">0</span> <span class="stat-label">posts</span></li>
-            <li><span class="stat-count" id="profile-followers-count">0</span> <span class="stat-label">followers</span></li>
-            <li><span class="stat-count" id="profile-following-count">0</span> <span class="stat-label">following</span></li>
-        </ul>
-
-        <div class="profile-highlights" id="profile-highlights"></div>
-
-        <!-- Content Tabs -->
-        <div class="profile-tabs" id="profile-tabs">
-            <!-- Rendered via JS based on ownership -->
-        </div>
-
-        <!-- Posts Grid -->
-        <div class="profile-posts-grid" id="profile-posts-grid"></div>
-
-        <!-- Load More Loader -->
-        <div id="profile-posts-loader" class="feed-loader" style="display: none;">
-            <div class="loader-spinner"></div>
-        </div>
+  <div class="profile-content-wrapper">
+    <!-- Cover Image -->
+    <div class="profile-cover">
+      <img
+        id="profile-cover-img"
+        src="assets/gradients/orb-1.png"
+        alt="Cover Image"
+      />
     </div>
 
-    <!-- Edit Profile Modal -->
-    <div class="profile-modal-overlay" id="edit-profile-modal">
-        <div class="profile-modal-content">
-            <div class="profile-modal-header">
-                <h3>Edit Profile</h3>
-                <button class="profile-modal-close" onclick="checkChangesAndClose()"><i data-lucide="x"></i></button>
+    <!-- Header Section -->
+    <header class="profile-header">
+      <div class="profile-avatar-container">
+        <div class="profile-avatar-wrapper">
+          <img
+            id="profile-avatar"
+            src="assets/default-avatar.png"
+            alt="Profile Picture"
+          />
+        </div>
+      </div>
+
+      <div class="profile-info-container">
+        <div class="profile-name-row">
+          <div class="profile-title-col">
+            <h1 class="profile-username-header" id="profile-username-header">
+              username
+            </h1>
+            <div id="profile-fullname" class="profile-fullname-label">
+              Display Name
             </div>
-            <div class="profile-modal-body custom-scrollbar">
-                <div class="edit-profile-grid">
-                    <!-- Left Column: Avatar & Main Info -->
-                    <div class="edit-profile-left">
-                        <!-- Cover Section -->
-                        <div class="edit-cover-section">
-                            <label>Cover Photo</label>
-                            <div class="edit-cover-container">
-                                <img id="edit-cover-preview" src="assets/images/default-cover.jpg" alt="Cover Preview">
-                                <div class="edit-cover-overlay">
-                                    <label for="cover-upload-input" class="cover-action-btn upload-btn" title="Upload New Cover">
-                                        <i data-lucide="camera"></i>
-                                    </label>
-                                    <button type="button" class="cover-action-btn delete-btn" id="delete-cover-btn" title="Remove Cover">
-                                        <i data-lucide="trash-2"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <input type="file" id="cover-upload-input" accept="image/*" style="display: none;">
-                        </div>
+          </div>
+          <div class="profile-actions" id="profile-action-btn">
+            <!-- All buttons (Edit/Follow, Message/Settings, More) will be rendered here dynamically -->
+          </div>
+        </div>
 
+        <div class="profile-bio-section">
+          <div id="profile-bio-text" class="profile-bio-text"></div>
+        </div>
 
-                        <div class="profile-form-group">
-                            <label>Full Name</label>
-                            <input type="text" id="edit-fullname" placeholder="Enter your full name">
-                        </div>
-                        <div class="profile-form-group">
-                            <label>Bio</label>
-                            <textarea id="edit-bio" rows="4" placeholder="Tell us about yourself..."></textarea>
-                            <div class="bio-char-count">
-                                <span id="bioCharCount">0</span> / <span id="bioMaxLength">200</span>
-                            </div>
-                        </div>
-                    </div>
+        <div class="profile-details-section">
+          <div
+            class="profile-detail-item"
+            id="profile-detail-phone-wrapper"
+            style="display: none"
+          >
+            <i data-lucide="phone"></i>
+            <span id="profile-detail-phone"></span>
+          </div>
+          <div
+            class="profile-detail-item"
+            id="profile-detail-address-wrapper"
+            style="display: none"
+          >
+            <i data-lucide="map-pin"></i>
+            <span id="profile-detail-address"></span>
+          </div>
+        </div>
+      </div>
+    </header>
 
-                    <!-- Right Column: Contact & Basic Info -->
-                    <div class="edit-profile-right">
-                        <!-- Avatar Section -->                        <!-- Avatar Section -->
-                        <div class="edit-avatar-section">
-                            <label>Avatar</label>
-                            <div class="edit-avatar-container">
-                                <img id="edit-profile-preview" src="assets/images/default-avatar.jpg" alt="Avatar Preview">
-                                <div class="edit-avatar-overlay">
-                                    <label for="avatar-upload-input" class="avatar-action-btn upload-btn" title="Upload New Photo">
-                                        <i data-lucide="camera"></i>
-                                    </label>
-                                    <button type="button" class="avatar-action-btn delete-btn" id="delete-avatar-btn" title="Remove Photo">
-                                        <i data-lucide="trash-2"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <input type="file" id="avatar-upload-input" accept="image/*" style="display: none;">
-                        </div>
-                        <div class="profile-form-group">
-                            <label>Phone Number</label>
-                            <div class="privacy-input-wrapper">
-                                <input type="text" id="edit-phone" placeholder="+84 123 456 789">
-                                <button type="button" class="privacy-toggle-btn" id="toggle-phone-privacy" title="Change Phone Privacy">
-                                    <i data-lucide="globe"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="profile-form-group">
-                            <label>Address</label>
-                            <div class="privacy-input-wrapper">
-                                <input type="text" id="edit-address" placeholder="Enter your address">
-                                <button type="button" class="privacy-toggle-btn" id="toggle-address-privacy" title="Change Address Privacy">
-                                    <i data-lucide="globe"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="profile-form-group">
-                            <label>Gender</label>
-                            <div class="gender-radio-group">
-                                <label class="gender-radio-item">
-                                    <input type="radio" name="gender" value="true">
-                                    <span class="radio-custom"></span>
-                                    <span>Male</span>
-                                </label>
-                                <label class="gender-radio-item">
-                                    <input type="radio" name="gender" value="false">
-                                    <span class="radio-custom"></span>
-                                    <span>Female</span>
-                                </label>
-                                <label class="gender-radio-item">
-                                    <input type="radio" name="gender" value="" checked>
-                                    <span class="radio-custom"></span>
-                                    <span>Other</span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
+    <!-- Stats Block (Full Width) -->
+    <ul class="profile-stats">
+      <li>
+        <span class="stat-count" id="profile-posts-count">0</span>
+        <span class="stat-label">posts</span>
+      </li>
+      <li>
+        <span class="stat-count" id="profile-followers-count">0</span>
+        <span class="stat-label">followers</span>
+      </li>
+      <li>
+        <span class="stat-count" id="profile-following-count">0</span>
+        <span class="stat-label">following</span>
+      </li>
+    </ul>
+
+    <div class="profile-highlights" id="profile-highlights"></div>
+
+    <!-- Content Tabs -->
+    <div class="profile-tabs" id="profile-tabs">
+      <!-- Rendered via JS based on ownership -->
+    </div>
+
+    <!-- Posts Grid -->
+    <div class="profile-posts-grid" id="profile-posts-grid"></div>
+
+    <!-- Load More Loader -->
+    <div id="profile-posts-loader" class="feed-loader" style="display: none">
+      <div class="loader-spinner"></div>
+    </div>
+  </div>
+
+  <!-- Edit Profile Modal -->
+  <div class="profile-modal-overlay" id="edit-profile-modal">
+    <div class="profile-modal-content">
+      <div class="profile-modal-header">
+        <h3>Edit Profile</h3>
+        <button class="profile-modal-close" onclick="checkChangesAndClose()">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="profile-modal-body custom-scrollbar">
+        <div class="edit-profile-grid">
+          <!-- Left Column: Avatar & Main Info -->
+          <div class="edit-profile-left">
+            <!-- Cover Section -->
+            <div class="edit-cover-section">
+              <label>Cover Photo</label>
+              <div class="edit-cover-container">
+                <img
+                  id="edit-cover-preview"
+                  src="assets/images/default-cover.jpg"
+                  alt="Cover Preview"
+                  data-media-fallback-ignore="true"
+                />
+                <div class="edit-cover-overlay">
+                  <label
+                    for="cover-upload-input"
+                    class="cover-action-btn upload-btn"
+                    title="Upload New Cover"
+                  >
+                    <i data-lucide="camera"></i>
+                  </label>
+                  <button
+                    type="button"
+                    class="cover-action-btn delete-btn"
+                    id="delete-cover-btn"
+                    title="Remove Cover"
+                  >
+                    <i data-lucide="trash-2"></i>
+                  </button>
                 </div>
+              </div>
+              <input
+                type="file"
+                id="cover-upload-input"
+                accept="image/*"
+                style="display: none"
+              />
             </div>
-            <div class="profile-modal-footer">
-                <button class="profile-btn-primary" onclick="saveProfileChanges()">
-                    <i data-lucide="check"></i>
-                    <span>Save</span>
+
+            <div class="profile-form-group">
+              <label>Full Name</label>
+              <input
+                type="text"
+                id="edit-fullname"
+                placeholder="Enter your full name"
+              />
+            </div>
+            <div class="profile-form-group">
+              <label>Bio</label>
+              <textarea
+                id="edit-bio"
+                rows="4"
+                placeholder="Tell us about yourself..."
+              ></textarea>
+              <div class="bio-char-count">
+                <span id="bioCharCount">0</span> /
+                <span id="bioMaxLength">200</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Contact & Basic Info -->
+          <div class="edit-profile-right">
+            <!-- Avatar Section -->
+            <!-- Avatar Section -->
+            <div class="edit-avatar-section">
+              <label>Avatar</label>
+              <div class="edit-avatar-container">
+                <img
+                  id="edit-profile-preview"
+                  src="assets/images/default-avatar.jpg"
+                  alt="Avatar Preview"
+                />
+                <div class="edit-avatar-overlay">
+                  <label
+                    for="avatar-upload-input"
+                    class="avatar-action-btn upload-btn"
+                    title="Upload New Photo"
+                  >
+                    <i data-lucide="camera"></i>
+                  </label>
+                  <button
+                    type="button"
+                    class="avatar-action-btn delete-btn"
+                    id="delete-avatar-btn"
+                    title="Remove Photo"
+                  >
+                    <i data-lucide="trash-2"></i>
+                  </button>
+                </div>
+              </div>
+              <input
+                type="file"
+                id="avatar-upload-input"
+                accept="image/*"
+                style="display: none"
+              />
+            </div>
+            <div class="profile-form-group">
+              <label>Phone Number</label>
+              <div class="privacy-input-wrapper">
+                <input
+                  type="text"
+                  id="edit-phone"
+                  placeholder="+84 123 456 789"
+                />
+                <button
+                  type="button"
+                  class="privacy-toggle-btn"
+                  id="toggle-phone-privacy"
+                  title="Change Phone Privacy"
+                >
+                  <i data-lucide="globe"></i>
                 </button>
+              </div>
             </div>
+            <div class="profile-form-group">
+              <label>Address</label>
+              <div class="privacy-input-wrapper">
+                <input
+                  type="text"
+                  id="edit-address"
+                  placeholder="Enter your address"
+                />
+                <button
+                  type="button"
+                  class="privacy-toggle-btn"
+                  id="toggle-address-privacy"
+                  title="Change Address Privacy"
+                >
+                  <i data-lucide="globe"></i>
+                </button>
+              </div>
+            </div>
+            <div class="profile-form-group">
+              <label>Gender</label>
+              <div class="gender-radio-group">
+                <label class="gender-radio-item">
+                  <input type="radio" name="gender" value="true" />
+                  <span class="radio-custom"></span>
+                  <span>Male</span>
+                </label>
+                <label class="gender-radio-item">
+                  <input type="radio" name="gender" value="false" />
+                  <span class="radio-custom"></span>
+                  <span>Female</span>
+                </label>
+                <label class="gender-radio-item">
+                  <input type="radio" name="gender" value="" checked />
+                  <span class="radio-custom"></span>
+                  <span>Other</span>
+                </label>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+      <div class="profile-modal-footer">
+        <button class="profile-btn-primary" onclick="saveProfileChanges()">
+          <i data-lucide="check"></i>
+          <span>Save</span>
+        </button>
+      </div>
     </div>
+  </div>
 </div>
