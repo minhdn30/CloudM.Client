@@ -912,9 +912,10 @@ function renderPostDetail(post, navigateDirection = null) {
              // Better: post.isOwner is standard in this app's DTOs.
              
              const isFollowed = post.owner?.isFollowedByCurrentUser || false;
+             const isSavedByCurrentUser = Boolean(post.isSavedByCurrentUser);
              
              if (window.showPostOptions) {
-                 showPostOptions(post.postId, post.owner.accountId, isOwner, isFollowed);
+                 showPostOptions(post.postId, post.owner.accountId, isOwner, isFollowed, isSavedByCurrentUser);
              } else {
                  console.error("showPostOptions not found");
              }
@@ -1041,6 +1042,7 @@ function renderPostDetail(post, navigateDirection = null) {
     const likeCount = document.getElementById("detailLikeCount");
     const commentCount = document.getElementById("detailCommentCount");
     const shareBtn = document.getElementById("detailShareBtn");
+    const bookmarkBtn = document.getElementById("detailBookmarkBtn");
 
     likeBtn.onclick = (e) => {
         const clickedIcon = e.target.closest(".react-icon");
@@ -1074,6 +1076,22 @@ function renderPostDetail(post, navigateDirection = null) {
             }
             if (window.toastError) {
                 toastError("Share is unavailable right now.");
+            }
+        };
+    }
+
+    if (bookmarkBtn) {
+        bookmarkBtn.dataset.postId = post.postId;
+        bookmarkBtn.dataset.saved = post.isSavedByCurrentUser ? "true" : "false";
+
+        if (window.syncPostSaveState) {
+            window.syncPostSaveState(post.postId, Boolean(post.isSavedByCurrentUser));
+        }
+
+        bookmarkBtn.onclick = (event) => {
+            if (event) event.stopPropagation();
+            if (window.togglePostSave) {
+                window.togglePostSave(post.postId, bookmarkBtn);
             }
         };
     }

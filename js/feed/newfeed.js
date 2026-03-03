@@ -160,7 +160,7 @@
                    </button>`
                 : ""
             }
-            <button class="post-more" onclick="showPostOptions('${post.postId}', '${post.author.accountId}', ${post.isOwner}, ${post.author.isFollowedByCurrentUser})">
+            <button class="post-more" onclick="showPostOptions('${post.postId}', '${post.author.accountId}', ${post.isOwner}, ${post.author.isFollowedByCurrentUser}, ${Boolean(post.isSavedByCurrentUser)})">
               <i data-lucide="more-horizontal"></i>
             </button>
             </div>
@@ -192,8 +192,12 @@
                 <i data-lucide="send" class="hover-scale-sm"></i>
               </div>
             </div>
-            <div class="right action-item">
-              <i data-lucide="bookmark" class="hover-scale-sm"></i>
+            <div class="right action-item bookmark-btn"
+                 data-save-toggle="true"
+                 data-post-id="${post.postId}"
+                 data-saved="${Boolean(post.isSavedByCurrentUser)}"
+                 onclick="event.stopPropagation(); togglePostSave('${post.postId}', this)">
+              <i data-lucide="bookmark" class="bookmark-icon hover-scale-sm ${post.isSavedByCurrentUser ? "saved" : ""}"></i>
             </div>
           </div>
         `;
