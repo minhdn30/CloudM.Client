@@ -8,7 +8,8 @@ const ChatSidebar = {
   currentFilter: null, // null = All, true = Private, false = Group
   searchTimeout: null,
   searchTerm: "",
-  page: 1,
+  cursorLastMessageSentAt: null,
+  cursorConversationId: null,
   isLoading: false,
   hasMore: true,
   pageSize: window.APP_CONFIG?.CONVERSATIONS_PAGE_SIZE || 20,
@@ -1098,7 +1099,8 @@ const ChatSidebar = {
 
         const filterVal = tab.dataset.filter;
         this.currentFilter = filterVal === "null" ? null : filterVal === "true";
-        this.page = 1;
+        this.cursorLastMessageSentAt = null;
+        this.cursorConversationId = null;
         this.hasMore = true;
         this.loadConversations(false);
       };
@@ -1165,7 +1167,8 @@ const ChatSidebar = {
       this.searchTerm = e.target.value.trim();
       clearTimeout(this.searchTimeout);
       this.searchTimeout = setTimeout(() => {
-        this.page = 1;
+        this.cursorLastMessageSentAt = null;
+        this.cursorConversationId = null;
         this.hasMore = true;
         this.loadConversations(false);
       }, 500);
@@ -1224,7 +1227,8 @@ const ChatSidebar = {
     this.isLoading = true;
 
     if (!isLoadMore) {
-      this.page = 1;
+      this.cursorLastMessageSentAt = null;
+      this.cursorConversationId = null;
       this.hasMore = true;
       // Show skeleton or loader for fresh load
       listContainer.innerHTML = `
@@ -1254,13 +1258,29 @@ const ChatSidebar = {
       const res = await window.API.Conversations.getConversations(
         this.currentFilter,
         this.searchTerm,
-        this.page,
         this.pageSize,
+        this.cursorLastMessageSentAt,
+        this.cursorConversationId,
       );
 
       if (res.ok) {
         const data = await res.json();
-        const items = data.items || [];
+        const items = data.items || data.Items || [];
+        const nextCursor = data.nextCursor || data.NextCursor || null;
+        const nextCursorLastMessageSentAt = (
+          nextCursor?.lastMessageSentAt ||
+          nextCursor?.LastMessageSentAt ||
+          ""
+        )
+          .toString()
+          .trim();
+        const nextCursorConversationId = (
+          nextCursor?.conversationId ||
+          nextCursor?.ConversationId ||
+          ""
+        )
+          .toString()
+          .trim();
 
         if (isLoadMore) {
           this.conversations = [...this.conversations, ...items];
@@ -1269,13 +1289,18 @@ const ChatSidebar = {
           listContainer.innerHTML = ""; // Clear loader
         }
 
-        if (items.length < this.pageSize) {
-          this.hasMore = false;
-        }
+        this.hasMore = Boolean(
+          nextCursorLastMessageSentAt && nextCursorConversationId,
+        );
+        this.cursorLastMessageSentAt = this.hasMore
+          ? nextCursorLastMessageSentAt
+          : null;
+        this.cursorConversationId = this.hasMore
+          ? nextCursorConversationId
+          : null;
 
         this.syncPresenceSnapshotForConversations(this.conversations);
         this.renderConversations(items, isLoadMore);
-        this.page++;
       }
     } catch (error) {
       console.error("Failed to load conversations:", error);
@@ -1912,7 +1937,8 @@ const ChatSidebar = {
 
       // If filtering by type, we should ideally check if the message matches the filter
       // For simplicity, we just reload effectively.
-      this.page = 1;
+      this.cursorLastMessageSentAt = null;
+      this.cursorConversationId = null;
       this.hasMore = true;
       this.loadConversations(false);
     }

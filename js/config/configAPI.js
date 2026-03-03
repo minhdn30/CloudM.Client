@@ -502,10 +502,13 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         }),
-      getByAccountId: (accountId, page, pageSize) =>
-        apiFetch(
-          `/Posts/profile/${accountId}?page=${page}&pageSize=${pageSize}`,
-        ),
+      getByAccountId: (accountId, limit, cursorCreatedAt, cursorPostId) => {
+        let url = `/Posts/profile/${accountId}?limit=${encodeURIComponent(limit)}`;
+        if (cursorCreatedAt && cursorPostId) {
+          url += `&cursorCreatedAt=${encodeURIComponent(cursorCreatedAt)}&cursorPostId=${encodeURIComponent(cursorPostId)}`;
+        }
+        return apiFetch(url);
+      },
       getSaved: (limit, cursorCreatedAt, cursorPostId) => {
         let url = `/Posts/saved?limit=${limit}`;
         if (cursorCreatedAt && cursorPostId) {
@@ -710,13 +713,17 @@
       getConversations: (
         isPrivate,
         search,
-        page = 1,
-        pageSize = window.APP_CONFIG?.CONVERSATIONS_PAGE_SIZE || 20,
+        limit = window.APP_CONFIG?.CONVERSATIONS_PAGE_SIZE || 20,
+        cursorLastMessageSentAt = null,
+        cursorConversationId = null,
       ) => {
-        let url = `/Conversations?page=${page}&pageSize=${pageSize}`;
+        let url = `/Conversations?limit=${limit}`;
         if (isPrivate !== undefined && isPrivate !== null)
           url += `&isPrivate=${isPrivate}`;
         if (search) url += `&search=${encodeURIComponent(search)}`;
+        if (cursorLastMessageSentAt && cursorConversationId) {
+          url += `&cursorLastMessageSentAt=${encodeURIComponent(cursorLastMessageSentAt)}&cursorConversationId=${encodeURIComponent(cursorConversationId)}`;
+        }
         return apiFetch(url);
       },
       getById: (conversationId) => apiFetch(`/Conversations/${conversationId}`),

@@ -36,6 +36,7 @@ body.is-profile-page .main-content::-webkit-scrollbar:horizontal {
   max-width: 935px; /* Standard Instagram-style width */
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
   margin: 0 auto !important;
   padding: 0 !important;
 }
@@ -1122,6 +1123,10 @@ body.is-profile-page .main-content::-webkit-scrollbar:horizontal {
   margin-top: 20px;
 }
 
+.profile-footer-slot {
+  margin-top: auto;
+}
+
 .profile-posts-grid.placeholder-mode {
   display: flex;
   flex-direction: column;
@@ -1459,6 +1464,10 @@ body.light-mode .profile-story-created-at-badge {
 
   .profile-detail-item {
     font-size: 13px;
+  }
+
+  .profile-footer-slot {
+    margin-top: auto;
   }
 
   /* Edit Profile Modal Responsive */
