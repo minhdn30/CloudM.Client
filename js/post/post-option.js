@@ -1,7 +1,142 @@
 let currentPostOptions = null;
+const pendingSavePosts = new Set();
+
+function normalizePostId(value) {
+  return (value || "").toString().trim().toLowerCase();
+}
+
+function parseSavedState(value, fallback = false) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  return fallback;
+}
+
+function getPostSaveToggleElements(postId) {
+  const normalizedPostId = normalizePostId(postId);
+  if (!normalizedPostId) return [];
+
+  return Array.from(document.querySelectorAll('[data-save-toggle="true"]')).filter(
+    (el) => normalizePostId(el.dataset.postId) === normalizedPostId,
+  );
+}
+
+function applySavedStateToToggle(toggleEl, isSaved) {
+  if (!toggleEl) return;
+
+  toggleEl.dataset.saved = isSaved ? "true" : "false";
+
+  const icon =
+    toggleEl.querySelector(".bookmark-icon") ||
+    toggleEl.querySelector("svg") ||
+    toggleEl.querySelector("i");
+  if (icon) {
+    icon.classList.toggle("saved", isSaved);
+  }
+}
+
+function syncPostSaveState(postId, isSaved) {
+  getPostSaveToggleElements(postId).forEach((toggleEl) =>
+    applySavedStateToToggle(toggleEl, isSaved),
+  );
+}
+
+function resolvePostSaveState(postId, fallback = false) {
+  const toggleEl = getPostSaveToggleElements(postId)[0];
+  if (!toggleEl) return fallback;
+
+  const icon =
+    toggleEl.querySelector(".bookmark-icon") ||
+    toggleEl.querySelector("svg") ||
+    toggleEl.querySelector("i");
+  const iconSaved = icon ? icon.classList.contains("saved") : fallback;
+
+  return parseSavedState(toggleEl.dataset.saved, iconSaved);
+}
+
+async function togglePostSave(postId, triggerEl = null, options = {}) {
+  const normalizedPostId = normalizePostId(postId);
+  if (!normalizedPostId) return false;
+
+  if (pendingSavePosts.has(normalizedPostId)) {
+    return resolvePostSaveState(postId, false);
+  }
+
+  const currentSavedState = options.hasOwnProperty("currentState")
+    ? parseSavedState(options.currentState, false)
+    : resolvePostSaveState(postId, false);
+  const nextSavedState = !currentSavedState;
+
+  pendingSavePosts.add(normalizedPostId);
+  syncPostSaveState(postId, nextSavedState);
+  if (triggerEl) {
+    applySavedStateToToggle(triggerEl, nextSavedState);
+  }
+
+  try {
+    const request = nextSavedState ? API.Posts.save : API.Posts.unsave;
+    const res = await request(postId);
+
+    if (res.status === 403 || res.status === 404) {
+      syncPostSaveState(postId, currentSavedState);
+      if (window.PostUtils?.hidePost) {
+        PostUtils.hidePost(postId);
+      }
+      if (window.toastInfo) {
+        toastInfo("This post is no longer available.");
+      }
+      return false;
+    }
+
+    if (!res.ok) throw new Error("Failed to update saved state");
+
+    let confirmedSavedState = nextSavedState;
+    try {
+      const data = await res.json();
+      if (typeof data?.isSavedByCurrentUser === "boolean") {
+        confirmedSavedState = data.isSavedByCurrentUser;
+      }
+    } catch (_) {}
+
+    syncPostSaveState(postId, confirmedSavedState);
+
+    if (window.onPostSaveStateChanged) {
+      window.onPostSaveStateChanged(postId, confirmedSavedState);
+    }
+
+    if (confirmedSavedState) {
+      if (window.toastSuccess) toastSuccess("Post saved.");
+    } else if (window.toastInfo) {
+      toastInfo("Removed from saved.");
+    }
+
+    return confirmedSavedState;
+  } catch (err) {
+    console.error(err);
+    syncPostSaveState(postId, currentSavedState);
+    if (window.toastError) toastError("Could not update saved state.");
+    return currentSavedState;
+  } finally {
+    pendingSavePosts.delete(normalizedPostId);
+  }
+}
+
+async function togglePostSaveFromOptions(postId, isSavedByCurrentUser) {
+  closePostOptions();
+  return await togglePostSave(postId, null, { currentState: isSavedByCurrentUser });
+}
 
 /* ===== Show post options popup ===== */
-function showPostOptions(postId, accountId, isOwnPost, isFollowing) {
+function showPostOptions(
+  postId,
+  accountId,
+  isOwnPost,
+  isFollowing,
+  isSavedByCurrentUser = false,
+) {
   if (currentPostOptions) closePostOptions();
 
   const overlay = document.createElement("div");
@@ -29,6 +164,9 @@ function showPostOptions(postId, accountId, isOwnPost, isFollowing) {
       </button>
     `;
   } else {
+    const isSaved = Boolean(isSavedByCurrentUser);
+    const saveLabel = isSaved ? "Remove from saved" : "Save post";
+
     optionsHTML = `
       <button class="post-option post-option-danger" onclick="reportPost('${postId}')">
         <i data-lucide="flag"></i><span>Report</span>
@@ -36,8 +174,8 @@ function showPostOptions(postId, accountId, isOwnPost, isFollowing) {
       <button class="post-option" onclick="hidePost('${postId}')">
         <i data-lucide="eye-off"></i><span>Hide</span>
       </button>
-      <button class="post-option" onclick="addToFavorites('${postId}')">
-        <i data-lucide="bookmark"></i><span>Add to favorites</span>
+      <button class="post-option" onclick="togglePostSaveFromOptions('${postId}', ${isSaved})">
+        <i data-lucide="bookmark"></i><span>${saveLabel}</span>
       </button>
       <button class="post-option" onclick="copyPostLink('${postId}')">
         <i data-lucide="link"></i><span>Copy link</span>
@@ -251,9 +389,7 @@ function hidePost(postId) {
 }
 
 function addToFavorites(postId) {
-  closePostOptions();
-  console.log("Favorite:", postId);
-  toastSuccess("Added to favorites");
+  togglePostSaveFromOptions(postId, resolvePostSaveState(postId, false));
 }
 
 function copyPostLink(postId) {
@@ -285,3 +421,7 @@ window.showReportReasons = showReportReasons;
 window.submitReport = submitReport;
 window.confirmDeletePost = confirmDeletePost;
 window.closeDeleteConfirm = closeDeleteConfirm;
+window.togglePostSave = togglePostSave;
+window.togglePostSaveFromOptions = togglePostSaveFromOptions;
+window.syncPostSaveState = syncPostSaveState;
+window.resolvePostSaveState = resolvePostSaveState;

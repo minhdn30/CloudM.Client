@@ -491,6 +491,9 @@
       delete: (postId) => apiFetch(`/Posts/${postId}`, { method: "DELETE" }),
       toggleReact: (postId) =>
         apiFetch(`/Posts/${postId}/react`, { method: "POST" }),
+      save: (postId) => apiFetch(`/Posts/${postId}/save`, { method: "POST" }),
+      unsave: (postId) =>
+        apiFetch(`/Posts/${postId}/save`, { method: "DELETE" }),
       getReacts: (postId, page, pageSize) =>
         apiFetch(`/Posts/${postId}/reacts?page=${page}&pageSize=${pageSize}`),
       updateContent: (postId, data) =>
@@ -503,6 +506,13 @@
         apiFetch(
           `/Posts/profile/${accountId}?page=${page}&pageSize=${pageSize}`,
         ),
+      getSaved: (limit, cursorCreatedAt, cursorPostId) => {
+        let url = `/Posts/saved?limit=${limit}`;
+        if (cursorCreatedAt && cursorPostId) {
+          url += `&cursorCreatedAt=${encodeURIComponent(cursorCreatedAt)}&cursorPostId=${cursorPostId}`;
+        }
+        return apiFetch(url);
+      },
     },
 
     Stories: {

@@ -14,6 +14,7 @@
     postCode: "",
     sourceMessageId: "",
     ownsScrollLock: false,
+    isDiscardConfirmOpen: false,
   };
 
   function normalizeId(value) {
@@ -117,7 +118,9 @@
       searchInput: state.modal.querySelector("#postShareChatSearchInput"),
       contentInput: state.modal.querySelector("#postShareChatContentInput"),
       contentWrap: state.modal.querySelector("#postShareChatContentWrap"),
-      contentEmojiBtn: state.modal.querySelector("#postShareChatContentEmojiBtn"),
+      contentEmojiBtn: state.modal.querySelector(
+        "#postShareChatContentEmojiBtn",
+      ),
       contentEmojiPicker: state.modal.querySelector(
         "#postShareChatContentEmojiPicker",
       ),
@@ -145,7 +148,8 @@
     const minHeight = computed ? parseFloat(computed.minHeight) || 0 : 0;
     const maxHeight = computed ? parseFloat(computed.maxHeight) || 0 : 0;
     const nextHeight = Math.max(input.scrollHeight, minHeight || 0);
-    const cappedHeight = maxHeight > 0 ? Math.min(nextHeight, maxHeight) : nextHeight;
+    const cappedHeight =
+      maxHeight > 0 ? Math.min(nextHeight, maxHeight) : nextHeight;
     input.style.height = `${cappedHeight}px`;
     if (maxHeight > 0) {
       input.style.overflowY = nextHeight > maxHeight ? "auto" : "hidden";
@@ -156,7 +160,9 @@
     const maxLength = getContentMaxLength();
     const chars = Array.from((rawValue || "").toString());
     const normalized =
-      chars.length > maxLength ? chars.slice(0, maxLength).join("") : chars.join("");
+      chars.length > maxLength
+        ? chars.slice(0, maxLength).join("")
+        : chars.join("");
     return normalized.trim();
   }
 
@@ -195,41 +201,28 @@
   function normalizeSearchTarget(rawTarget) {
     if (!rawTarget || typeof rawTarget !== "object") return null;
 
-    const targetType = (
-      rawTarget.targetType ||
-      rawTarget.TargetType ||
-      ""
-    )
+    const targetType = (rawTarget.targetType || rawTarget.TargetType || "")
       .toString()
       .trim()
       .toLowerCase();
 
-    const name = (
-      rawTarget.name ||
-      rawTarget.Name ||
-      ""
-    )
+    const name = (rawTarget.name || rawTarget.Name || "").toString().trim();
+    const subtitle = (rawTarget.subtitle || rawTarget.Subtitle || "")
       .toString()
       .trim();
-    const subtitle = (
-      rawTarget.subtitle ||
-      rawTarget.Subtitle ||
-      ""
-    )
-      .toString()
-      .trim();
-    const avatarUrl = (
-      rawTarget.avatarUrl ||
-      rawTarget.AvatarUrl ||
-      ""
-    )
+    const avatarUrl = (rawTarget.avatarUrl || rawTarget.AvatarUrl || "")
       .toString()
       .trim();
     const useGroupIcon = !!(
-      rawTarget.useGroupIcon ?? rawTarget.UseGroupIcon ?? false
+      rawTarget.useGroupIcon ??
+      rawTarget.UseGroupIcon ??
+      false
     );
 
-    if (targetType === "groupconversation" || targetType === "group_conversation") {
+    if (
+      targetType === "groupconversation" ||
+      targetType === "group_conversation"
+    ) {
       const conversationId = normalizeId(
         rawTarget.conversationId || rawTarget.ConversationId || "",
       );
@@ -259,7 +252,9 @@
       };
     }
 
-    const accountId = normalizeId(rawTarget.accountId || rawTarget.AccountId || "");
+    const accountId = normalizeId(
+      rawTarget.accountId || rawTarget.AccountId || "",
+    );
     if (!accountId) return null;
     return {
       key: `receiver:${accountId}`,
@@ -433,7 +428,9 @@
 
     const hasRecipients = state.selectedTargets.size > 0;
     sendBtn.disabled = !hasRecipients || state.isSending;
-    sendBtn.textContent = state.isSending ? `${getActionVerb()}ing...` : getActionVerb();
+    sendBtn.textContent = state.isSending
+      ? `${getActionVerb()}ing...`
+      : getActionVerb();
   }
 
   function toggleTarget(key) {
@@ -458,7 +455,13 @@
     try {
       const data = await res.clone().json();
       if (data && typeof data === "object") {
-        const msg = (data.message || data.Message || data.title || data.Title || "")
+        const msg = (
+          data.message ||
+          data.Message ||
+          data.title ||
+          data.Title ||
+          ""
+        )
           .toString()
           .trim();
         if (msg) return msg;
@@ -485,10 +488,7 @@
     );
     return {
       isSuccess: !!(rawResult.isSuccess ?? rawResult.IsSuccess),
-      errorMessage:
-        rawResult.errorMessage ||
-        rawResult.ErrorMessage ||
-        "",
+      errorMessage: rawResult.errorMessage || rawResult.ErrorMessage || "",
       conversationId,
       message,
     };
@@ -576,7 +576,9 @@
 
     const verbPast = action === "forward" ? "Forwarded" : "Shared";
     const fallbackError =
-      action === "forward" ? "Failed to forward message." : "Failed to share post.";
+      action === "forward"
+        ? "Failed to forward message."
+        : "Failed to share post.";
 
     if (successResults.length > 0 && failedResults.length === 0) {
       if (global.toastSuccess) {
@@ -609,7 +611,8 @@
   async function sendPostShare() {
     if (state.isSending || !state.postId) return;
 
-    const { targets, conversationIds, receiverIds } = extractSelectedRecipientIds();
+    const { targets, conversationIds, receiverIds } =
+      extractSelectedRecipientIds();
     if (!targets.length) return;
 
     if (!conversationIds.length && !receiverIds.length) return;
@@ -630,7 +633,9 @@
         conversationIds,
         receiverIds,
         content: content || null,
-        tempId: global.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        tempId:
+          global.crypto?.randomUUID?.() ||
+          `${Date.now()}-${Math.random().toString(16).slice(2)}`,
       });
 
       if (!res.ok) {
@@ -661,7 +666,8 @@
   async function sendForwardMessage() {
     if (state.isSending || !state.sourceMessageId) return;
 
-    const { targets, conversationIds, receiverIds } = extractSelectedRecipientIds();
+    const { targets, conversationIds, receiverIds } =
+      extractSelectedRecipientIds();
     if (!targets.length) return;
 
     if (!conversationIds.length && !receiverIds.length) return;
@@ -684,7 +690,10 @@
       });
 
       if (!res.ok) {
-        const errorMessage = await readApiError(res, "Failed to forward message.");
+        const errorMessage = await readApiError(
+          res,
+          "Failed to forward message.",
+        );
         if (global.toastError) global.toastError(errorMessage);
         return;
       }
@@ -756,9 +765,7 @@
         return;
       }
 
-      const payload = await searchRes
-        .json()
-        .catch(() => ({}));
+      const payload = await searchRes.json().catch(() => ({}));
       const rawItems = Array.isArray(payload?.items)
         ? payload.items
         : Array.isArray(payload?.Items)
@@ -788,13 +795,15 @@
     state.searchRequestSequence += 1;
     state.searchCache = new Map();
     state.isSending = false;
+    state.isDiscardConfirmOpen = false;
 
     if (state.searchDebounceTimer) {
       clearTimeout(state.searchDebounceTimer);
       state.searchDebounceTimer = null;
     }
 
-    const { searchInput, contentInput, contentEmojiPicker } = getModalElements();
+    const { searchInput, contentInput, contentEmojiPicker } =
+      getModalElements();
     if (searchInput) searchInput.value = "";
     if (contentInput) {
       contentInput.value = "";
@@ -809,6 +818,83 @@
     renderSelectedTargets();
     renderLoadingSkeleton();
     updateSendButtonState();
+  }
+
+  function hasPendingChanges() {
+    if (state.selectedTargets.size > 0) {
+      return true;
+    }
+
+    const { contentInput } = getModalElements();
+    const normalizedContent = normalizeContentForSend(
+      contentInput?.value || "",
+    );
+    return normalizedContent.length > 0;
+  }
+
+  function showDiscardConfirmation(onConfirmDiscard) {
+    if (state.isDiscardConfirmOpen) {
+      return;
+    }
+
+    state.isDiscardConfirmOpen = true;
+
+    const handleConfirm = () => {
+      state.isDiscardConfirmOpen = false;
+      if (typeof onConfirmDiscard === "function") {
+        onConfirmDiscard();
+      }
+    };
+
+    const handleCancel = () => {
+      state.isDiscardConfirmOpen = false;
+    };
+
+    if (
+      global.ChatCommon &&
+      typeof global.ChatCommon.showConfirm === "function"
+    ) {
+      global.ChatCommon.showConfirm({
+        title: "Discard changes?",
+        message:
+          "You have unsent changes. Are you sure you want to discard them?",
+        confirmText: "Discard",
+        cancelText: "Keep",
+        isDanger: true,
+        onConfirm: handleConfirm,
+        onCancel: handleCancel,
+      });
+      return;
+    }
+
+    const confirmed = global.confirm("Discard unsent changes?");
+    if (confirmed) {
+      handleConfirm();
+      return;
+    }
+
+    handleCancel();
+  }
+
+  function requestCloseModal(options = {}) {
+    const force = options.force === true;
+    if (force) {
+      closeModal({ force: true });
+      return;
+    }
+
+    if (state.isSending) {
+      return;
+    }
+
+    if (!hasPendingChanges()) {
+      closeModal();
+      return;
+    }
+
+    showDiscardConfirmation(() => {
+      closeModal({ force: true });
+    });
   }
 
   function closeModal(options = {}) {
@@ -826,16 +912,14 @@
     state.searchKeyword = "";
     state.lastSearchKeyword = "";
     state.searchCache = new Map();
+    state.isDiscardConfirmOpen = false;
     const { contentEmojiPicker } = getModalElements();
     if (contentEmojiPicker && global.EmojiUtils?.closePicker) {
       global.EmojiUtils.closePicker(contentEmojiPicker);
     }
 
     state.modal.classList.remove("show");
-    if (
-      state.ownsScrollLock &&
-      typeof global.unlockScroll === "function"
-    ) {
+    if (state.ownsScrollLock && typeof global.unlockScroll === "function") {
       global.unlockScroll();
     }
     state.ownsScrollLock = false;
@@ -848,7 +932,9 @@
     const closeBtn = state.modal.querySelector("#postShareChatCloseBtn");
     const cancelBtn = state.modal.querySelector("#postShareChatCancelBtn");
     const searchInput = state.modal.querySelector("#postShareChatSearchInput");
-    const contentInput = state.modal.querySelector("#postShareChatContentInput");
+    const contentInput = state.modal.querySelector(
+      "#postShareChatContentInput",
+    );
     const contentEmojiBtn = state.modal.querySelector(
       "#postShareChatContentEmojiBtn",
     );
@@ -856,16 +942,18 @@
       "#postShareChatContentEmojiPicker",
     );
     const resultList = state.modal.querySelector("#postShareChatResultList");
-    const selectedList = state.modal.querySelector("#postShareChatSelectedList");
+    const selectedList = state.modal.querySelector(
+      "#postShareChatSelectedList",
+    );
     const sendBtn = state.modal.querySelector("#postShareChatSendBtn");
 
-    closeBtn?.addEventListener("click", closeModal);
-    cancelBtn?.addEventListener("click", closeModal);
+    closeBtn?.addEventListener("click", () => requestCloseModal());
+    cancelBtn?.addEventListener("click", () => requestCloseModal());
     sendBtn?.addEventListener("click", sendCurrentAction);
 
     state.modal.addEventListener("click", (event) => {
       if (event.target === state.modal) {
-        closeModal();
+        requestCloseModal();
       }
     });
 
@@ -887,7 +975,9 @@
         autoResizeContentInput(contentInput);
       };
       contentInput.addEventListener("input", handleContentInput);
-      contentInput.addEventListener("focus", () => autoResizeContentInput(contentInput));
+      contentInput.addEventListener("focus", () =>
+        autoResizeContentInput(contentInput),
+      );
       handleContentInput();
     }
 
@@ -1077,5 +1167,5 @@
 
   global.openPostShareChatModal = openModal;
   global.openForwardMessageModal = openForwardModal;
-  global.closePostShareChatModal = (options = {}) => closeModal(options);
+  global.closePostShareChatModal = (options = {}) => requestCloseModal(options);
 })(window);

@@ -8,6 +8,10 @@
   let page = 1;
   let isLoading = false;
   let hasMore = true;
+  let savedPostsCursorCreatedAt = null;
+  let savedPostsCursorPostId = null;
+  let isSavedPostsLoading = false;
+  let hasMoreSavedPosts = true;
   let archivedStoriesPage = 1;
   let isArchivedStoriesLoading = false;
   let hasMoreArchivedStories = true;
@@ -441,6 +445,9 @@
       currentProfileId = data.currentProfileId;
       page = data.page;
       hasMore = data.hasMore;
+      savedPostsCursorCreatedAt = data.savedPostsCursorCreatedAt || null;
+      savedPostsCursorPostId = data.savedPostsCursorPostId || null;
+      hasMoreSavedPosts = data.hasMoreSavedPosts ?? true;
       archivedStoriesPage = data.archivedStoriesPage ?? 1;
       hasMoreArchivedStories = data.hasMoreArchivedStories ?? true;
       activeTab = normalizeProfileTabName(data.activeTab) || PROFILE_POSTS_TAB;
@@ -450,12 +457,16 @@
       // Without this reset, switching profile while a previous request is pending
       // can leave scroll-pagination locked (isLoading stuck true).
       isLoading = false;
+      isSavedPostsLoading = false;
       isArchivedStoriesLoading = false;
     },
     getPageData: () => ({
       currentProfileId,
       page,
       hasMore,
+      savedPostsCursorCreatedAt,
+      savedPostsCursorPostId,
+      hasMoreSavedPosts,
       archivedStoriesPage,
       hasMoreArchivedStories,
       activeTab,
@@ -881,11 +892,17 @@
 
     if (
       activeTab !== PROFILE_POSTS_TAB &&
+      activeTab !== PROFILE_SAVED_TAB &&
       activeTab !== PROFILE_ARCHIVED_STORIES_TAB
     )
       return;
 
     if (activeTab === PROFILE_POSTS_TAB && (isLoading || !hasMore)) return;
+    if (
+      activeTab === PROFILE_SAVED_TAB &&
+      (isSavedPostsLoading || !hasMoreSavedPosts)
+    )
+      return;
     if (
       activeTab === PROFILE_ARCHIVED_STORIES_TAB &&
       (isArchivedStoriesLoading || !hasMoreArchivedStories)
@@ -897,6 +914,8 @@
     if (mc.scrollTop + mc.clientHeight >= mc.scrollHeight - 500) {
       if (activeTab === PROFILE_POSTS_TAB) {
         loadPosts();
+      } else if (activeTab === PROFILE_SAVED_TAB) {
+        loadSavedPosts();
       } else if (activeTab === PROFILE_ARCHIVED_STORIES_TAB) {
         loadArchivedStories();
       }
@@ -1080,11 +1099,16 @@
         archivedStoriesPage = 1;
         isArchivedStoriesLoading = false;
         hasMoreArchivedStories = true;
+        savedPostsCursorCreatedAt = null;
+        savedPostsCursorPostId = null;
+        isSavedPostsLoading = false;
+        hasMoreSavedPosts = true;
         archivedStoryItems = [];
         archivedStoryIdSet.clear();
         isLoading = false;
         startedPostLoad =
           initialTab === PROFILE_POSTS_TAB ||
+          initialTab === PROFILE_SAVED_TAB ||
           initialTab === PROFILE_ARCHIVED_STORIES_TAB;
 
         if (initialTab === PROFILE_POSTS_TAB) {
@@ -1600,7 +1624,18 @@
       page = 1;
       hasMore = true;
       isLoading = false;
+      isSavedPostsLoading = false;
       loadPosts();
+    } else if (normalizedTab === PROFILE_SAVED_TAB) {
+      // Saved posts grid (owner only)
+      grid.innerHTML = "";
+      grid.classList.remove("placeholder-mode");
+      savedPostsCursorCreatedAt = null;
+      savedPostsCursorPostId = null;
+      hasMoreSavedPosts = true;
+      isSavedPostsLoading = false;
+      isLoading = false;
+      loadSavedPosts();
     } else if (normalizedTab === PROFILE_ARCHIVED_STORIES_TAB) {
       // Archived stories grid (owner only)
       grid.innerHTML = "";
@@ -1608,6 +1643,7 @@
       archivedStoriesPage = 1;
       hasMoreArchivedStories = true;
       isArchivedStoriesLoading = false;
+      isSavedPostsLoading = false;
       archivedStoryItems = [];
       archivedStoryIdSet.clear();
       loadArchivedStories();
@@ -1636,6 +1672,7 @@
             `;
       if (loader) loader.style.display = "none";
       isLoading = false;
+      isSavedPostsLoading = false;
       isArchivedStoriesLoading = false;
       unlockGridHeightAfterTabRender(grid);
       applyPendingTabScrollRestore();
@@ -1699,7 +1736,7 @@
       }
 
       // console.log(`[Profile] Rendering ${items.length} posts for ${fetchForId}`);
-      renderPosts(items);
+      renderPosts(items, { replace: page === 1 });
       page++;
     } catch (err) {
       console.error(err);
@@ -1710,6 +1747,109 @@
       // But if we are still here, we need to complete the lifecycle.
       if (fetchForId === currentProfileId && fetchForTab === activeTab) {
         isLoading = false;
+        if (loader) loader.style.display = "none";
+        unlockGridHeightAfterTabRender(grid);
+        applyPendingTabScrollRestore();
+      }
+    }
+  }
+
+  function renderSavedPostsEmptyState() {
+    const grid = document.getElementById("profile-posts-grid");
+    if (!grid) return;
+
+    grid.classList.add("placeholder-mode");
+    grid.innerHTML = `
+      <div class="profile-tab-placeholder">
+        <div class="placeholder-icon-circle">
+          <i data-lucide="bookmark"></i>
+        </div>
+        <h2>No saved posts yet</h2>
+        <p>Posts you save will appear here.</p>
+      </div>
+    `;
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  async function loadSavedPosts() {
+    if (activeTab !== PROFILE_SAVED_TAB) return [];
+    if (isSavedPostsLoading || !hasMoreSavedPosts) return [];
+
+    const fetchForId = currentProfileId;
+    const fetchForTab = activeTab;
+    isSavedPostsLoading = true;
+
+    const grid = document.getElementById("profile-posts-grid");
+    const loader = document.getElementById("profile-posts-loader");
+    if (!grid) {
+      isSavedPostsLoading = false;
+      return [];
+    }
+
+    if (loader) loader.style.display = "block";
+
+    try {
+      const isGuid =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          fetchForId,
+        );
+      if (!isGuid) {
+        isSavedPostsLoading = false;
+        return [];
+      }
+
+      if (!global.API?.Posts?.getSaved) {
+        throw new Error("Saved posts API is unavailable");
+      }
+
+      const isFirstCursorRequest = !savedPostsCursorCreatedAt || !savedPostsCursorPostId;
+      const res = await API.Posts.getSaved(
+        POSTS_PAGE_SIZE,
+        savedPostsCursorCreatedAt,
+        savedPostsCursorPostId,
+      );
+      if (fetchForId !== currentProfileId || fetchForTab !== activeTab) {
+        return [];
+      }
+      if (!res.ok) throw new Error("Failed to load saved posts");
+
+      const data = await res.json();
+      const items = Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data)
+          ? data
+          : [];
+      const nextCursor = data?.nextCursor || null;
+      const nextCursorCreatedAt = (nextCursor?.createdAt || "").toString().trim();
+      const nextCursorPostId = (nextCursor?.postId || "").toString().trim();
+
+      if (isFirstCursorRequest && items.length === 0) {
+        hasMoreSavedPosts = false;
+        savedPostsCursorCreatedAt = null;
+        savedPostsCursorPostId = null;
+        renderSavedPostsEmptyState();
+        return [];
+      }
+
+      if (isFirstCursorRequest) {
+        grid.classList.remove("placeholder-mode");
+      }
+
+      renderPosts(items, { replace: isFirstCursorRequest });
+
+      hasMoreSavedPosts = Boolean(nextCursorCreatedAt && nextCursorPostId);
+      savedPostsCursorCreatedAt = hasMoreSavedPosts ? nextCursorCreatedAt : null;
+      savedPostsCursorPostId = hasMoreSavedPosts ? nextCursorPostId : null;
+
+      return items;
+    } catch (err) {
+      console.error(err);
+      if (window.toastError) toastError("Failed to load saved posts.");
+      return [];
+    } finally {
+      if (fetchForId === currentProfileId && fetchForTab === activeTab) {
+        isSavedPostsLoading = false;
         if (loader) loader.style.display = "none";
         unlockGridHeightAfterTabRender(grid);
         applyPendingTabScrollRestore();
@@ -1800,10 +1940,24 @@
    * Returns array of new post objects with postId and postCode
    */
   async function loadMoreProfilePosts() {
-    if (isLoading || !hasMore) return [];
+    if (activeTab !== PROFILE_POSTS_TAB && activeTab !== PROFILE_SAVED_TAB) {
+      return [];
+    }
+
+    const isSavedTab = activeTab === PROFILE_SAVED_TAB;
+    if (isSavedTab) {
+      if (isSavedPostsLoading || !hasMoreSavedPosts) return [];
+    } else if (isLoading || !hasMore) {
+      return [];
+    }
 
     const fetchForId = currentProfileId;
-    isLoading = true;
+    const fetchForTab = activeTab;
+    if (isSavedTab) {
+      isSavedPostsLoading = true;
+    } else {
+      isLoading = true;
+    }
 
     try {
       const isGuid =
@@ -1811,29 +1965,64 @@
           fetchForId,
         );
       if (!isGuid) {
-        isLoading = false;
+        if (isSavedTab) {
+          isSavedPostsLoading = false;
+        } else {
+          isLoading = false;
+        }
         return [];
       }
 
-      const res = await API.Posts.getByAccountId(
-        fetchForId,
-        page,
-        POSTS_PAGE_SIZE,
-      );
+      const res = isSavedTab
+        ? await API.Posts.getSaved(
+            POSTS_PAGE_SIZE,
+            savedPostsCursorCreatedAt,
+            savedPostsCursorPostId,
+          )
+        : await API.Posts.getByAccountId(fetchForId, page, POSTS_PAGE_SIZE);
 
-      if (fetchForId !== currentProfileId) return [];
+      if (fetchForId !== currentProfileId || fetchForTab !== activeTab)
+        return [];
       if (!res.ok) throw new Error("Failed to load posts");
 
       const data = await res.json();
-      const items = data.items || data;
+      const items = Array.isArray(data?.items) ? data.items : data;
 
       if (!items || items.length < POSTS_PAGE_SIZE) {
-        hasMore = false;
+        if (isSavedTab) {
+          const nextCursor = data?.nextCursor || null;
+          const nextCursorCreatedAt = (nextCursor?.createdAt || "")
+            .toString()
+            .trim();
+          const nextCursorPostId = (nextCursor?.postId || "").toString().trim();
+          hasMoreSavedPosts = Boolean(nextCursorCreatedAt && nextCursorPostId);
+          savedPostsCursorCreatedAt = hasMoreSavedPosts
+            ? nextCursorCreatedAt
+            : null;
+          savedPostsCursorPostId = hasMoreSavedPosts ? nextCursorPostId : null;
+        } else {
+          hasMore = false;
+        }
+      } else if (isSavedTab) {
+        const nextCursor = data?.nextCursor || null;
+        const nextCursorCreatedAt = (nextCursor?.createdAt || "")
+          .toString()
+          .trim();
+        const nextCursorPostId = (nextCursor?.postId || "").toString().trim();
+        hasMoreSavedPosts = Boolean(nextCursorCreatedAt && nextCursorPostId);
+        savedPostsCursorCreatedAt = hasMoreSavedPosts
+          ? nextCursorCreatedAt
+          : null;
+        savedPostsCursorPostId = hasMoreSavedPosts ? nextCursorPostId : null;
       }
 
       // Render to grid (for visual consistency) and update profilePostIds
-      renderPosts(items);
-      page++;
+      renderPosts(items, { replace: false });
+      if (isSavedTab) {
+        // cursor is updated by response; no page increment
+      } else {
+        page++;
+      }
 
       // Return the new posts for navigation context update
       return items.map((post) => ({
@@ -1844,15 +2033,20 @@
       console.error(err);
       return [];
     } finally {
-      if (fetchForId === currentProfileId) {
-        isLoading = false;
+      if (fetchForId === currentProfileId && fetchForTab === activeTab) {
+        if (isSavedTab) {
+          isSavedPostsLoading = false;
+        } else {
+          isLoading = false;
+        }
       }
     }
   }
 
   // Export for post-detail.js navigation
   window.loadMoreProfilePosts = loadMoreProfilePosts;
-  window.getProfileHasMore = () => hasMore;
+  window.getProfileHasMore = () =>
+    activeTab === PROFILE_SAVED_TAB ? hasMoreSavedPosts : hasMore;
 
   // Remove a post from the navigation list (called when post becomes invalid during navigation)
   window.removeProfilePostId = function (postId) {
@@ -1862,11 +2056,60 @@
     }
   };
 
-  function renderPosts(posts) {
+  function removeSavedPostFromGrid(postId) {
     const grid = document.getElementById("profile-posts-grid");
     if (!grid) return;
 
-    if (page === 1) {
+    const normalizedPostId = (postId || "").toString().trim().toLowerCase();
+    if (!normalizedPostId) return;
+
+    const targetItem = Array.from(grid.querySelectorAll(".profile-grid-item")).find(
+      (item) =>
+        ((item.dataset.postId || "").toString().trim().toLowerCase() ===
+        normalizedPostId),
+    );
+
+    if (targetItem) {
+      targetItem.remove();
+    }
+
+    profilePostIds = profilePostIds.filter(
+      (item) =>
+        ((item.postId || "").toString().trim().toLowerCase() !==
+        normalizedPostId),
+    );
+
+    if (activeTab !== PROFILE_SAVED_TAB) return;
+
+    const remainingItems = grid.querySelectorAll(".profile-grid-item").length;
+    if (remainingItems > 0) return;
+
+    if (hasMoreSavedPosts && !isSavedPostsLoading) {
+      loadSavedPosts().then((items) => {
+        const hasGridItems =
+          (document.querySelectorAll("#profile-posts-grid .profile-grid-item")
+            ?.length || 0) > 0;
+        if (!hasGridItems && (!items || items.length === 0)) {
+          renderSavedPostsEmptyState();
+        }
+      });
+      return;
+    }
+
+    renderSavedPostsEmptyState();
+  }
+
+  window.onPostSaveStateChanged = function (postId, isSaved) {
+    if (isSaved !== false) return;
+    if (activeTab !== PROFILE_SAVED_TAB) return;
+    removeSavedPostFromGrid(postId);
+  };
+
+  function renderPosts(posts, options = {}) {
+    const grid = document.getElementById("profile-posts-grid");
+    if (!grid) return;
+
+    if (options.replace === true) {
       grid.innerHTML = "";
       profilePostIds = []; // Reset on first page
     }
@@ -1890,6 +2133,8 @@
     item.dataset.postId = post.postId;
     item.onclick = () => {
       if (window.openPostDetail) {
+        const hasMoreForCurrentTab =
+          activeTab === PROFILE_SAVED_TAB ? hasMoreSavedPosts : hasMore;
         // Find current index in the list
         const index = profilePostIds.findIndex((p) => p.postId === post.postId);
         // Pass navigation context for next/prev functionality
@@ -1898,7 +2143,7 @@
           postList: profilePostIds,
           currentIndex: index,
           accountId: currentProfileId,
-          hasMore: hasMore,
+          hasMore: hasMoreForCurrentTab,
         });
       }
     };
