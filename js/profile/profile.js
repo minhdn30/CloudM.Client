@@ -5,7 +5,8 @@
 
 (function (global) {
   let currentProfileId = null;
-  let page = 1;
+  let postsCursorCreatedAt = null;
+  let postsCursorPostId = null;
   let isLoading = false;
   let hasMore = true;
   let savedPostsCursorCreatedAt = null;
@@ -34,6 +35,9 @@
   let activeTab = PROFILE_POSTS_TAB;
 
   const POSTS_PAGE_SIZE = APP_CONFIG.PROFILE_POSTS_PAGE_SIZE;
+  const SAVED_POSTS_PAGE_SIZE =
+    APP_CONFIG.PROFILE_SAVED_POSTS_PAGE_SIZE ||
+    APP_CONFIG.PROFILE_POSTS_PAGE_SIZE;
   const ARCHIVED_STORIES_PAGE_SIZE =
     APP_CONFIG.PROFILE_ARCHIVED_STORIES_PAGE_SIZE ||
     APP_CONFIG.PROFILE_POSTS_PAGE_SIZE;
@@ -441,9 +445,10 @@
   window.ProfileState = {
     setPageData: (data) => {
       if (!data) return;
-      // console.log(`[ProfileState] Restoring state: ID=${data.currentProfileId}, Page=${data.page}`);
+      // console.log(`[ProfileState] Restoring state: ID=${data.currentProfileId}`);
       currentProfileId = data.currentProfileId;
-      page = data.page;
+      postsCursorCreatedAt = data.postsCursorCreatedAt || null;
+      postsCursorPostId = data.postsCursorPostId || null;
       hasMore = data.hasMore;
       savedPostsCursorCreatedAt = data.savedPostsCursorCreatedAt || null;
       savedPostsCursorPostId = data.savedPostsCursorPostId || null;
@@ -462,7 +467,8 @@
     },
     getPageData: () => ({
       currentProfileId,
-      page,
+      postsCursorCreatedAt,
+      postsCursorPostId,
       hasMore,
       savedPostsCursorCreatedAt,
       savedPostsCursorPostId,
@@ -610,7 +616,8 @@
     profileTabStateCache.tabs[tabName] = {
       container,
       placeholderMode: grid.classList.contains("placeholder-mode"),
-      page,
+      postsCursorCreatedAt,
+      postsCursorPostId,
       hasMore,
       archivedStoriesPage,
       hasMoreArchivedStories,
@@ -659,7 +666,6 @@
     if (!grid) return false;
 
     grid.innerHTML = "";
-    unlockGridHeightAfterTabRender(grid);
     grid.classList.toggle(
       "placeholder-mode",
       Boolean(snapshot.placeholderMode),
@@ -669,7 +675,8 @@
       grid.appendChild(snapshot.container.firstChild);
     }
 
-    page = Number.isFinite(snapshot.page) ? snapshot.page : 1;
+    postsCursorCreatedAt = snapshot.postsCursorCreatedAt || null;
+    postsCursorPostId = snapshot.postsCursorPostId || null;
     hasMore = typeof snapshot.hasMore === "boolean" ? snapshot.hasMore : true;
     archivedStoriesPage = Number.isFinite(snapshot.archivedStoriesPage)
       ? snapshot.archivedStoriesPage
@@ -689,6 +696,7 @@
     if (loader) loader.style.display = "none";
 
     if (window.lucide) lucide.createIcons();
+    unlockGridHeightAfterTabRender(grid);
 
     if (typeof snapshot.scrollTop === "number") {
       scheduleTabScrollRestore(snapshot.scrollTop);
@@ -702,6 +710,7 @@
 
   function initProfile() {
     initProfilePresenceTracking();
+    renderSharedProfileFooter();
 
     // Robust ID extraction
     const hash = window.location.hash || "";
@@ -828,9 +837,17 @@
     setupFollowStatsListeners();
   }
 
+  function renderSharedProfileFooter() {
+    if (!window.AppFooter || typeof window.AppFooter.mount !== "function")
+      return;
+
+    window.AppFooter.mount("#profile-footer-slot").catch(() => {});
+  }
+
   function resetState() {
     clearProfileTabStateCache();
-    page = 1;
+    postsCursorCreatedAt = null;
+    postsCursorPostId = null;
     isLoading = false;
     hasMore = true;
     archivedStoriesPage = 1;
@@ -1597,6 +1614,8 @@
 
     const mc = document.querySelector(".main-content");
     const currentScrollTop = mc ? mc.scrollTop : 0;
+    // Capture current rendered grid height before moving/clearing DOM to avoid layout collapse flicker.
+    lockGridHeightForTabSwitch(grid);
 
     const previousTab = activeTab;
     cacheCurrentTabState(previousTab);
@@ -1615,13 +1634,13 @@
     }
 
     pendingTabScrollRestoreTop = currentScrollTop;
-    lockGridHeightForTabSwitch(grid);
 
     if (normalizedTab === PROFILE_POSTS_TAB) {
       // Restore posts grid
       grid.innerHTML = "";
       grid.classList.remove("placeholder-mode");
-      page = 1;
+      postsCursorCreatedAt = null;
+      postsCursorPostId = null;
       hasMore = true;
       isLoading = false;
       isSavedPostsLoading = false;
@@ -1693,7 +1712,7 @@
     // Capture the ID we are fetching for at the start
     const fetchForId = currentProfileId;
     const fetchForTab = activeTab;
-    // console.log(`[Profile] loadPosts START for ${fetchForId}, page ${page}`);
+    // console.log(`[Profile] loadPosts START for ${fetchForId}`);
     isLoading = true;
 
     const grid = document.getElementById("profile-posts-grid");
@@ -1713,10 +1732,12 @@
         return;
       }
 
+      const isFirstCursorRequest = !postsCursorCreatedAt || !postsCursorPostId;
       const res = await API.Posts.getByAccountId(
         fetchForId,
-        page,
         POSTS_PAGE_SIZE,
+        postsCursorCreatedAt,
+        postsCursorPostId,
       );
 
       // RACECONDITION FIX:
@@ -1729,15 +1750,35 @@
       if (!res.ok) throw new Error("Failed to load posts");
 
       const data = await res.json();
-      const items = data.items || data; // Fallback if it's already an array
-
-      if (!items || items.length < POSTS_PAGE_SIZE) {
-        hasMore = false;
-      }
+      const items = Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data?.Items)
+          ? data.Items
+          : Array.isArray(data)
+            ? data
+            : [];
+      const nextCursor = data?.nextCursor || data?.NextCursor || null;
+      const nextCursorCreatedAt = (
+        nextCursor?.createdAt ||
+        nextCursor?.CreatedAt ||
+        ""
+      )
+        .toString()
+        .trim();
+      const nextCursorPostId = (
+        nextCursor?.postId ||
+        nextCursor?.PostId ||
+        ""
+      )
+        .toString()
+        .trim();
 
       // console.log(`[Profile] Rendering ${items.length} posts for ${fetchForId}`);
-      renderPosts(items, { replace: page === 1 });
-      page++;
+      renderPosts(items, { replace: isFirstCursorRequest });
+
+      hasMore = Boolean(nextCursorCreatedAt && nextCursorPostId);
+      postsCursorCreatedAt = hasMore ? nextCursorCreatedAt : null;
+      postsCursorPostId = hasMore ? nextCursorPostId : null;
     } catch (err) {
       console.error(err);
     } finally {
@@ -1805,7 +1846,7 @@
 
       const isFirstCursorRequest = !savedPostsCursorCreatedAt || !savedPostsCursorPostId;
       const res = await API.Posts.getSaved(
-        POSTS_PAGE_SIZE,
+        SAVED_POSTS_PAGE_SIZE,
         savedPostsCursorCreatedAt,
         savedPostsCursorPostId,
       );
@@ -1817,12 +1858,26 @@
       const data = await res.json();
       const items = Array.isArray(data?.items)
         ? data.items
-        : Array.isArray(data)
-          ? data
-          : [];
-      const nextCursor = data?.nextCursor || null;
-      const nextCursorCreatedAt = (nextCursor?.createdAt || "").toString().trim();
-      const nextCursorPostId = (nextCursor?.postId || "").toString().trim();
+        : Array.isArray(data?.Items)
+          ? data.Items
+          : Array.isArray(data)
+            ? data
+            : [];
+      const nextCursor = data?.nextCursor || data?.NextCursor || null;
+      const nextCursorCreatedAt = (
+        nextCursor?.createdAt ||
+        nextCursor?.CreatedAt ||
+        ""
+      )
+        .toString()
+        .trim();
+      const nextCursorPostId = (
+        nextCursor?.postId ||
+        nextCursor?.PostId ||
+        ""
+      )
+        .toString()
+        .trim();
 
       if (isFirstCursorRequest && items.length === 0) {
         hasMoreSavedPosts = false;
@@ -1901,9 +1956,11 @@
       const data = await res.json();
       const items = Array.isArray(data?.items)
         ? data.items
-        : Array.isArray(data)
-          ? data
-          : [];
+        : Array.isArray(data?.Items)
+          ? data.Items
+          : Array.isArray(data)
+            ? data
+            : [];
 
       if (archivedStoriesPage === 1) {
         grid.innerHTML = "";
@@ -1975,54 +2032,74 @@
 
       const res = isSavedTab
         ? await API.Posts.getSaved(
-            POSTS_PAGE_SIZE,
+            SAVED_POSTS_PAGE_SIZE,
             savedPostsCursorCreatedAt,
             savedPostsCursorPostId,
           )
-        : await API.Posts.getByAccountId(fetchForId, page, POSTS_PAGE_SIZE);
+        : await API.Posts.getByAccountId(
+            fetchForId,
+            POSTS_PAGE_SIZE,
+            postsCursorCreatedAt,
+            postsCursorPostId,
+          );
 
       if (fetchForId !== currentProfileId || fetchForTab !== activeTab)
         return [];
       if (!res.ok) throw new Error("Failed to load posts");
 
       const data = await res.json();
-      const items = Array.isArray(data?.items) ? data.items : data;
+      const items = Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data?.Items)
+          ? data.Items
+          : Array.isArray(data)
+            ? data
+            : [];
 
-      if (!items || items.length < POSTS_PAGE_SIZE) {
-        if (isSavedTab) {
-          const nextCursor = data?.nextCursor || null;
-          const nextCursorCreatedAt = (nextCursor?.createdAt || "")
-            .toString()
-            .trim();
-          const nextCursorPostId = (nextCursor?.postId || "").toString().trim();
-          hasMoreSavedPosts = Boolean(nextCursorCreatedAt && nextCursorPostId);
-          savedPostsCursorCreatedAt = hasMoreSavedPosts
-            ? nextCursorCreatedAt
-            : null;
-          savedPostsCursorPostId = hasMoreSavedPosts ? nextCursorPostId : null;
-        } else {
-          hasMore = false;
-        }
-      } else if (isSavedTab) {
-        const nextCursor = data?.nextCursor || null;
-        const nextCursorCreatedAt = (nextCursor?.createdAt || "")
+      if (isSavedTab) {
+        const nextCursor = data?.nextCursor || data?.NextCursor || null;
+        const nextCursorCreatedAt = (
+          nextCursor?.createdAt ||
+          nextCursor?.CreatedAt ||
+          ""
+        )
           .toString()
           .trim();
-        const nextCursorPostId = (nextCursor?.postId || "").toString().trim();
+        const nextCursorPostId = (
+          nextCursor?.postId ||
+          nextCursor?.PostId ||
+          ""
+        )
+          .toString()
+          .trim();
         hasMoreSavedPosts = Boolean(nextCursorCreatedAt && nextCursorPostId);
         savedPostsCursorCreatedAt = hasMoreSavedPosts
           ? nextCursorCreatedAt
           : null;
         savedPostsCursorPostId = hasMoreSavedPosts ? nextCursorPostId : null;
+      } else {
+        const nextCursor = data?.nextCursor || data?.NextCursor || null;
+        const nextCursorCreatedAt = (
+          nextCursor?.createdAt ||
+          nextCursor?.CreatedAt ||
+          ""
+        )
+          .toString()
+          .trim();
+        const nextCursorPostId = (
+          nextCursor?.postId ||
+          nextCursor?.PostId ||
+          ""
+        )
+          .toString()
+          .trim();
+        hasMore = Boolean(nextCursorCreatedAt && nextCursorPostId);
+        postsCursorCreatedAt = hasMore ? nextCursorCreatedAt : null;
+        postsCursorPostId = hasMore ? nextCursorPostId : null;
       }
 
       // Render to grid (for visual consistency) and update profilePostIds
       renderPosts(items, { replace: false });
-      if (isSavedTab) {
-        // cursor is updated by response; no page increment
-      } else {
-        page++;
-      }
 
       // Return the new posts for navigation context update
       return items.map((post) => ({

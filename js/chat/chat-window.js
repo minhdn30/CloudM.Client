@@ -2018,8 +2018,9 @@ const ChatWindow = {
         const res = await window.API.Conversations.getConversations(
           null,
           null,
-          1,
           pageSize,
+          null,
+          null,
         );
         if (res.ok) {
           const data = await res.json();
