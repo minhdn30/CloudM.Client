@@ -961,13 +961,14 @@ function renderPostDetail(post, navigateDirection = null) {
              
              const isFollowed = post.owner?.isFollowedByCurrentUser || false;
              const isSavedByCurrentUser = Boolean(post.isSavedByCurrentUser);
-             
+             const isCurrentUserTagged = Boolean(post.isCurrentUserTagged);
+              
              if (window.showPostOptions) {
-                 showPostOptions(post.postId, post.owner.accountId, isOwner, isFollowed, isSavedByCurrentUser, post.postCode || "");
+                 showPostOptions(post.postId, post.owner.accountId, isOwner, isFollowed, isSavedByCurrentUser, post.postCode || "", isCurrentUserTagged);
              } else {
                  console.error("showPostOptions not found");
              }
-        };
+         };
     }
     
     // 2. Caption

@@ -1250,7 +1250,7 @@ const CommentModule = (function () {
         // Then update with new content (uses inject logic for consistency)
         injectUpdatedComment(updatedComment, true);
 
-        if (window.toastSuccess) toastSuccess("Updated!");
+        if (window.toastSuccess) toastSuccess(isReply ? "Reply updated!" : "Comment updated!");
       } catch (err) {
         console.error(err);
         if (window.toastError) toastError("Failed to update");
