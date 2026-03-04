@@ -9,6 +9,10 @@
   let postsCursorPostId = null;
   let isLoading = false;
   let hasMore = true;
+  let taggedPostsCursorCreatedAt = null;
+  let taggedPostsCursorPostId = null;
+  let isTaggedPostsLoading = false;
+  let hasMoreTaggedPosts = true;
   let savedPostsCursorCreatedAt = null;
   let savedPostsCursorPostId = null;
   let isSavedPostsLoading = false;
@@ -35,6 +39,9 @@
   let activeTab = PROFILE_POSTS_TAB;
 
   const POSTS_PAGE_SIZE = APP_CONFIG.PROFILE_POSTS_PAGE_SIZE;
+  const TAGGED_POSTS_PAGE_SIZE =
+    APP_CONFIG.PROFILE_TAGGED_POSTS_PAGE_SIZE ||
+    APP_CONFIG.PROFILE_POSTS_PAGE_SIZE;
   const SAVED_POSTS_PAGE_SIZE =
     APP_CONFIG.PROFILE_SAVED_POSTS_PAGE_SIZE ||
     APP_CONFIG.PROFILE_POSTS_PAGE_SIZE;
@@ -450,6 +457,9 @@
       postsCursorCreatedAt = data.postsCursorCreatedAt || null;
       postsCursorPostId = data.postsCursorPostId || null;
       hasMore = data.hasMore;
+      taggedPostsCursorCreatedAt = data.taggedPostsCursorCreatedAt || null;
+      taggedPostsCursorPostId = data.taggedPostsCursorPostId || null;
+      hasMoreTaggedPosts = data.hasMoreTaggedPosts ?? true;
       savedPostsCursorCreatedAt = data.savedPostsCursorCreatedAt || null;
       savedPostsCursorPostId = data.savedPostsCursorPostId || null;
       hasMoreSavedPosts = data.hasMoreSavedPosts ?? true;
@@ -462,6 +472,7 @@
       // Without this reset, switching profile while a previous request is pending
       // can leave scroll-pagination locked (isLoading stuck true).
       isLoading = false;
+      isTaggedPostsLoading = false;
       isSavedPostsLoading = false;
       isArchivedStoriesLoading = false;
     },
@@ -470,6 +481,9 @@
       postsCursorCreatedAt,
       postsCursorPostId,
       hasMore,
+      taggedPostsCursorCreatedAt,
+      taggedPostsCursorPostId,
+      hasMoreTaggedPosts,
       savedPostsCursorCreatedAt,
       savedPostsCursorPostId,
       hasMoreSavedPosts,
@@ -767,6 +781,8 @@
 
       // Ensure pending requests from previously viewed profile cannot lock pagination.
       isLoading = false;
+      isTaggedPostsLoading = false;
+      isSavedPostsLoading = false;
       isArchivedStoriesLoading = false;
       const loaderEl = document.getElementById("profile-posts-loader");
       if (loaderEl) loaderEl.style.display = "none";
@@ -850,6 +866,14 @@
     postsCursorPostId = null;
     isLoading = false;
     hasMore = true;
+    taggedPostsCursorCreatedAt = null;
+    taggedPostsCursorPostId = null;
+    isTaggedPostsLoading = false;
+    hasMoreTaggedPosts = true;
+    savedPostsCursorCreatedAt = null;
+    savedPostsCursorPostId = null;
+    isSavedPostsLoading = false;
+    hasMoreSavedPosts = true;
     archivedStoriesPage = 1;
     isArchivedStoriesLoading = false;
     hasMoreArchivedStories = true;
@@ -909,12 +933,18 @@
 
     if (
       activeTab !== PROFILE_POSTS_TAB &&
+      activeTab !== PROFILE_TAGGED_TAB &&
       activeTab !== PROFILE_SAVED_TAB &&
       activeTab !== PROFILE_ARCHIVED_STORIES_TAB
     )
       return;
 
     if (activeTab === PROFILE_POSTS_TAB && (isLoading || !hasMore)) return;
+    if (
+      activeTab === PROFILE_TAGGED_TAB &&
+      (isTaggedPostsLoading || !hasMoreTaggedPosts)
+    )
+      return;
     if (
       activeTab === PROFILE_SAVED_TAB &&
       (isSavedPostsLoading || !hasMoreSavedPosts)
@@ -931,6 +961,8 @@
     if (mc.scrollTop + mc.clientHeight >= mc.scrollHeight - 500) {
       if (activeTab === PROFILE_POSTS_TAB) {
         loadPosts();
+      } else if (activeTab === PROFILE_TAGGED_TAB) {
+        loadTaggedPosts();
       } else if (activeTab === PROFILE_SAVED_TAB) {
         loadSavedPosts();
       } else if (activeTab === PROFILE_ARCHIVED_STORIES_TAB) {
@@ -1116,6 +1148,10 @@
         archivedStoriesPage = 1;
         isArchivedStoriesLoading = false;
         hasMoreArchivedStories = true;
+        taggedPostsCursorCreatedAt = null;
+        taggedPostsCursorPostId = null;
+        isTaggedPostsLoading = false;
+        hasMoreTaggedPosts = true;
         savedPostsCursorCreatedAt = null;
         savedPostsCursorPostId = null;
         isSavedPostsLoading = false;
@@ -1125,6 +1161,7 @@
         isLoading = false;
         startedPostLoad =
           initialTab === PROFILE_POSTS_TAB ||
+          initialTab === PROFILE_TAGGED_TAB ||
           initialTab === PROFILE_SAVED_TAB ||
           initialTab === PROFILE_ARCHIVED_STORIES_TAB;
 
@@ -1643,8 +1680,22 @@
       postsCursorPostId = null;
       hasMore = true;
       isLoading = false;
+      isTaggedPostsLoading = false;
       isSavedPostsLoading = false;
+      isArchivedStoriesLoading = false;
       loadPosts();
+    } else if (normalizedTab === PROFILE_TAGGED_TAB) {
+      // Tagged posts grid
+      grid.innerHTML = "";
+      grid.classList.remove("placeholder-mode");
+      taggedPostsCursorCreatedAt = null;
+      taggedPostsCursorPostId = null;
+      hasMoreTaggedPosts = true;
+      isTaggedPostsLoading = false;
+      isLoading = false;
+      isSavedPostsLoading = false;
+      isArchivedStoriesLoading = false;
+      loadTaggedPosts();
     } else if (normalizedTab === PROFILE_SAVED_TAB) {
       // Saved posts grid (owner only)
       grid.innerHTML = "";
@@ -1653,7 +1704,9 @@
       savedPostsCursorPostId = null;
       hasMoreSavedPosts = true;
       isSavedPostsLoading = false;
+      isTaggedPostsLoading = false;
       isLoading = false;
+      isArchivedStoriesLoading = false;
       loadSavedPosts();
     } else if (normalizedTab === PROFILE_ARCHIVED_STORIES_TAB) {
       // Archived stories grid (owner only)
@@ -1662,7 +1715,9 @@
       archivedStoriesPage = 1;
       hasMoreArchivedStories = true;
       isArchivedStoriesLoading = false;
+      isTaggedPostsLoading = false;
       isSavedPostsLoading = false;
+      isLoading = false;
       archivedStoryItems = [];
       archivedStoryIdSet.clear();
       loadArchivedStories();
@@ -1671,6 +1726,7 @@
       renderTabPlaceholder(normalizedTab);
       if (loader) loader.style.display = "none";
       isLoading = false;
+      isTaggedPostsLoading = false;
       isSavedPostsLoading = false;
       isArchivedStoriesLoading = false;
       unlockGridHeightAfterTabRender(grid);
@@ -1771,6 +1827,106 @@
       // But if we are still here, we need to complete the lifecycle.
       if (fetchForId === currentProfileId && fetchForTab === activeTab) {
         isLoading = false;
+        if (loader) loader.style.display = "none";
+        unlockGridHeightAfterTabRender(grid);
+        applyPendingTabScrollRestore();
+      }
+    }
+  }
+
+  async function loadTaggedPosts() {
+    if (activeTab !== PROFILE_TAGGED_TAB) return [];
+    if (isTaggedPostsLoading || !hasMoreTaggedPosts) return [];
+
+    const fetchForId = currentProfileId;
+    const fetchForTab = activeTab;
+    isTaggedPostsLoading = true;
+
+    const grid = document.getElementById("profile-posts-grid");
+    const loader = document.getElementById("profile-posts-loader");
+    if (!grid) {
+      isTaggedPostsLoading = false;
+      return [];
+    }
+
+    if (loader) loader.style.display = "block";
+
+    try {
+      const isGuid =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          fetchForId,
+        );
+      if (!isGuid) {
+        isTaggedPostsLoading = false;
+        return [];
+      }
+
+      if (!global.API?.Posts?.getTaggedByAccountId) {
+        throw new Error("Tagged posts API is unavailable");
+      }
+
+      const isFirstCursorRequest =
+        !taggedPostsCursorCreatedAt || !taggedPostsCursorPostId;
+      const res = await API.Posts.getTaggedByAccountId(
+        fetchForId,
+        TAGGED_POSTS_PAGE_SIZE,
+        taggedPostsCursorCreatedAt,
+        taggedPostsCursorPostId,
+      );
+
+      if (fetchForId !== currentProfileId || fetchForTab !== activeTab) {
+        return [];
+      }
+      if (!res.ok) throw new Error("Failed to load tagged posts");
+
+      const data = await res.json();
+      const items = Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data?.Items)
+          ? data.Items
+          : Array.isArray(data)
+            ? data
+            : [];
+      const nextCursor = data?.nextCursor || data?.NextCursor || null;
+      const nextCursorCreatedAt = (
+        nextCursor?.createdAt ||
+        nextCursor?.CreatedAt ||
+        ""
+      )
+        .toString()
+        .trim();
+      const nextCursorPostId = (nextCursor?.postId || nextCursor?.PostId || "")
+        .toString()
+        .trim();
+
+      if (isFirstCursorRequest && items.length === 0) {
+        hasMoreTaggedPosts = false;
+        taggedPostsCursorCreatedAt = null;
+        taggedPostsCursorPostId = null;
+        renderTabPlaceholder(PROFILE_TAGGED_TAB);
+        return [];
+      }
+
+      if (isFirstCursorRequest) {
+        grid.classList.remove("placeholder-mode");
+      }
+
+      renderPosts(items, { replace: isFirstCursorRequest });
+
+      hasMoreTaggedPosts = Boolean(nextCursorCreatedAt && nextCursorPostId);
+      taggedPostsCursorCreatedAt = hasMoreTaggedPosts
+        ? nextCursorCreatedAt
+        : null;
+      taggedPostsCursorPostId = hasMoreTaggedPosts ? nextCursorPostId : null;
+
+      return items;
+    } catch (err) {
+      console.error(err);
+      if (window.toastError) toastError("Failed to load tagged posts.");
+      return [];
+    } finally {
+      if (fetchForId === currentProfileId && fetchForTab === activeTab) {
+        isTaggedPostsLoading = false;
         if (loader) loader.style.display = "none";
         unlockGridHeightAfterTabRender(grid);
         applyPendingTabScrollRestore();
@@ -2044,12 +2200,19 @@
    * Returns array of new post objects with postId and postCode
    */
   async function loadMoreProfilePosts() {
-    if (activeTab !== PROFILE_POSTS_TAB && activeTab !== PROFILE_SAVED_TAB) {
+    if (
+      activeTab !== PROFILE_POSTS_TAB &&
+      activeTab !== PROFILE_TAGGED_TAB &&
+      activeTab !== PROFILE_SAVED_TAB
+    ) {
       return [];
     }
 
+    const isTaggedTab = activeTab === PROFILE_TAGGED_TAB;
     const isSavedTab = activeTab === PROFILE_SAVED_TAB;
-    if (isSavedTab) {
+    if (isTaggedTab) {
+      if (isTaggedPostsLoading || !hasMoreTaggedPosts) return [];
+    } else if (isSavedTab) {
       if (isSavedPostsLoading || !hasMoreSavedPosts) return [];
     } else if (isLoading || !hasMore) {
       return [];
@@ -2057,7 +2220,9 @@
 
     const fetchForId = currentProfileId;
     const fetchForTab = activeTab;
-    if (isSavedTab) {
+    if (isTaggedTab) {
+      isTaggedPostsLoading = true;
+    } else if (isSavedTab) {
       isSavedPostsLoading = true;
     } else {
       isLoading = true;
@@ -2069,7 +2234,9 @@
           fetchForId,
         );
       if (!isGuid) {
-        if (isSavedTab) {
+        if (isTaggedTab) {
+          isTaggedPostsLoading = false;
+        } else if (isSavedTab) {
           isSavedPostsLoading = false;
         } else {
           isLoading = false;
@@ -2077,18 +2244,25 @@
         return [];
       }
 
-      const res = isSavedTab
-        ? await API.Posts.getSaved(
-            SAVED_POSTS_PAGE_SIZE,
-            savedPostsCursorCreatedAt,
-            savedPostsCursorPostId,
-          )
-        : await API.Posts.getByAccountId(
+      const res = isTaggedTab
+        ? await API.Posts.getTaggedByAccountId(
             fetchForId,
-            POSTS_PAGE_SIZE,
-            postsCursorCreatedAt,
-            postsCursorPostId,
-          );
+            TAGGED_POSTS_PAGE_SIZE,
+            taggedPostsCursorCreatedAt,
+            taggedPostsCursorPostId,
+          )
+        : isSavedTab
+          ? await API.Posts.getSaved(
+              SAVED_POSTS_PAGE_SIZE,
+              savedPostsCursorCreatedAt,
+              savedPostsCursorPostId,
+            )
+          : await API.Posts.getByAccountId(
+              fetchForId,
+              POSTS_PAGE_SIZE,
+              postsCursorCreatedAt,
+              postsCursorPostId,
+            );
 
       if (fetchForId !== currentProfileId || fetchForTab !== activeTab)
         return [];
@@ -2103,7 +2277,28 @@
             ? data
             : [];
 
-      if (isSavedTab) {
+      if (isTaggedTab) {
+        const nextCursor = data?.nextCursor || data?.NextCursor || null;
+        const nextCursorCreatedAt = (
+          nextCursor?.createdAt ||
+          nextCursor?.CreatedAt ||
+          ""
+        )
+          .toString()
+          .trim();
+        const nextCursorPostId = (
+          nextCursor?.postId ||
+          nextCursor?.PostId ||
+          ""
+        )
+          .toString()
+          .trim();
+        hasMoreTaggedPosts = Boolean(nextCursorCreatedAt && nextCursorPostId);
+        taggedPostsCursorCreatedAt = hasMoreTaggedPosts
+          ? nextCursorCreatedAt
+          : null;
+        taggedPostsCursorPostId = hasMoreTaggedPosts ? nextCursorPostId : null;
+      } else if (isSavedTab) {
         const nextCursor = data?.nextCursor || data?.NextCursor || null;
         const nextCursorCreatedAt = (
           nextCursor?.createdAt ||
@@ -2158,7 +2353,9 @@
       return [];
     } finally {
       if (fetchForId === currentProfileId && fetchForTab === activeTab) {
-        if (isSavedTab) {
+        if (isTaggedTab) {
+          isTaggedPostsLoading = false;
+        } else if (isSavedTab) {
           isSavedPostsLoading = false;
         } else {
           isLoading = false;
@@ -2169,8 +2366,11 @@
 
   // Export for post-detail.js navigation
   window.loadMoreProfilePosts = loadMoreProfilePosts;
-  window.getProfileHasMore = () =>
-    activeTab === PROFILE_SAVED_TAB ? hasMoreSavedPosts : hasMore;
+  window.getProfileHasMore = () => {
+    if (activeTab === PROFILE_TAGGED_TAB) return hasMoreTaggedPosts;
+    if (activeTab === PROFILE_SAVED_TAB) return hasMoreSavedPosts;
+    return hasMore;
+  };
 
   // Remove a post from the navigation list (called when post becomes invalid during navigation)
   window.removeProfilePostId = function (postId) {
@@ -2231,6 +2431,65 @@
     removeSavedPostFromGrid(postId);
   };
 
+  function removeTaggedPostFromGrid(postId) {
+    const grid = document.getElementById("profile-posts-grid");
+    if (!grid) return;
+
+    const normalizedPostId = (postId || "").toString().trim().toLowerCase();
+    if (!normalizedPostId) return;
+
+    const targetItem = Array.from(
+      grid.querySelectorAll(".profile-grid-item"),
+    ).find(
+      (item) =>
+        (item.dataset.postId || "").toString().trim().toLowerCase() ===
+        normalizedPostId,
+    );
+
+    if (targetItem) {
+      targetItem.remove();
+    }
+
+    if (typeof window.removeProfilePostId === "function") {
+      window.removeProfilePostId(postId);
+    } else {
+      profilePostIds = profilePostIds.filter(
+        (item) =>
+          (item.postId || "").toString().trim().toLowerCase() !==
+          normalizedPostId,
+      );
+    }
+
+    if (activeTab !== PROFILE_TAGGED_TAB) return;
+
+    const remainingItems = grid.querySelectorAll(".profile-grid-item").length;
+    if (remainingItems > 0) return;
+
+    if (hasMoreTaggedPosts && !isTaggedPostsLoading) {
+      loadTaggedPosts().then((items) => {
+        const hasGridItems =
+          (document.querySelectorAll("#profile-posts-grid .profile-grid-item")
+            ?.length || 0) > 0;
+        if (!hasGridItems && (!items || items.length === 0)) {
+          renderTabPlaceholder(PROFILE_TAGGED_TAB);
+        }
+      });
+      return;
+    }
+
+    renderTabPlaceholder(PROFILE_TAGGED_TAB);
+  }
+
+  window.onPostCurrentUserTagStateChanged = function (
+    postId,
+    isCurrentUserTagged,
+  ) {
+    if (isCurrentUserTagged !== false) return;
+    if (activeTab !== PROFILE_TAGGED_TAB) return;
+    if (!isCurrentUserProfile()) return;
+    removeTaggedPostFromGrid(postId);
+  };
+
   function renderPosts(posts, options = {}) {
     const grid = document.getElementById("profile-posts-grid");
     if (!grid) return;
@@ -2260,7 +2519,11 @@
     item.onclick = () => {
       if (window.openPostDetail) {
         const hasMoreForCurrentTab =
-          activeTab === PROFILE_SAVED_TAB ? hasMoreSavedPosts : hasMore;
+          activeTab === PROFILE_TAGGED_TAB
+            ? hasMoreTaggedPosts
+            : activeTab === PROFILE_SAVED_TAB
+              ? hasMoreSavedPosts
+              : hasMore;
         // Find current index in the list
         const index = profilePostIds.findIndex((p) => p.postId === post.postId);
         // Pass navigation context for next/prev functionality

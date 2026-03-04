@@ -294,7 +294,7 @@ async function runWithPendingButton(button, pendingText, action) {
   button.disabled = true;
   button.classList.add("is-loading");
   button.setAttribute("aria-busy", "true");
-  button.innerHTML = `<span class="spinner spinner-tiny auth-btn-spinner" aria-hidden="true"></span><span>${pendingText}</span>`;
+  button.innerHTML = `<span>${pendingText}</span><span class="spinner spinner-tiny auth-btn-spinner" aria-hidden="true"></span>`;
 
   try {
     return await action();
@@ -1133,7 +1133,7 @@ loginForm.addEventListener("submit", async (e) => {
   signInSubmitBtn.disabled = true;
   signInSubmitBtn.classList.add("is-loading");
   signInSubmitBtn.setAttribute("aria-busy", "true");
-  signInSubmitBtn.innerHTML = `<span class="spinner spinner-tiny auth-btn-spinner" aria-hidden="true"></span><span>Signing in...</span>`;
+  signInSubmitBtn.innerHTML = `<span>Signing in...</span><span class="spinner spinner-tiny auth-btn-spinner" aria-hidden="true"></span>`;
 
   function resetSignInButton() {
     signInSubmitBtn.disabled = false;

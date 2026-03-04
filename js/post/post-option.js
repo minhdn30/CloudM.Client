@@ -397,6 +397,8 @@ function markPostAsCurrentUserUntagged(postId, latestState = null) {
 }
 
 async function confirmUntagMeFromPost(postId) {
+  const genericUntagErrorMessage = "Could not remove tag. Please try again.";
+
   if (!window.API?.Posts?.untagMe) {
     if (window.toastError) toastError("Untag is unavailable.");
     closeUntagConfirm();
@@ -431,27 +433,27 @@ async function confirmUntagMeFromPost(postId) {
     }
 
     if (!res.ok) {
-      let message = "Could not remove tag.";
-      const serverMessage = (
-        responseData?.message ||
-        responseData?.Message ||
-        ""
-      )
-        .toString()
-        .trim();
-      if (serverMessage) message = serverMessage;
-      throw new Error(message);
+      throw new Error(genericUntagErrorMessage);
     }
 
     const latestState = parseUntagPostTagState(responseData, postId);
 
     closeUntagConfirm();
     markPostAsCurrentUserUntagged(postId, latestState);
+    if (window.syncPostDetailNavigationAfterPostRemoved) {
+      window.syncPostDetailNavigationAfterPostRemoved(postId);
+    }
+    if (window.onPostCurrentUserTagStateChanged) {
+      window.onPostCurrentUserTagStateChanged(
+        postId,
+        Boolean(latestState?.isCurrentUserTagged),
+      );
+    }
     if (window.toastSuccess) toastSuccess("Tag removed.");
   } catch (err) {
     console.error(err);
     if (window.toastError) {
-      toastError(err?.message || "Could not remove tag.");
+      toastError(genericUntagErrorMessage);
     }
     if (actionBtn) actionBtn.disabled = false;
     closeUntagConfirm();

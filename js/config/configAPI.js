@@ -511,6 +511,18 @@
         }
         return apiFetch(url);
       },
+      getTaggedByAccountId: (
+        accountId,
+        limit,
+        cursorCreatedAt,
+        cursorPostId,
+      ) => {
+        let url = `/Posts/profile/${accountId}/tagged?limit=${encodeURIComponent(limit)}`;
+        if (cursorCreatedAt && cursorPostId) {
+          url += `&cursorCreatedAt=${encodeURIComponent(cursorCreatedAt)}&cursorPostId=${encodeURIComponent(cursorPostId)}`;
+        }
+        return apiFetch(url);
+      },
       getSaved: (limit, cursorCreatedAt, cursorPostId) => {
         let url = `/Posts/saved?limit=${limit}`;
         if (cursorCreatedAt && cursorPostId) {
