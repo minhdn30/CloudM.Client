@@ -1,5 +1,3 @@
-
-
 const signUpButton = document.getElementById("signUp");
 const signInButton = document.getElementById("signIn");
 const container = document.getElementById("container");
@@ -53,9 +51,15 @@ const REGISTER_PASSWORD_MIN_LENGTH = 6;
 const PASSWORD_ACCENT_REGEX = /[\u00C0-\u024F\u1E00-\u1EFF]/u;
 const USERNAME_REGEX = /^[A-Za-z0-9_]+$/;
 
-const signupRuleUsernameLength = document.getElementById("signup-rule-username-length");
-const signupRuleFullnameLength = document.getElementById("signup-rule-fullname-length");
-const signupRulePasswordMinLength = document.getElementById("signup-rule-password-min-length");
+const signupRuleUsernameLength = document.getElementById(
+  "signup-rule-username-length",
+);
+const signupRuleFullnameLength = document.getElementById(
+  "signup-rule-fullname-length",
+);
+const signupRulePasswordMinLength = document.getElementById(
+  "signup-rule-password-min-length",
+);
 
 if (signupRuleUsernameLength) {
   signupRuleUsernameLength.textContent = `${REGISTER_USERNAME_MIN_LENGTH}-${REGISTER_USERNAME_MAX_LENGTH}`;
@@ -66,7 +70,9 @@ if (signupRuleFullnameLength) {
 }
 
 if (signupRulePasswordMinLength) {
-  signupRulePasswordMinLength.textContent = String(REGISTER_PASSWORD_MIN_LENGTH);
+  signupRulePasswordMinLength.textContent = String(
+    REGISTER_PASSWORD_MIN_LENGTH,
+  );
 }
 
 const signupUsernameInput = document.getElementById("signup-username");
@@ -74,16 +80,30 @@ const signupFullnameInput = document.getElementById("signup-fullname");
 const loginEmailInput = document.getElementById("login-email");
 const loginPasswordInput = document.getElementById("login-password");
 const googleLoginBtn = document.getElementById("google-login-btn");
-const googleSigninRenderHost = document.getElementById("google-signin-render-host");
+const googleSigninRenderHost = document.getElementById(
+  "google-signin-render-host",
+);
 
 if (signupUsernameInput) {
-  signupUsernameInput.setAttribute("minlength", String(REGISTER_USERNAME_MIN_LENGTH));
-  signupUsernameInput.setAttribute("maxlength", String(REGISTER_USERNAME_MAX_LENGTH));
+  signupUsernameInput.setAttribute(
+    "minlength",
+    String(REGISTER_USERNAME_MIN_LENGTH),
+  );
+  signupUsernameInput.setAttribute(
+    "maxlength",
+    String(REGISTER_USERNAME_MAX_LENGTH),
+  );
 }
 
 if (signupFullnameInput) {
-  signupFullnameInput.setAttribute("minlength", String(REGISTER_FULLNAME_MIN_LENGTH));
-  signupFullnameInput.setAttribute("maxlength", String(REGISTER_FULLNAME_MAX_LENGTH));
+  signupFullnameInput.setAttribute(
+    "minlength",
+    String(REGISTER_FULLNAME_MIN_LENGTH),
+  );
+  signupFullnameInput.setAttribute(
+    "maxlength",
+    String(REGISTER_FULLNAME_MAX_LENGTH),
+  );
 }
 
 function syncFloatingFieldState(input) {
@@ -132,7 +152,9 @@ const VERIFY_MODAL_STEP = {
 const forgotPasswordLink = document.getElementById("forgot-password-link");
 const forgotPasswordPopup = document.getElementById("forgot-password-popup");
 const forgotPasswordTitle = document.getElementById("forgot-password-title");
-const forgotPasswordDescription = document.getElementById("forgot-password-description");
+const forgotPasswordDescription = document.getElementById(
+  "forgot-password-description",
+);
 const forgotStepEmail = document.getElementById("forgot-step-email");
 const forgotStepCode = document.getElementById("forgot-step-code");
 const forgotStepReset = document.getElementById("forgot-step-reset");
@@ -140,18 +162,32 @@ const forgotEmailInput = document.getElementById("forgot-email");
 const forgotSendCodeBtn = document.getElementById("forgot-send-code-btn");
 const forgotVerifyCodeBtn = document.getElementById("forgot-verify-code-btn");
 const forgotResendCodeBtn = document.getElementById("forgot-resend-code-btn");
-const forgotResetPasswordBtn = document.getElementById("forgot-reset-password-btn");
+const forgotResetPasswordBtn = document.getElementById(
+  "forgot-reset-password-btn",
+);
 const forgotNewPasswordInput = document.getElementById("forgot-new-password");
-const forgotConfirmPasswordInput = document.getElementById("forgot-confirm-password");
+const forgotConfirmPasswordInput = document.getElementById(
+  "forgot-confirm-password",
+);
 const forgotCodeInputs = forgotPasswordPopup
   ? forgotPasswordPopup.querySelectorAll(".forgot-code-input")
   : [];
 const externalProfilePopup = document.getElementById("external-profile-popup");
-const externalProfileEmailInput = document.getElementById("external-profile-email");
-const externalProfileUsernameInput = document.getElementById("external-profile-username");
-const externalProfileFullnameInput = document.getElementById("external-profile-fullname");
-const externalProfileSubmitBtn = document.getElementById("external-profile-submit-btn");
-const closeExternalProfileBtn = document.querySelector(".close-external-profile-popup");
+const externalProfileEmailInput = document.getElementById(
+  "external-profile-email",
+);
+const externalProfileUsernameInput = document.getElementById(
+  "external-profile-username",
+);
+const externalProfileFullnameInput = document.getElementById(
+  "external-profile-fullname",
+);
+const externalProfileSubmitBtn = document.getElementById(
+  "external-profile-submit-btn",
+);
+const closeExternalProfileBtn = document.querySelector(
+  ".close-external-profile-popup",
+);
 
 const FORGOT_MODAL_STEP = {
   EMAIL: "email",
@@ -345,7 +381,10 @@ function startGoogleSignInPrecheck() {
   }
 
   if (!ensureGoogleIdentityInitialized()) {
-    showToast("Google sign-in is initializing. Please wait a moment and try again.", "error");
+    showToast(
+      "Google sign-in is initializing. Please wait a moment and try again.",
+      "error",
+    );
     return false;
   }
 
@@ -355,7 +394,10 @@ function startGoogleSignInPrecheck() {
 async function handleGoogleCredentialResponse(response) {
   const idToken = response?.credential;
   if (!idToken) {
-    showToast("Google sign-in was canceled or unavailable. Please try again.", "error");
+    showToast(
+      "Google sign-in was canceled or unavailable. Please try again.",
+      "error",
+    );
     return;
   }
 
@@ -366,12 +408,19 @@ async function handleGoogleCredentialResponse(response) {
     const data = await res.json();
 
     if (!res.ok) {
-      showToast(data.message || data.Message || "Google sign-in failed.", "error");
+      showToast(
+        data.message || data.Message || "Google sign-in failed.",
+        "error",
+      );
       return;
     }
 
     if (data?.requiresProfileCompletion) {
-      openExternalProfileModal(data.profile, data.profile?.provider || "Google", idToken);
+      openExternalProfileModal(
+        data.profile,
+        data.profile?.provider || "Google",
+        idToken,
+      );
       return;
     }
 
@@ -390,11 +439,17 @@ async function handleGoogleCredentialResponse(response) {
 }
 
 function persistSessionFromLoginResponse(data) {
-  if (window.AuthStore && typeof window.AuthStore.clearAccessToken === "function") {
+  if (
+    window.AuthStore &&
+    typeof window.AuthStore.clearAccessToken === "function"
+  ) {
     window.AuthStore.clearAccessToken("login-reset");
   }
 
-  if (window.AuthStore && typeof window.AuthStore.setAccessToken === "function") {
+  if (
+    window.AuthStore &&
+    typeof window.AuthStore.setAccessToken === "function"
+  ) {
     window.AuthStore.setAccessToken(data.accessToken, "login");
   }
 
@@ -402,7 +457,10 @@ function persistSessionFromLoginResponse(data) {
   localStorage.setItem("username", data.username || "");
   localStorage.setItem("avatarUrl", data.avatarUrl || "");
   localStorage.setItem("accountId", data.accountId || "");
-  localStorage.setItem("defaultPostPrivacy", data.defaultPostPrivacy ?? data.DefaultPostPrivacy ?? 0);
+  localStorage.setItem(
+    "defaultPostPrivacy",
+    data.defaultPostPrivacy ?? data.DefaultPostPrivacy ?? 0,
+  );
 }
 
 function handleAuthenticatedRedirect(loginData, successMessage) {
@@ -430,7 +488,10 @@ function handleAuthenticatedRedirect(loginData, successMessage) {
   }
 
   if (loginData.status === 5) {
-    showToast("Email is not verified. Please verify your email first.", "error");
+    showToast(
+      "Email is not verified. Please verify your email first.",
+      "error",
+    );
     return false;
   }
 
@@ -487,7 +548,9 @@ function setVerifyModalContent(mode, step) {
   }
 
   const isLoginMode = mode === VERIFY_MODAL_MODE.LOGIN;
-  verifyTitle.textContent = isLoginMode ? "Verify Email to Continue" : "Verify Email";
+  verifyTitle.textContent = isLoginMode
+    ? "Verify Email to Continue"
+    : "Verify Email";
 
   if (step === VERIFY_MODAL_STEP.SEND) {
     verifyDescription.textContent =
@@ -535,7 +598,12 @@ function closeVerifyModal() {
 }
 
 function setForgotPasswordModalStep(step) {
-  if (!forgotPasswordPopup || !forgotStepEmail || !forgotStepCode || !forgotStepReset) {
+  if (
+    !forgotPasswordPopup ||
+    !forgotStepEmail ||
+    !forgotStepCode ||
+    !forgotStepReset
+  ) {
     return;
   }
 
@@ -678,15 +746,27 @@ function openExternalProfileModal(profile, provider, credential) {
 
   if (externalProfileUsernameInput) {
     externalProfileUsernameInput.value = suggestedUsername;
-    externalProfileUsernameInput.setAttribute("minlength", String(REGISTER_USERNAME_MIN_LENGTH));
-    externalProfileUsernameInput.setAttribute("maxlength", String(REGISTER_USERNAME_MAX_LENGTH));
+    externalProfileUsernameInput.setAttribute(
+      "minlength",
+      String(REGISTER_USERNAME_MIN_LENGTH),
+    );
+    externalProfileUsernameInput.setAttribute(
+      "maxlength",
+      String(REGISTER_USERNAME_MAX_LENGTH),
+    );
     syncFloatingFieldState(externalProfileUsernameInput);
   }
 
   if (externalProfileFullnameInput) {
     externalProfileFullnameInput.value = suggestedFullName;
-    externalProfileFullnameInput.setAttribute("minlength", String(REGISTER_FULLNAME_MIN_LENGTH));
-    externalProfileFullnameInput.setAttribute("maxlength", String(REGISTER_FULLNAME_MAX_LENGTH));
+    externalProfileFullnameInput.setAttribute(
+      "minlength",
+      String(REGISTER_FULLNAME_MIN_LENGTH),
+    );
+    externalProfileFullnameInput.setAttribute(
+      "maxlength",
+      String(REGISTER_FULLNAME_MAX_LENGTH),
+    );
     syncFloatingFieldState(externalProfileFullnameInput);
   }
 
@@ -727,7 +807,10 @@ async function completeExternalProfile() {
   const fullName = (externalProfileFullnameInput?.value || "").trim();
 
   if (!provider || !credential) {
-    showToast("External sign-in session has expired. Please try Google sign-in again.", "error");
+    showToast(
+      "External sign-in session has expired. Please try Google sign-in again.",
+      "error",
+    );
     closeExternalProfileModal();
     return false;
   }
@@ -772,7 +855,10 @@ async function completeExternalProfile() {
     const data = await res.json();
 
     if (!res.ok) {
-      showToast(data.message || data.Message || "Failed to complete your profile.", "error");
+      showToast(
+        data.message || data.Message || "Failed to complete your profile.",
+        "error",
+      );
       return false;
     }
 
@@ -798,7 +884,10 @@ async function sendForgotPasswordCode({ switchToCode = true } = {}) {
     const data = await res.json();
 
     if (!res.ok) {
-      showToast(data.message || data.Message || "Failed to send reset code.", "error");
+      showToast(
+        data.message || data.Message || "Failed to send reset code.",
+        "error",
+      );
       return false;
     }
 
@@ -819,7 +908,11 @@ async function sendForgotPasswordCode({ switchToCode = true } = {}) {
 }
 
 async function verifyForgotPasswordCode() {
-  const email = (forgotPasswordPopup?.dataset.email || forgotEmailInput?.value || "").trim();
+  const email = (
+    forgotPasswordPopup?.dataset.email ||
+    forgotEmailInput?.value ||
+    ""
+  ).trim();
   const code = getForgotCode();
 
   if (!email) {
@@ -837,7 +930,10 @@ async function verifyForgotPasswordCode() {
     const data = await res.json();
 
     if (!res.ok) {
-      showToast(data.message || data.Message || "Verification failed.", "error");
+      showToast(
+        data.message || data.Message || "Verification failed.",
+        "error",
+      );
       resetForgotCodeInputs(true);
       return false;
     }
@@ -857,7 +953,11 @@ async function verifyForgotPasswordCode() {
 }
 
 async function resetForgottenPassword() {
-  const email = (forgotPasswordPopup?.dataset.email || forgotEmailInput?.value || "").trim();
+  const email = (
+    forgotPasswordPopup?.dataset.email ||
+    forgotEmailInput?.value ||
+    ""
+  ).trim();
   const code = forgotVerifiedCode || getForgotCode();
   const newPassword = forgotNewPasswordInput?.value || "";
   const confirmPassword = forgotConfirmPasswordInput?.value || "";
@@ -895,7 +995,10 @@ async function resetForgottenPassword() {
     const data = await res.json();
 
     if (!res.ok) {
-      showToast(data.message || data.Message || "Reset password failed.", "error");
+      showToast(
+        data.message || data.Message || "Reset password failed.",
+        "error",
+      );
       return false;
     }
 
@@ -922,7 +1025,10 @@ async function sendVerificationCode(email, { switchToCode = true } = {}) {
     const data = await res.json();
 
     if (!res.ok) {
-      showToast(data.message || data.Message || "Failed to send code.", "error");
+      showToast(
+        data.message || data.Message || "Failed to send code.",
+        "error",
+      );
       return false;
     }
 
@@ -949,7 +1055,10 @@ async function loginAfterEmailVerification() {
   }
 
   try {
-    const res = await API.Auth.login(pendingAutoLogin.email, pendingAutoLogin.password);
+    const res = await API.Auth.login(
+      pendingAutoLogin.email,
+      pendingAutoLogin.password,
+    );
     const data = await res.json();
 
     if (!res.ok) {
@@ -995,7 +1104,9 @@ async function loginAfterEmailVerification() {
 
 // === LOGIN FORM ===
 const loginForm = document.querySelector(".sign-in-container form");
-const signInSubmitBtn = loginForm?.querySelector("button[type='submit'], button");
+const signInSubmitBtn = loginForm?.querySelector(
+  "button[type='submit'], button",
+);
 
 if (loginPasswordInput) {
   loginPasswordInput.addEventListener("input", () => {
@@ -1011,79 +1122,107 @@ if (loginPasswordInput) {
 loginForm.addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  await runWithPendingButton(signInSubmitBtn, "Signing in...", async () => {
-    const email = (loginEmailInput?.value || "").trim();
-    const password = (loginPasswordInput?.value || "").trim();
+  if (!signInSubmitBtn || signInSubmitBtn.disabled) {
+    return;
+  }
 
-    if (!email) {
-      showToast("Email is required.", "error");
-      return;
+  // bật loading thủ công thay vì dùng runWithPendingButton để giữ loading xuyên suốt khi redirect
+  const defaultHtml =
+    signInSubmitBtn.dataset.defaultHtml || signInSubmitBtn.innerHTML;
+  signInSubmitBtn.dataset.defaultHtml = defaultHtml;
+  signInSubmitBtn.disabled = true;
+  signInSubmitBtn.classList.add("is-loading");
+  signInSubmitBtn.setAttribute("aria-busy", "true");
+  signInSubmitBtn.innerHTML = `<span class="spinner spinner-tiny auth-btn-spinner" aria-hidden="true"></span><span>Signing in...</span>`;
+
+  function resetSignInButton() {
+    signInSubmitBtn.disabled = false;
+    signInSubmitBtn.classList.remove("is-loading");
+    signInSubmitBtn.removeAttribute("aria-busy");
+    signInSubmitBtn.innerHTML =
+      signInSubmitBtn.dataset.defaultHtml || defaultHtml;
+  }
+
+  const email = (loginEmailInput?.value || "").trim();
+  const password = (loginPasswordInput?.value || "").trim();
+
+  if (!email) {
+    showToast("Email is required.", "error");
+    resetSignInButton();
+    return;
+  }
+  if (!password) {
+    showToast("Password is required.", "error");
+    resetSignInButton();
+    return;
+  }
+
+  try {
+    if (prefilledPasswordClearTimer) {
+      clearTimeout(prefilledPasswordClearTimer);
+      prefilledPasswordClearTimer = null;
     }
-    if (!password) {
-      showToast("Password is required.", "error");
-      return;
-    }
 
-    try {
-      if (prefilledPasswordClearTimer) {
-        clearTimeout(prefilledPasswordClearTimer);
-        prefilledPasswordClearTimer = null;
-      }
+    const res = await API.Auth.login(email, password);
+    const data = await res.json();
 
-      const res = await API.Auth.login(email, password);
-      const data = await res.json();
-
-      if (!res.ok) {
-        showToast(data.message || "Login failed", "error");
-        if (isEmailNotVerifiedResponse(res, data)) {
-          setPendingAutoLogin(email, password);
-          openVerifyModal({
-            email,
-            mode: VERIFY_MODAL_MODE.LOGIN,
-            step: VERIFY_MODAL_STEP.SEND,
-          });
-        }
-        return;
-      }
-
-      persistSessionFromLoginResponse(data);
-
-      // Check Account Status
-      if (data.status === 1) { // Inactive
-        showToast(
-          `<div>
-            <p style="margin-bottom: 8px;">Your account is currently Inactive. Please reactivate to continue.</p>
-            <div class="toast-actions">
-              <button class="toast-btn" onclick="window.reactivateAccountAction()">Reactivate Now</button>
-              <button class="toast-btn secondary" onclick="window.location.href='auth.html'">Later</button>
-            </div>
-          </div>`,
-          "error",
-          0, // Persistent
-          true // HTML
-        );
-        return; // Stop here, don't redirect to index yet
-      } 
-      if (data.status === 5) { // EmailNotVerified
-        showToast("Email is not verified. Please verify your email.", "error");
+    if (!res.ok) {
+      showToast(data.message || "Login failed", "error");
+      if (isEmailNotVerifiedResponse(res, data)) {
         setPendingAutoLogin(email, password);
         openVerifyModal({
           email,
           mode: VERIFY_MODAL_MODE.LOGIN,
           step: VERIFY_MODAL_STEP.SEND,
         });
-        return;
       }
-
-      showToast("Login successful!", "success");
-      setTimeout(() => {
-        window.location.href = "index.html";
-      }, 800);
-    } catch (err) {
-      console.error(err);
-      showToast("Server error. Please try again later.", "error");
+      resetSignInButton();
+      return;
     }
-  });
+
+    persistSessionFromLoginResponse(data);
+
+    // Check Account Status
+    if (data.status === 1) {
+      // Inactive
+      showToast(
+        `<div>
+            <p style="margin-bottom: 8px;">Your account is currently Inactive. Please reactivate to continue.</p>
+            <div class="toast-actions">
+              <button class="toast-btn" onclick="window.reactivateAccountAction()">Reactivate Now</button>
+              <button class="toast-btn secondary" onclick="window.location.href='auth.html'">Later</button>
+            </div>
+          </div>`,
+        "error",
+        0, // Persistent
+        true, // HTML
+      );
+      resetSignInButton();
+      return;
+    }
+    if (data.status === 5) {
+      // EmailNotVerified
+      showToast("Email is not verified. Please verify your email.", "error");
+      setPendingAutoLogin(email, password);
+      openVerifyModal({
+        email,
+        mode: VERIFY_MODAL_MODE.LOGIN,
+        step: VERIFY_MODAL_STEP.SEND,
+      });
+      resetSignInButton();
+      return;
+    }
+
+    // login thành công — giữ loading xoay cho đến khi redirect
+    showToast("Login successful!", "success");
+    setTimeout(() => {
+      window.location.href = "index.html";
+    }, 800);
+  } catch (err) {
+    console.error(err);
+    showToast("Server error. Please try again later.", "error");
+    resetSignInButton();
+  }
 });
 
 if (googleLoginBtn) {
@@ -1127,7 +1266,9 @@ if (String(appConfig.GOOGLE_CLIENT_ID || "").trim()) {
 
 //=== Signup form submit===
 const signupForm = document.querySelector(".sign-up-container form");
-const signupSubmitBtn = signupForm?.querySelector("button[type='submit'], button");
+const signupSubmitBtn = signupForm?.querySelector(
+  "button[type='submit'], button",
+);
 signupForm.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -1185,7 +1326,12 @@ signupForm.addEventListener("submit", async (e) => {
     }
 
     try {
-      const res = await API.Auth.register({ username, email, fullname, password });
+      const res = await API.Auth.register({
+        username,
+        email,
+        fullname,
+        password,
+      });
       const data = await res.json();
 
       if (!res.ok) {
@@ -1320,7 +1466,9 @@ resendBtn.addEventListener("click", async () => {
 if (forgotPasswordLink) {
   forgotPasswordLink.addEventListener("click", (e) => {
     e.preventDefault();
-    const loginEmail = (document.getElementById("login-email")?.value || "").trim();
+    const loginEmail = (
+      document.getElementById("login-email")?.value || ""
+    ).trim();
     openForgotPasswordModal(loginEmail);
   });
 }
@@ -1402,8 +1550,10 @@ if (externalProfileFullnameInput) {
   externalProfileFullnameInput.addEventListener("keydown", async (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      await runWithPendingButton(externalProfileSubmitBtn, "Completing...", () =>
-        completeExternalProfile(),
+      await runWithPendingButton(
+        externalProfileSubmitBtn,
+        "Completing...",
+        () => completeExternalProfile(),
       );
     }
   });

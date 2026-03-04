@@ -40,7 +40,9 @@
   }
 
   function getPostTagCacheMaxEntries() {
-    const parsedMaxEntries = Number(window.APP_CONFIG?.POST_TAG_CACHE_MAX_ENTRIES);
+    const parsedMaxEntries = Number(
+      window.APP_CONFIG?.POST_TAG_CACHE_MAX_ENTRIES,
+    );
     if (!Number.isFinite(parsedMaxEntries) || parsedMaxEntries <= 0) {
       return 200;
     }
@@ -404,7 +406,9 @@
 
     if (!rawEntry || typeof rawEntry !== "object") return null;
 
-    const normalizedAccounts = normalizePostTaggedAccountList(rawEntry.accounts);
+    const normalizedAccounts = normalizePostTaggedAccountList(
+      rawEntry.accounts,
+    );
     if (normalizedAccounts.length <= 0) return null;
 
     const now = Date.now();
@@ -840,7 +844,10 @@
     );
     if (normalizedAccounts.length <= 0) return;
 
-    const previewAccounts = normalizedAccounts.slice(0, getPostTagPreviewLimit());
+    const previewAccounts = normalizedAccounts.slice(
+      0,
+      getPostTagPreviewLimit(),
+    );
 
     const applyToSummary = (summaryEl) => {
       if (!summaryEl) return;
@@ -946,7 +953,9 @@
     }
 
     const followStateMap = new Map();
-    const rows = listEl.querySelectorAll(".interaction-item .user-info[data-account-id]");
+    const rows = listEl.querySelectorAll(
+      ".interaction-item .user-info[data-account-id]",
+    );
     rows.forEach((userInfoEl) => {
       const accountId = (userInfoEl.dataset.accountId || "").toString().trim();
       if (!accountId) return;
@@ -982,26 +991,15 @@
 
   async function fetchFullTaggedAccountsForPost(source) {
     const postId = (source?.postId || source?.PostId || "").toString().trim();
-    const postCode = (source?.postCode || source?.PostCode || "")
-      .toString()
-      .trim();
     const cached = getCachedTaggedAccounts(source);
 
-    if (!postId && !postCode) {
+    if (!postId) {
       return cached;
     }
 
     let response = null;
     if (postId && window.API?.Posts?.getTaggedAccounts) {
       response = await window.API.Posts.getTaggedAccounts(postId);
-    }
-
-    if ((!response || !response.ok) && postId && window.API?.Posts?.getById) {
-      response = await window.API.Posts.getById(postId);
-    }
-
-    if ((!response || !response.ok) && postCode && window.API?.Posts?.getByPostCode) {
-      response = await window.API.Posts.getByPostCode(postCode);
     }
 
     if (!response || !response.ok) {
@@ -1104,7 +1102,11 @@
       false,
     );
     const summaryMaxLen = window.APP_CONFIG?.POST_TAG_SUMMARY_MAX_LENGTH || 48;
-    const firstLinkHtml = PostUtils.buildPostTagNameLink(firstAccount, total, true);
+    const firstLinkHtml = PostUtils.buildPostTagNameLink(
+      firstAccount,
+      total,
+      true,
+    );
     let summaryHtml = "";
     let summaryTitle = "";
     const buildOthersTriggerHtml = (label) => {
@@ -1395,7 +1397,8 @@
     setTaggedAccountsModalLoading(true);
 
     try {
-      const accounts = await resolveTaggedAccountsForSummaryContext(summaryContext);
+      const accounts =
+        await resolveTaggedAccountsForSummaryContext(summaryContext);
       renderTaggedAccountsModalList(accounts);
       syncTaggedSummaryToPostElements(
         postTaggedAccountsModalState.currentPostId,

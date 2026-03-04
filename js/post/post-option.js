@@ -1,8 +1,20 @@
 let currentPostOptions = null;
 const pendingSavePosts = new Set();
+const pendingUntagPosts = new Set();
 
 function normalizePostId(value) {
   return (value || "").toString().trim().toLowerCase();
+}
+
+function normalizeAccountId(value) {
+  return (value || "").toString().trim().toLowerCase();
+}
+
+function getCurrentViewerAccountId() {
+  return (
+    normalizeAccountId(window.APP_CONFIG?.CURRENT_USER_ID) ||
+    normalizeAccountId(localStorage.getItem("accountId"))
+  );
 }
 
 function parseSavedState(value, fallback = false) {
@@ -137,6 +149,7 @@ function showPostOptions(
   isFollowing,
   isSavedByCurrentUser = false,
   postCode = "",
+  isCurrentUserTagged = false,
 ) {
   if (currentPostOptions) closePostOptions();
 
@@ -177,6 +190,13 @@ function showPostOptions(
       <button class="post-option" onclick="hidePost('${postId}')">
         <i data-lucide="eye-off"></i><span>Hide</span>
       </button>
+      ${
+        isCurrentUserTagged
+          ? `<button class="post-option" onclick="untagMeFromPost('${postId}')">
+        <i data-lucide="tag"></i><span>Remove Tag</span>
+      </button>`
+          : ""
+      }
       <button class="post-option" onclick="copyPostLink('${safePostCodeForJs}')">
         <i data-lucide="link"></i><span>Copy link</span>
       </button>
@@ -222,6 +242,222 @@ function closePostOptions() {
 function deletePost(postId) {
   closePostOptions();
   showDeleteConfirm(postId);
+}
+
+function untagMeFromPost(postId) {
+  closePostOptions();
+  showUntagConfirm(postId);
+}
+
+function showUntagConfirm(postId) {
+  const overlay = document.createElement("div");
+  overlay.className = "post-options-overlay";
+  overlay.id = "untagPostConfirmOverlay";
+
+  const popup = document.createElement("div");
+  popup.className = "post-options-popup";
+
+  popup.innerHTML = `
+    <div class="post-options-header">
+      <h3>Remove tag from this post?</h3>
+      <p>You can be tagged again if the owner tags you later.</p>
+    </div>
+    <button class="post-option post-option-danger" onclick="confirmUntagMeFromPost('${postId}')">
+      Remove Tag
+    </button>
+    <button class="post-option post-option-cancel" onclick="closeUntagConfirm()">
+      Cancel
+    </button>
+  `;
+
+  overlay.appendChild(popup);
+  document.body.appendChild(overlay);
+
+  requestAnimationFrame(() => overlay.classList.add("show"));
+
+  overlay.onclick = (e) => {
+    if (e.target === overlay) closeUntagConfirm();
+  };
+}
+
+function closeUntagConfirm() {
+  const overlay = document.getElementById("untagPostConfirmOverlay");
+  if (!overlay) return;
+
+  overlay.classList.remove("show");
+  setTimeout(() => overlay.remove(), 200);
+}
+
+function parseUntagPostTagState(data, postId) {
+  if (!data || typeof data !== "object") return null;
+
+  const responsePostId = (data?.postId || data?.PostId || "").toString().trim();
+  if (responsePostId && normalizePostId(responsePostId) !== normalizePostId(postId)) {
+    return null;
+  }
+
+  const taggedAccounts = Array.isArray(data?.taggedAccountsPreview)
+    ? data.taggedAccountsPreview
+    : Array.isArray(data?.TaggedAccountsPreview)
+      ? data.TaggedAccountsPreview
+      : Array.isArray(data?.taggedAccounts)
+        ? data.taggedAccounts
+        : Array.isArray(data?.TaggedAccounts)
+          ? data.TaggedAccounts
+          : [];
+
+  const totalRaw = Number(
+    data?.totalTaggedAccounts ?? data?.TotalTaggedAccounts ?? taggedAccounts.length,
+  );
+  const totalTaggedAccounts =
+    Number.isFinite(totalRaw) && totalRaw >= 0 ? totalRaw : taggedAccounts.length;
+
+  return {
+    taggedAccounts,
+    totalTaggedAccounts,
+    isCurrentUserTagged: Boolean(
+      data?.isCurrentUserTagged ?? data?.IsCurrentUserTagged,
+    ),
+  };
+}
+
+function markPostAsCurrentUserUntagged(postId, latestState = null) {
+  const normalizedPostId = normalizePostId(postId);
+  if (!normalizedPostId) return;
+
+  const feedPostEl = document.querySelector(`.post[data-post-id="${postId}"]`);
+  if (feedPostEl) {
+    const nextTaggedFlag = Boolean(latestState?.isCurrentUserTagged);
+    feedPostEl.dataset.currentUserTagged = nextTaggedFlag ? "true" : "false";
+  }
+
+  let nextTaggedAccounts = Array.isArray(latestState?.taggedAccounts)
+    ? latestState.taggedAccounts
+    : null;
+  let nextTotalTaggedAccounts = Number(latestState?.totalTaggedAccounts);
+
+  if (
+    window.currentPostDetailData &&
+    normalizePostId(window.currentPostDetailData.postId) === normalizedPostId
+  ) {
+    window.currentPostDetailData.isCurrentUserTagged = Boolean(
+      latestState?.isCurrentUserTagged,
+    );
+
+    const hasLatestTaggedAccounts = Array.isArray(nextTaggedAccounts);
+    if (!hasLatestTaggedAccounts) {
+      const currentViewerId = getCurrentViewerAccountId();
+      if (currentViewerId && Array.isArray(window.currentPostDetailData.taggedAccounts)) {
+        nextTaggedAccounts = window.currentPostDetailData.taggedAccounts.filter(
+          (item) => normalizeAccountId(item?.accountId || item?.AccountId) !== currentViewerId,
+        );
+        nextTotalTaggedAccounts = nextTaggedAccounts.length;
+      } else {
+        nextTaggedAccounts = [];
+        nextTotalTaggedAccounts = 0;
+      }
+    }
+
+    if (Array.isArray(nextTaggedAccounts)) {
+      window.currentPostDetailData.taggedAccounts = nextTaggedAccounts;
+      const safeTotalTaggedAccounts =
+        Number.isFinite(nextTotalTaggedAccounts) && nextTotalTaggedAccounts >= 0
+          ? nextTotalTaggedAccounts
+          : nextTaggedAccounts.length;
+      window.currentPostDetailData.totalTaggedAccounts = safeTotalTaggedAccounts;
+
+      const detailTaggedSummary = document.getElementById("detailTaggedSummary");
+      if (detailTaggedSummary && window.PostUtils?.applyPostTagSummary) {
+        window.PostUtils.applyPostTagSummary(
+          detailTaggedSummary,
+          window.currentPostDetailData,
+        );
+      }
+    }
+  }
+
+  if (Array.isArray(nextTaggedAccounts) && window.PostUtils?.syncPostFromDetail) {
+    window.PostUtils.syncPostFromDetail(
+      postId,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        taggedAccountsPreview: nextTaggedAccounts,
+        totalTaggedAccounts:
+          Number.isFinite(nextTotalTaggedAccounts) && nextTotalTaggedAccounts >= 0
+            ? nextTotalTaggedAccounts
+            : nextTaggedAccounts.length,
+      },
+    );
+  }
+}
+
+async function confirmUntagMeFromPost(postId) {
+  if (!window.API?.Posts?.untagMe) {
+    if (window.toastError) toastError("Untag is unavailable.");
+    closeUntagConfirm();
+    return;
+  }
+
+  const normalizedPostId = normalizePostId(postId);
+  if (!normalizedPostId || pendingUntagPosts.has(normalizedPostId)) {
+    return;
+  }
+
+  const actionBtn = document.querySelector(
+    "#untagPostConfirmOverlay .post-option:not(.post-option-cancel)",
+  );
+  if (actionBtn) actionBtn.disabled = true;
+  pendingUntagPosts.add(normalizedPostId);
+
+  try {
+    const res = await API.Posts.untagMe(postId);
+    let responseData = null;
+    try {
+      responseData = await res.clone().json();
+    } catch (_) {}
+
+    if (res.status === 403 || res.status === 404) {
+      closeUntagConfirm();
+      if (window.toastInfo) toastInfo("This post is no longer available.");
+      if (window.PostUtils?.hidePost) {
+        window.PostUtils.hidePost(postId);
+      }
+      return;
+    }
+
+    if (!res.ok) {
+      let message = "Could not remove tag.";
+      const serverMessage = (
+        responseData?.message ||
+        responseData?.Message ||
+        ""
+      )
+        .toString()
+        .trim();
+      if (serverMessage) message = serverMessage;
+      throw new Error(message);
+    }
+
+    const latestState = parseUntagPostTagState(responseData, postId);
+
+    closeUntagConfirm();
+    markPostAsCurrentUserUntagged(postId, latestState);
+    if (window.toastSuccess) toastSuccess("Tag removed.");
+  } catch (err) {
+    console.error(err);
+    if (window.toastError) {
+      toastError(err?.message || "Could not remove tag.");
+    }
+    if (actionBtn) actionBtn.disabled = false;
+    closeUntagConfirm();
+  } finally {
+    pendingUntagPosts.delete(normalizedPostId);
+  }
 }
 
 function showDeleteConfirm(postId) {
@@ -443,6 +679,9 @@ window.showReportReasons = showReportReasons;
 window.submitReport = submitReport;
 window.confirmDeletePost = confirmDeletePost;
 window.closeDeleteConfirm = closeDeleteConfirm;
+window.untagMeFromPost = untagMeFromPost;
+window.confirmUntagMeFromPost = confirmUntagMeFromPost;
+window.closeUntagConfirm = closeUntagConfirm;
 window.togglePostSave = togglePostSave;
 window.togglePostSaveFromOptions = togglePostSaveFromOptions;
 window.syncPostSaveState = syncPostSaveState;

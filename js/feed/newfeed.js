@@ -118,6 +118,7 @@
       const postEl = document.createElement("div");
       postEl.className = "post";
       postEl.setAttribute("data-post-id", post.postId);
+      postEl.dataset.currentUserTagged = Boolean(post.isCurrentUserTagged).toString();
       const isCurrentUserAuthor = isCurrentViewerAccount(post.author?.accountId);
       const storyRingClass = isCurrentUserAuthor
         ? ""
@@ -164,7 +165,7 @@
                    </button>`
                 : ""
             }
-            <button class="post-more" onclick="showPostOptions('${post.postId}', '${post.author.accountId}', ${post.isOwner}, ${post.author.isFollowedByCurrentUser}, ${Boolean(post.isSavedByCurrentUser)}, '${post.postCode || ""}')">
+            <button class="post-more" onclick="showPostOptions('${post.postId}', '${post.author.accountId}', ${post.isOwner}, ${post.author.isFollowedByCurrentUser}, ${Boolean(post.isSavedByCurrentUser)}, '${post.postCode || ""}', this.closest('.post')?.dataset.currentUserTagged === 'true')">
               <i data-lucide="more-horizontal"></i>
             </button>
             </div>
