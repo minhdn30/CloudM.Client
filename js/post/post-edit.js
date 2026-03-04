@@ -115,7 +115,8 @@
         this.setupListeners();
         this.ensurePostTagBindings();
         this.resetPostTagPicker();
-        this.seedPostTagPicker(this.getInitialPostTagAccounts());
+        const initialTaggedAccounts = await this.loadInitialPostTagAccountsForEdit();
+        this.seedPostTagPicker(initialTaggedAccounts);
         
         this.updateCharCount();
         this.selectPrivacy(this.selectedPrivacy);
@@ -272,6 +273,17 @@
             }
 
             const updatedPost = await res.json();
+            const nextTaggedAccounts = this.tagSelectedAccounts.map((account) => ({
+                accountId: account.accountId,
+                username: account.username || "",
+                fullName: account.fullName || "",
+                avatarUrl: account.avatarUrl || "",
+            }));
+
+            if (window.currentPostDetailData) {
+                window.currentPostDetailData.taggedAccounts = nextTaggedAccounts;
+                window.currentPostDetailData.totalTaggedAccounts = nextTaggedAccounts.length;
+            }
             
             toastSuccess("Post updated successfully");
             
@@ -279,16 +291,6 @@
             this.updateUI(updatedPost);
 
             this.originalTagAccountIds = currentTagAccountIds;
-            if (window.currentPostDetailData) {
-                window.currentPostDetailData.taggedAccounts = this.tagSelectedAccounts.map(
-                    (account) => ({
-                        accountId: account.accountId,
-                        username: account.username || "",
-                        fullName: account.fullName || "",
-                        avatarUrl: account.avatarUrl || "",
-                    }),
-                );
-            }
             
             // Return to view mode
             this.cancelEditPost();
@@ -346,6 +348,15 @@
                 captionItem.style.display = "block";
                 PostUtils.setupCaption(captionText, content);
             }
+        }
+
+        const taggedSummary = document.getElementById("detailTaggedSummary");
+        if (taggedSummary && window.PostUtils) {
+            PostUtils.applyPostTagSummary(taggedSummary, {
+                taggedAccounts: Array.isArray(window.currentPostDetailData?.taggedAccounts)
+                    ? window.currentPostDetailData.taggedAccounts
+                    : [],
+            });
         }
     };
 
@@ -868,6 +879,65 @@
             .map((raw) => this.normalizePostTagAccount(raw))
             .filter((account) => account && account.accountId)
             .slice(0, epGetPostTagMaxCount());
+    };
+
+    PostEdit.loadInitialPostTagAccountsForEdit = async function() {
+        const previewAccounts = this.getInitialPostTagAccounts();
+        const totalTaggedAccounts = Number(window.currentPostDetailData?.totalTaggedAccounts ?? previewAccounts.length);
+        const safeTotalTaggedAccounts = Number.isFinite(totalTaggedAccounts) && totalTaggedAccounts > 0
+            ? totalTaggedAccounts
+            : previewAccounts.length;
+
+        if (
+            !this.currentEditingPostId ||
+            previewAccounts.length <= 0 ||
+            safeTotalTaggedAccounts <= previewAccounts.length ||
+            !window.API?.Posts?.getTaggedAccounts
+        ) {
+            return previewAccounts;
+        }
+
+        try {
+            const response = await API.Posts.getTaggedAccounts(this.currentEditingPostId);
+            if (!response.ok) {
+                return previewAccounts;
+            }
+
+            const data = await response.json();
+            const rawItems = Array.isArray(data?.items)
+                ? data.items
+                : Array.isArray(data?.Items)
+                    ? data.Items
+                    : [];
+
+            const normalizedAccounts = rawItems
+                .map((raw) => this.normalizePostTagAccount(raw))
+                .filter((account) => account && account.accountId)
+                .slice(0, epGetPostTagMaxCount());
+
+            if (normalizedAccounts.length <= 0) {
+                return previewAccounts;
+            }
+
+            if (window.currentPostDetailData) {
+                window.currentPostDetailData.taggedAccounts = normalizedAccounts.map((account) => ({
+                    accountId: account.accountId,
+                    username: account.username || "",
+                    fullName: account.fullName || "",
+                    avatarUrl: account.avatarUrl || "",
+                    isFollowing: !!account.isFollowing,
+                    isFollower: !!account.isFollower,
+                }));
+                window.currentPostDetailData.totalTaggedAccounts = Number.isFinite(Number(data?.totalItems))
+                    ? Number(data.totalItems)
+                    : normalizedAccounts.length;
+            }
+
+            return normalizedAccounts;
+        } catch (error) {
+            console.warn("Load full tagged accounts for edit failed:", error);
+            return previewAccounts;
+        }
     };
 
     PostEdit.seedPostTagPicker = function(accounts) {

@@ -183,7 +183,7 @@ const InteractionModule = (function () {
                 <div class="user-info post-user" data-account-id="${item.accountId}" onclick="viewProfile('${item.username}')">
                     <img src="${avatarUrl}" class="avatar post-avatar" />
                     <div class="name-box">
-                        <span class="fullname post-username" title="${item.fullName}">${PostUtils.truncateName(item.username)}</span>
+                        <span class="fullname post-username">${PostUtils.truncateName(item.username)}</span>
                         <span class="username-subtext">${item.fullName || ""}</span>
                         ${item.isFollower ? '<span class="follower-tag">Follows you</span>' : ""}
                     </div>

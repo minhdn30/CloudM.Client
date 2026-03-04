@@ -195,7 +195,11 @@ function renderProfilePreview(data) {
   const avatarWrapperClass = storyRingClass
     ? "profile-preview-avatar-wrapper with-story-ring"
     : "profile-preview-avatar-wrapper";
-  const avatarMarkup = renderProfilePreviewAvatar(avatarUrl, storyRingClass, data.account?.accountId);
+  const avatarMarkup = renderProfilePreviewAvatar(
+    avatarUrl,
+    storyRingClass,
+    data.account?.accountId,
+  );
 
   // Actions buttons
   let actionsHTML = "";
@@ -425,12 +429,55 @@ function hidePreview() {
 window.hidePreview = hidePreview;
 
 function isProfilePreviewTrigger(target) {
-  if (!target) return false;
+  if (!target || typeof target.closest !== "function") return false;
+
+  const strictPostHeaderContext = target.closest(
+    ".post-header .post-user[data-account-id], #postDetailModal .detail-header .post-user[data-account-id]",
+  );
+
+  // Newfeed + Post detail: strict trigger only on username/avatar of target user
+  if (strictPostHeaderContext) {
+    const taggedTarget = target.closest(".post-tag-name-text, .post-tag-avatar");
+    if (
+      taggedTarget &&
+      taggedTarget.closest(".post-tag-name[data-account-id]")
+    ) {
+      return true;
+    }
+
+    const ownerNameTarget = target.closest(
+      ".post-name-row .post-username, .post-name-row .username, .user-name-row .post-username, .user-name-row .username",
+    );
+    if (ownerNameTarget) {
+      return true;
+    }
+
+    const ownerAvatarTarget = target.closest(".post-avatar, .post-avatar-ring");
+    if (ownerAvatarTarget) {
+      return true;
+    }
+
+    return false;
+  }
+
+  // Other modules: keep legacy trigger behavior
   return !!(
     target.closest(".post-avatar") ||
     target.closest(".post-avatar-ring") ||
-    target.closest(".post-username")
+    target.closest(".post-username") ||
+    target.closest(".post-tag-name")
   );
+}
+
+function resolvePreviewAccountId(target) {
+  // post-tag-name carries its own data-account-id (tagged user, not post author)
+  const tagNameEl = target.closest(".post-tag-name");
+  if (tagNameEl && tagNameEl.dataset.accountId) {
+    return tagNameEl.dataset.accountId;
+  }
+  // fallback: post author from .post-user container
+  const userEl = target.closest(".post-user");
+  return userEl?.dataset?.accountId || null;
 }
 
 /* ===== Init hover ===== */
@@ -504,10 +551,7 @@ function initProfilePreview() {
       }
 
       e.preventDefault();
-      const userEl = e.target.closest(".post-user");
-      if (!userEl) return;
-
-      const accountId = userEl.dataset.accountId;
+      const accountId = resolvePreviewAccountId(e.target);
       if (!accountId) return;
 
       // Toggle preview if clicking same user
@@ -532,10 +576,7 @@ function initProfilePreview() {
     document.addEventListener("mouseover", async (e) => {
       if (!isProfilePreviewTrigger(e.target)) return;
 
-      const userEl = e.target.closest(".post-user");
-      if (!userEl) return;
-
-      const accountId = userEl.dataset.accountId;
+      const accountId = resolvePreviewAccountId(e.target);
       if (!accountId) return;
 
       if (
@@ -570,10 +611,10 @@ function initProfilePreview() {
     });
 
     document.addEventListener("mouseout", (e) => {
-      const trigger =
-        e.target.closest(".post-user") ||
-        (isProfilePreviewTrigger(e.target) ? e.target : null);
-      if (!trigger && !e.target.closest("#profile-preview")) return;
+      const isTriggerElement = isProfilePreviewTrigger(e.target);
+      const isFromPreview =
+        !!e.target.closest && !!e.target.closest("#profile-preview");
+      if (!isTriggerElement && !isFromPreview) return;
 
       const nextTarget = e.relatedTarget;
 
@@ -587,17 +628,10 @@ function initProfilePreview() {
         return;
       }
 
-      // Mouse moved to another element inside the same .post-user -> stay open
-      if (trigger && trigger.closest) {
-        const currentUserEl = trigger.closest(".post-user");
-        const nextUserEl =
-          nextTarget && nextTarget.closest
-            ? nextTarget.closest(".post-user")
-            : null;
-        if (currentUserEl && nextUserEl && currentUserEl === nextUserEl) {
-          clearTimeout(hideTimer);
-          return;
-        }
+      // Mouse moved between valid preview triggers -> stay open
+      if (nextTarget && isProfilePreviewTrigger(nextTarget)) {
+        clearTimeout(hideTimer);
+        return;
       }
 
       // Cancel any pending hover timer
@@ -622,11 +656,7 @@ function initProfilePreview() {
         let isOverTrigger = false;
         hoveredEls.forEach((el) => {
           if (el.closest("#profile-preview")) isOverPreview = true;
-          if (
-            isProfilePreviewTrigger(el) ||
-            el.closest(".post-user[data-account-id]")
-          )
-            isOverTrigger = true;
+          if (isProfilePreviewTrigger(el)) isOverTrigger = true;
         });
         if (!isOverPreview && !isOverTrigger) {
           clearTimeout(hoverTimer);

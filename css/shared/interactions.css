@@ -190,6 +190,7 @@
     justify-content: center;
     gap: 8px;
     flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .interaction-item .follow-btn i,
@@ -368,4 +369,22 @@
 
 body.light-mode .interaction-modal .modal-backdrop {
     background: rgba(0, 0, 0, 0.5);
+}
+
+/* ================= TAGGED ACCOUNTS MODAL ================= */
+.tagged-accounts-modal .modal-content {
+    max-width: 500px;
+    height: 540px;
+}
+
+.tagged-accounts-modal .modal-header h3 {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tagged-accounts-modal .tagged-accounts-count {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    font-weight: 600;
 }
