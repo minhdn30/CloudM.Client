@@ -122,6 +122,10 @@ function normalizeAccountId(value) {
     return (value || "").toString().trim().toLowerCase();
 }
 
+function normalizePostId(value) {
+    return (value || "").toString().trim().toLowerCase();
+}
+
 function isCurrentViewerAccount(accountId) {
     const targetId = normalizeAccountId(accountId);
     if (!targetId) return false;
@@ -728,14 +732,22 @@ function updateNavigationButtons() {
     }
     
     const { postList, currentIndex, hasMore } = navigationContext;
+    const isCurrentPostRemoved = navigationContext.currentPostRemovedFromList === true;
+    const effectiveCurrentIndexForPrev = isCurrentPostRemoved
+        ? currentIndex
+        : currentIndex;
+    const effectiveCurrentIndexForNext = isCurrentPostRemoved
+        ? currentIndex - 1
+        : currentIndex;
     
     // Show/hide based on position in list
     if (prevBtn) {
-        prevBtn.style.display = currentIndex > 0 ? 'flex' : 'none';
+        prevBtn.style.display = effectiveCurrentIndexForPrev > 0 ? 'flex' : 'none';
     }
     if (nextBtn) {
         // Show Next if: not at end of list OR there are more posts to load
-        const canGoNext = currentIndex < postList.length - 1 || hasMore;
+        const canGoNext =
+            effectiveCurrentIndexForNext < postList.length - 1 || hasMore;
         nextBtn.style.display = canGoNext ? 'flex' : 'none';
     }
     
@@ -748,7 +760,17 @@ async function navigateToPost(direction) {
     if (!navigationContext || navigationContext.source !== 'profile') return;
     
     const { postList, currentIndex, hasMore } = navigationContext;
-    const newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+    const isCurrentPostRemoved = navigationContext.currentPostRemovedFromList === true;
+    const effectiveCurrentIndex = isCurrentPostRemoved
+        ? (direction === 'next' ? currentIndex - 1 : currentIndex)
+        : currentIndex;
+    if (isCurrentPostRemoved) {
+        navigationContext.currentPostRemovedFromList = false;
+    }
+
+    const newIndex = direction === 'next'
+        ? effectiveCurrentIndex + 1
+        : effectiveCurrentIndex - 1;
     
     // Bounds check for previous
     if (newIndex < 0) return;
@@ -834,6 +856,46 @@ async function navigateToPost(direction) {
 
 // Export for HTML onclick
 window.navigateToPost = navigateToPost;
+
+function syncPostDetailNavigationAfterPostRemoved(postId) {
+    if (!navigationContext || navigationContext.source !== "profile") return;
+
+    const normalizedPostId = normalizePostId(postId);
+    if (!normalizedPostId || !Array.isArray(navigationContext.postList)) return;
+
+    const removedIndex = navigationContext.postList.findIndex((item) =>
+        normalizePostId(item?.postId) === normalizedPostId,
+    );
+    if (removedIndex < 0) return;
+
+    const isCurrentDetailPost =
+        normalizePostId(currentPostId) === normalizedPostId;
+
+    navigationContext.postList.splice(removedIndex, 1);
+
+    if (isCurrentDetailPost) {
+        navigationContext.currentPostRemovedFromList = true;
+        navigationContext.currentIndex = removedIndex;
+    } else if (removedIndex < navigationContext.currentIndex) {
+        navigationContext.currentIndex = Math.max(
+            0,
+            navigationContext.currentIndex - 1,
+        );
+    }
+
+    const maxValidIndex = navigationContext.postList.length;
+    if (navigationContext.currentIndex > maxValidIndex) {
+        navigationContext.currentIndex = maxValidIndex;
+    }
+
+    if (window.getProfileHasMore) {
+        navigationContext.hasMore = window.getProfileHasMore();
+    }
+
+    updateNavigationButtons();
+}
+
+window.syncPostDetailNavigationAfterPostRemoved = syncPostDetailNavigationAfterPostRemoved;
 
 // Reset View
 function resetPostDetailView() {

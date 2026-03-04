@@ -150,6 +150,7 @@
     MAX_COMMENT_INPUT_LENGTH: 500, // Số ký tự tối đa khi nhập comment/reply
     INTERACTIONS_PAGE_SIZE: 10, // Số lượng người react load mỗi lần
     PROFILE_POSTS_PAGE_SIZE: 12, // Số lượng post load mỗi lần ở trang cá nhân (nên là bội số của 3)
+    PROFILE_TAGGED_POSTS_PAGE_SIZE: 12, // Số lượng tagged posts load mỗi lần ở tab Tagged
     PROFILE_SAVED_POSTS_PAGE_SIZE: 12, // Số lượng saved posts load mỗi lần ở tab Saved
     PROFILE_ARCHIVED_STORIES_PAGE_SIZE: 12, // Số lượng archived stories load mỗi lần ở trang profile
     PREVIEW_BIO_TRUNCATE_LENGTH: 80, // Chiều dài tối đa của bio trong thẻ preview trước khi bị cắt
