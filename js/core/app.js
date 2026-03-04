@@ -701,6 +701,14 @@ function closeAllOverlayModals(options = {}) {
       }
   }
 
+  // Tagged Accounts List
+  if (window.PostUtils && typeof window.PostUtils.closePostTaggedAccountsModal === "function") {
+      const taggedAccountsModal = document.getElementById("postTaggedAccountsModal");
+      if (taggedAccountsModal && taggedAccountsModal.classList.contains("show")) {
+          window.PostUtils.closePostTaggedAccountsModal();
+      }
+  }
+
   const isMessagesRoute = appIsChatPath(currentPath) || keepChatSurface;
 
   // Chat Sidebar

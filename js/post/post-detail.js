@@ -8,7 +8,7 @@ let currentPostCreatedAt = null;
 let navigationContext = null; // { source, postList, currentIndex, accountId, hasMore }
 
 // Track state of all posts viewed during navigation session (for profile sync)
-let viewedPostsState = new Map(); // postId -> { reactCount, isReacted, commentCount, createdAt, fullContent, privacyVal }
+let viewedPostsState = new Map(); // postId -> { reactCount, isReacted, commentCount, createdAt, fullContent, privacyVal, taggedAccounts, totalTaggedAccounts }
 
 function pdParseHashPath(rawHash = window.location.hash || "") {
     if (window.RouteHelper && typeof window.RouteHelper.parseHash === "function") {
@@ -545,6 +545,10 @@ function captureCurrentPostState() {
     const commentCountEl = document.getElementById("detailCommentCount");
     const captionTextEl = document.getElementById("detailCaptionText");
     const timeEl = document.getElementById("detailTime");
+    const taggedAccounts = Array.isArray(window.currentPostDetailData?.taggedAccounts)
+        ? window.currentPostDetailData.taggedAccounts.map((account) => ({ ...account }))
+        : [];
+    const totalTaggedAccounts = Number(window.currentPostDetailData?.totalTaggedAccounts ?? taggedAccounts.length);
 
     if (likeIcon && likeCountEl && commentCountEl && timeEl) {
         const isReacted = likeIcon.classList.contains("reacted");
@@ -568,7 +572,9 @@ function captureCurrentPostState() {
             commentCount,
             createdAt,
             fullContent,
-            privacyVal
+            privacyVal,
+            taggedAccounts,
+            totalTaggedAccounts
         });
     }
 }
@@ -585,7 +591,11 @@ function syncAllViewedPosts() {
             state.commentCount,
             state.createdAt,
             state.fullContent,
-            state.privacyVal
+            state.privacyVal,
+            {
+                taggedAccountsPreview: state.taggedAccounts,
+                totalTaggedAccounts: state.totalTaggedAccounts
+            }
         );
     });
 }
@@ -620,8 +630,24 @@ function performClosePostDetail() {
                      else if (title.includes("Follower")) privacyVal = 1;
                      else if (title === "Private") privacyVal = 2;
                  }
-                 
-                 window.PostUtils.syncPostFromDetail(currentPostId, rCount, isReacted, cCount, currentPostCreatedAt, fullContent, privacyVal);
+
+                 const taggedAccounts = Array.isArray(window.currentPostDetailData?.taggedAccounts)
+                     ? window.currentPostDetailData.taggedAccounts
+                     : [];
+                 const totalTaggedAccounts = Number(window.currentPostDetailData?.totalTaggedAccounts ?? taggedAccounts.length);
+                 window.PostUtils.syncPostFromDetail(
+                     currentPostId,
+                     rCount,
+                     isReacted,
+                     cCount,
+                     currentPostCreatedAt,
+                     fullContent,
+                     privacyVal,
+                     {
+                         taggedAccountsPreview: taggedAccounts,
+                         totalTaggedAccounts: totalTaggedAccounts
+                     }
+                 );
             }
         }
     }
@@ -825,6 +851,20 @@ function resetPostDetailView() {
         renderDetailAvatar(detailAvatarLink, APP_CONFIG.DEFAULT_AVATAR, null);
     }
     document.getElementById("detailUsername").textContent = "";
+    const taggedSummary = document.getElementById("detailTaggedSummary");
+    const taggedSummaryRow = taggedSummary?.closest(".user-tag-row");
+    if (taggedSummary) {
+        taggedSummary.textContent = "";
+        taggedSummary.title = "";
+        taggedSummary.classList.add("hidden");
+    }
+    if (taggedSummaryRow) {
+        taggedSummaryRow.classList.add("hidden");
+    }
+    const userInfo = document.querySelector("#postDetailModal .detail-header .user-info");
+    if (userInfo) {
+        userInfo.classList.remove("has-tag-summary");
+    }
     document.getElementById("detailSliderWrapper").innerHTML = "";
     
     // Clear Caption
@@ -882,6 +922,7 @@ function renderPostDetail(post, navigateDirection = null) {
     const location = document.getElementById("detailLocation"); // Not in API, placeholder
     const avatarLink = document.getElementById("detailAvatarLink");
     const usernameLink = document.getElementById("detailUsernameLink");
+    const taggedSummary = document.getElementById("detailTaggedSummary");
     const avatarUrl = post.owner.avatarUrl || APP_CONFIG.DEFAULT_AVATAR;
     const isCurrentUserAvatar = isCurrentViewerAccount(post.owner?.accountId);
     const ownerProfileTarget = (post.owner?.username || post.owner?.accountId || "").toString().trim();
@@ -904,7 +945,11 @@ function renderPostDetail(post, navigateDirection = null) {
         userInfo.dataset.accountId = post.owner.accountId;
     }
 
-    username.textContent = PostUtils.truncateName(post.owner.username || post.owner.fullName);
+    const ownerDisplayName = PostUtils.getPostOwnerDisplayName(post, true);
+    username.textContent = ownerDisplayName;
+    if (taggedSummary && window.PostUtils) {
+        PostUtils.applyPostTagSummary(taggedSummary, post);
+    }
     
     // Header Options Button
     const moreBtn = document.querySelector("#postDetailModal .more-options-btn");

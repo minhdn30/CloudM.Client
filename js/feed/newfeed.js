@@ -131,6 +131,7 @@
         (post.author?.username || post.author?.accountId || "").toString().trim();
       const authorProfileHash = buildProfileHash(authorProfileTarget);
       const commentCount = Number.isFinite(Number(post.commentCount)) ? Number(post.commentCount) : 0;
+      const ownerDisplayName = PostUtils.getPostOwnerDisplayName(post, true);
 
       postEl.innerHTML = `
           <div class="post-header">
@@ -139,9 +140,12 @@
                   ${avatarMarkup}
               </a>
               <div class="user-meta">
-                <a href="${authorProfileHash}" style="text-decoration: none; color: inherit;">
-                    <span class="post-username">${PostUtils.truncateName(post.author?.username || post.author?.fullName || "User")}</span>
-                </a>
+                <div class="post-name-row">
+                  <a href="${authorProfileHash}" style="text-decoration: none; color: inherit;">
+                      <span class="post-username">${escapeAttr(ownerDisplayName)}</span>
+                  </a>
+                  <span class="post-tag-summary hidden"></span>
+                </div>
                 <div class="post-meta">
                   <span class="post-time" 
                         title="${PostUtils.formatFullDateTime(post.createdAt)}" 
@@ -218,6 +222,11 @@
 
       const captionEl = postEl.querySelector(".post-caption");
       PostUtils.setupCaption(captionEl, post.content || "");
+
+      const tagSummaryEl = postEl.querySelector(".post-tag-summary");
+      if (tagSummaryEl && window.PostUtils) {
+        PostUtils.applyPostTagSummary(tagSummaryEl, post);
+      }
       
       return postEl;
   }

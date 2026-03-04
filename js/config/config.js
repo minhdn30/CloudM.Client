@@ -133,6 +133,15 @@
     MAX_POST_TAGS: 20, // Max tagged people per post
     POST_TAG_SEARCH_LIMIT: 5, // Max accounts returned per post-tag search request
     POST_TAG_SEARCH_DEBOUNCE_MS: 300, // Debounce delay for post-tag search input
+    POST_OWNER_NAME_MAX_LENGTH_WHEN_TAGGED: 16, // Owner name max length in header when post has tagged people
+    POST_TAG_NAME_MAX_LENGTH_SINGLE: 14, // Max length of tag name when post has exactly 1 tagged account
+    POST_TAG_NAME_MAX_LENGTH_PAIR: 10, // Max length of each tag name when post has exactly 2 tagged accounts
+    POST_TAG_NAME_MAX_LENGTH_MULTI: 12, // Max length of first tag name when post has 3+ tagged accounts
+    POST_TAG_NAME_MAX_LENGTH: 18, // Max display length for a tagged account name in post header summary
+    POST_TAG_SUMMARY_MAX_LENGTH: 48, // Max display length for the whole "with ..." summary text in post header
+    POST_TAG_PREVIEW_LIMIT: 2, // Max tagged accounts previewed in post header
+    POST_TAG_CACHE_TTL_MS: 10 * 60 * 1000, // TTL for in-memory tagged-accounts cache
+    POST_TAG_CACHE_MAX_ENTRIES: 200, // Max tagged-accounts cache entries
     MAX_STORY_TEXT_LENGTH: 500, // Số ký tự tối đa cho text story
     MAX_NAME_DISPLAY_LENGTH: 25, // Độ dài tối đa của tên user khi hiển thị (được cắt thông minh theo từ)
     COMMENTS_PAGE_SIZE: 5, // Số lượng comment load mỗi lần

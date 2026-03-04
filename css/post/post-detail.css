@@ -308,14 +308,21 @@
   padding: 14px 16px;
   border-bottom: 1px solid var(--border-primary);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 8px;
+}
+
+#postDetailModal .detail-header .user-avatar,
+#postDetailModal .detail-header .post-avatar {
+  width: 40px;
+  height: 40px;
 }
 
 /* Keep post-detail avatar slot size stable: shrink inner photo, draw ring inside same slot */
 .post-detail-avatar-ring.story-ring-unseen,
 .post-detail-avatar-ring.story-ring-seen {
-  --_avatar: 30px;
+  --_avatar: 40px;
   --_ring: 1.5px;
   --_gap: 1.5px;
 }
@@ -325,28 +332,87 @@
   width: var(--_avatar);
   height: var(--_avatar);
 }
-/* User info styles mapped to shared/post-common.css */
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+
+@media (max-width: 768px) {
+  #postDetailModal .detail-header .user-avatar,
+  #postDetailModal .detail-header .post-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .post-detail-avatar-ring.story-ring-unseen,
+  .post-detail-avatar-ring.story-ring-seen {
+    --_avatar: 36px;
+  }
 }
-.user-meta {
+/* User info styles mapped to shared/post-common.css */
+#postDetailModal .detail-header .user-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+#postDetailModal .detail-header .user-meta {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 auto;
+  height: auto;
 }
-.user-name-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+#postDetailModal .detail-header .user-name-row {
+  display: block;
+  width: 100%;
+  min-width: 0;
 }
-.location {
+
+#postDetailModal .detail-header .user-name-row > a {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+
+#postDetailModal .detail-header .username,
+#postDetailModal .detail-header .post-username {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#postDetailModal .detail-header .user-tag-row {
+  width: 100%;
+  min-width: 0;
+}
+
+#postDetailModal .detail-header .user-tag-row.hidden {
+  display: none;
+}
+
+#postDetailModal .detail-header #detailTaggedSummary.post-tag-summary {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  flex: none;
+}
+
+#postDetailModal .detail-header .post-tag-others-trigger:hover,
+#postDetailModal .detail-header .post-tag-others-trigger:hover .post-tag-others-label {
+  text-decoration: none;
+}
+
+#postDetailModal .detail-header .post-tag-others-trigger:hover .post-tag-others-label {
+  border-bottom-color: currentColor;
+}
+#postDetailModal .detail-header .location {
   font-size: 12px;
   color: var(--text-secondary);
   display: block;
 }
-.location {
+#postDetailModal .detail-header .location {
   font-size: 12px;
   color: var(--text-secondary);
   display: block;
@@ -356,12 +422,17 @@
   border: none;
   color: var(--text-primary);
   cursor: pointer;
+  flex: 0 0 auto;
+  margin-top: 1px;
 }
 
 /* Custom style for post-detail time - making it smaller since it's on a new line */
 #postDetailModal .post-time {
   font-size: 13px;
   color: var(--text-tertiary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .post-edited-indicator {

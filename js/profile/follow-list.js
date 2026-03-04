@@ -221,7 +221,6 @@ const FollowListModule = (function () {
     if (sortBtn) {
       sortBtn.className = "sort-toggle-btn";
       sortBtn.innerHTML = '<i data-lucide="arrow-up-down"></i>';
-      sortBtn.title = "Sort by latest";
     }
     if (window.lucide) lucide.createIcons();
   }
@@ -325,7 +324,7 @@ const FollowListModule = (function () {
                 <div class="user-info post-user" data-account-id="${item.accountId}" onclick="viewProfile('${item.username}')">
                     <img src="${avatarUrl}" class="avatar post-avatar" />
                     <div class="name-box">
-                        <span class="fullname post-username" title="${item.fullName}">${PostUtils.truncateName(item.username)}</span>
+                        <span class="fullname post-username">${PostUtils.truncateName(item.username)}</span>
                         <span class="username-subtext">${item.fullName || ""}</span>
                         ${item.isFollower ? '<span class="follower-tag">Follows you</span>' : ""}
                     </div>
@@ -378,15 +377,12 @@ const FollowListModule = (function () {
       if (sortState === null) {
         sortBtn.className = "sort-toggle-btn";
         sortBtn.innerHTML = '<i data-lucide="arrow-up-down"></i>';
-        sortBtn.title = "Default sort. Click for Oldest first";
       } else if (sortState === true) {
         sortBtn.className = "sort-toggle-btn active";
         sortBtn.innerHTML = '<i data-lucide="arrow-up-narrow-wide"></i>';
-        sortBtn.title = "Currently: Oldest first. Click for Newest first";
       } else {
         sortBtn.className = "sort-toggle-btn active";
         sortBtn.innerHTML = '<i data-lucide="arrow-down-narrow-wide"></i>';
-        sortBtn.title = "Currently: Newest first. Click for Default sort";
       }
       if (window.lucide) lucide.createIcons();
     }
@@ -423,7 +419,7 @@ const FollowListModule = (function () {
                             <i data-lucide="search" class="search-icon"></i>
                             <input type="text" id="followSearchInput" placeholder="Search by name or username..." autocomplete="off">
                         </div>
-                        <button id="followSortBtn" class="sort-toggle-btn" title="Sort by latest" onclick="FollowListModule.toggleSort()">
+                        <button id="followSortBtn" class="sort-toggle-btn" onclick="FollowListModule.toggleSort()">
                             <i data-lucide="arrow-up-down"></i>
                         </button>
                     </div>

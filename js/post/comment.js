@@ -77,7 +77,9 @@ const CommentModule = (function () {
       ? ""
       : resolveStoryRingClass(owner?.storyRingState);
     const safeAvatarUrl = escapeAttr(avatarUrl);
-    const profileHref = buildProfileHash(owner?.username || owner?.accountId || "");
+    const profileHref = buildProfileHash(
+      owner?.username || owner?.accountId || "",
+    );
 
     if (!ringClass) {
       return {
@@ -293,8 +295,8 @@ const CommentModule = (function () {
             <div class="comment-header">
                 <div class="post-user" data-account-id="${comment.owner.accountId}">
                     ${avatarView.html}
-                    <a href="${buildProfileHash(comment.owner?.username || comment.owner?.accountId || "")}" style="text-decoration: none; color: inherit; display: flex; align-items: center;" onclick="event.stopPropagation()">
-                        <span class="comment-username post-username" style="line-height: 1;">${PostUtils.truncateName(comment.owner.username || comment.owner.fullName)}</span>
+                    <a href="${buildProfileHash(comment.owner?.username || comment.owner?.accountId || "")}" style="text-decoration: none; color: inherit; display: flex; align-items: center; min-width: 0;" onclick="event.stopPropagation()">
+                        <span class="comment-username post-username" style="line-height: 1;">${escapeAttr(comment.owner.username || comment.owner.fullName)}</span>
                     </a>
                 </div>
                 <div class="comment-header-right">
@@ -771,8 +773,8 @@ const CommentModule = (function () {
             <div class="comment-header">
                 <div class="post-user" data-account-id="${reply.owner.accountId}">
                     ${avatarView.html}
-                    <a href="${buildProfileHash(reply.owner?.username || reply.owner?.accountId || "")}" style="text-decoration: none; color: inherit; display: flex; align-items: center;" onclick="event.stopPropagation()">
-                        <span class="comment-username post-username" style="line-height: 1;">${PostUtils.truncateName(reply.owner.username || reply.owner.fullName)}</span>
+                    <a href="${buildProfileHash(reply.owner?.username || reply.owner?.accountId || "")}" style="text-decoration: none; color: inherit; display: flex; align-items: center; min-width: 0;" onclick="event.stopPropagation()">
+                        <span class="comment-username post-username" style="line-height: 1;">${escapeAttr(reply.owner.username || reply.owner.fullName)}</span>
                     </a>
                 </div>
                 <div class="comment-header-right">

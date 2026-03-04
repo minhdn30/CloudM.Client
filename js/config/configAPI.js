@@ -486,6 +486,7 @@
       },
       getById: (postId) => apiFetch(`/Posts/${postId}`),
       getByPostCode: (postCode) => apiFetch(`/Posts/p/${postCode}`),
+      getTaggedAccounts: (postId) => apiFetch(`/Posts/${postId}/tags`),
       create: (formData, onProgress) =>
         uploadFormDataWithProgress("/Posts", formData, onProgress),
       delete: (postId) => apiFetch(`/Posts/${postId}`, { method: "DELETE" }),

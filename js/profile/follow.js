@@ -262,7 +262,8 @@
         // 5. Update Interaction & Follow List Modals
         const modals = [
             document.getElementById("interactionModal"),
-            document.getElementById("followListModal")
+            document.getElementById("followListModal"),
+            document.getElementById("postTaggedAccountsModal")
         ];
 
         modals.forEach(modal => {
