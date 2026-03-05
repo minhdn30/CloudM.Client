@@ -1977,6 +1977,7 @@ const ChatPage = {
       if (window.lucide) lucide.createIcons({ container: avatarContainer });
     }
     if (nameEl) nameEl.innerText = ChatCommon.getDisplayName(meta) || "Chat";
+    this.updateHeaderMuteIcon(meta);
 
     // --- Profile Navigation Support ---
     const headerUser = document.querySelector(".chat-view-user");
@@ -2006,6 +2007,29 @@ const ChatPage = {
     this.updateHeaderUnreadState(
       meta?.conversationId || meta?.ConversationId || this.currentChatId,
     );
+  },
+
+  updateHeaderMuteIcon(meta) {
+    const nameRow = document.getElementById("chat-view-name-row");
+    if (!nameRow) return;
+
+    const shouldShowMuted = !!(meta?.isMuted ?? meta?.IsMuted ?? false);
+    const existingIcon = nameRow.querySelector(".chat-view-muted-icon");
+
+    if (!shouldShowMuted) {
+      if (existingIcon) existingIcon.remove();
+      return;
+    }
+
+    if (existingIcon) return;
+
+    const iconEl = document.createElement("i");
+    iconEl.className = "chat-view-muted-icon";
+    iconEl.setAttribute("data-lucide", "bell-off");
+    iconEl.setAttribute("aria-label", "Muted conversation");
+    iconEl.setAttribute("title", "Muted conversation");
+    nameRow.appendChild(iconEl);
+    if (window.lucide) lucide.createIcons({ container: nameRow });
   },
 
   minimizeToBubble() {
@@ -2079,6 +2103,7 @@ const ChatPage = {
 
     if (img) img.src = window.APP_CONFIG?.DEFAULT_AVATAR;
     if (nameEl) nameEl.textContent = "Select a conversation";
+    this.updateHeaderMuteIcon(null);
     if (statusText) statusText.textContent = "";
     if (statusDot) statusDot.remove();
     if (msgContainer) {
@@ -2145,10 +2170,12 @@ const ChatPage = {
       this.currentMetaData
     ) {
       const nextMuted = !!isMuted;
-      if ((this.currentMetaData.isMuted ?? false) !== nextMuted) {
+      if ((this.currentMetaData.isMuted ?? this.currentMetaData.IsMuted ?? false) !== nextMuted) {
         this.currentMetaData.isMuted = nextMuted;
+        this.currentMetaData.IsMuted = nextMuted;
         changed = true;
       }
+      this.updateHeaderMuteIcon(this.currentMetaData);
       this.renderInfoSidebar(this.currentMetaData);
     }
 

@@ -122,10 +122,13 @@
 .chat-mention-link,
 .chat-mention-link:link,
 .chat-mention-link:visited,
+.chat-mention-link:hover,
+.chat-mention-link:focus-visible,
 .chat-mention-link:active {
   text-decoration: none;
   font-weight: 600;
   cursor: pointer;
+  color: inherit;
 }
 
 .chat-mention-link .chat-mention-name {
@@ -144,22 +147,6 @@
 .chat-mention-link-static:hover .chat-mention-name,
 .chat-mention-link-static:focus-visible .chat-mention-name {
   text-decoration: none;
-}
-
-.received .msg-bubble .chat-mention-link,
-.received .msg-bubble .chat-mention-link:link,
-.received .msg-bubble .chat-mention-link:visited,
-.received .msg-bubble .chat-mention-link:hover,
-.received .msg-bubble .chat-mention-link:active {
-  color: var(--chat-theme-accent, var(--accent-primary, #6366f1));
-}
-
-.sent .msg-bubble .chat-mention-link,
-.sent .msg-bubble .chat-mention-link:link,
-.sent .msg-bubble .chat-mention-link:visited,
-.sent .msg-bubble .chat-mention-link:hover,
-.sent .msg-bubble .chat-mention-link:active {
-  color: rgba(255, 255, 255, 0.96);
 }
 
 /* --- Grouping Gap --- */

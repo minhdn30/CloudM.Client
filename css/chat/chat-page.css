@@ -51,6 +51,7 @@
 
 .chat-view-header.has-unread .chat-view-name,
 .chat-view-header.has-unread .chat-view-status-text,
+.chat-view-header.has-unread .chat-view-muted-icon,
 .chat-view-header.has-unread .chat-icon-btn,
 .chat-view-header.has-unread .chat-icon-btn i,
 .chat-view-header.has-unread .chat-icon-btn svg {
@@ -70,6 +71,14 @@
   align-items: center;
   gap: 12px;
   cursor: pointer;
+  min-width: 0;
+}
+
+.chat-view-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
 }
 
 .chat-view-avatar {
@@ -112,6 +121,36 @@
   font-weight: 600;
   font-size: 16px;
   color: var(--text-primary);
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-view-name-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 6px;
+}
+
+.chat-view-muted-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--text-tertiary);
+  line-height: 1;
+  flex-shrink: 0;
+  opacity: 0.75;
+  transform: translateY(1px);
+}
+
+.chat-view-muted-icon svg {
+  display: block;
 }
 
 .chat-view-status-text {
