@@ -171,6 +171,7 @@ body.is-dragging-chat .chat-box * {
 
 .chat-box.has-unread .chat-header-name,
 .chat-box.has-unread .chat-header-subtext,
+.chat-box.has-unread .chat-header-muted-icon,
 .chat-box.has-unread .chat-btn,
 .chat-box.has-unread .chat-btn i,
 .chat-box.has-unread .chat-btn svg {
@@ -270,10 +271,37 @@ body.is-dragging-chat .chat-box * {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
+  flex: 0 1 auto;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+}
+
+.chat-header-name-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 6px;
+}
+
+.chat-header-muted-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  color: var(--text-tertiary);
+  line-height: 1;
+  flex-shrink: 0;
+  opacity: 0.75;
+  transform: translateY(1px);
+}
+
+.chat-header-muted-icon svg {
+  display: block;
 }
 
 .chat-header-subtext {

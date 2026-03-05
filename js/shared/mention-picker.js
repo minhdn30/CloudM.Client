@@ -4,6 +4,10 @@
   const mentionDropdownClass = "mention-picker-dropdown";
   const mentionDropdownShowClass = "show";
   const mentionDropdownBelowClass = "show-below";
+  const mentionDropdownKeyboardNavClass = "keyboard-nav";
+  const mentionActiveIndicatorClass = "mention-picker-active-indicator";
+  const mentionActiveIndicatorNoAnimClass =
+    "mention-picker-active-indicator-no-anim";
   const mentionDropdownChatThemeClass = "mention-picker-chat-theme";
   const mentionInputHandlerFlag = "mentionPickerBound";
   const mentionChatThemeVars = [
@@ -38,7 +42,9 @@
   }
 
   function getSearchDebounceMs() {
-    const parsedDebounce = Number(global.APP_CONFIG?.MENTION_SEARCH_DEBOUNCE_MS);
+    const parsedDebounce = Number(
+      global.APP_CONFIG?.MENTION_SEARCH_DEBOUNCE_MS,
+    );
     if (!Number.isFinite(parsedDebounce) || parsedDebounce < 0) {
       return Number(global.APP_CONFIG?.POST_TAG_SEARCH_DEBOUNCE_MS) || 250;
     }
@@ -47,7 +53,9 @@
 
   function getMentionCandidates(inputValue, cursorIndex) {
     const safeValue = (inputValue || "").toString();
-    const safeCursorRaw = Number.isFinite(cursorIndex) ? cursorIndex : safeValue.length;
+    const safeCursorRaw = Number.isFinite(cursorIndex)
+      ? cursorIndex
+      : safeValue.length;
     const safeCursor = Math.max(0, Math.min(safeCursorRaw, safeValue.length));
     if (safeCursor < 0) return null;
 
@@ -127,10 +135,14 @@
     const username = normalizeUsername(item?.username || item?.userName || "");
     const fullName = (item?.fullName || item?.FullName || "").toString().trim();
     const nickname = (item?.nickname || item?.Nickname || "").toString().trim();
-    const avatarUrl =
-      (item?.avatarUrl || item?.AvatarUrl || global.APP_CONFIG?.DEFAULT_AVATAR || "")
-        .toString()
-        .trim();
+    const avatarUrl = (
+      item?.avatarUrl ||
+      item?.AvatarUrl ||
+      global.APP_CONFIG?.DEFAULT_AVATAR ||
+      ""
+    )
+      .toString()
+      .trim();
 
     const nameForDisplay = username || "unknown";
     const secondaryLabel = nickname || fullName || username || "";
@@ -164,10 +176,14 @@
         username: normalizeUsername(item?.username || item?.userName || ""),
         fullName: (item?.fullName || item?.FullName || "").toString().trim(),
         nickname: (item?.nickname || item?.Nickname || "").toString().trim(),
-        avatarUrl:
-          (item?.avatarUrl || item?.AvatarUrl || global.APP_CONFIG?.DEFAULT_AVATAR || "")
-            .toString()
-            .trim(),
+        avatarUrl: (
+          item?.avatarUrl ||
+          item?.AvatarUrl ||
+          global.APP_CONFIG?.DEFAULT_AVATAR ||
+          ""
+        )
+          .toString()
+          .trim(),
       }))
       .filter((item) => item.accountId && item.username);
 
@@ -322,18 +338,77 @@
 
     dropdown.addEventListener("mousedown", () => {
       state.isMouseDownOnDropdown = true;
+      setKeyboardNavigationMode(state, false);
     });
     dropdown.addEventListener("mouseup", () => {
       state.isMouseDownOnDropdown = false;
     });
+    dropdown.addEventListener("mousemove", () => {
+      if (state.isKeyboardNavigating) {
+        setKeyboardNavigationMode(state, false);
+      }
+    });
     dropdown.addEventListener("mouseleave", () => {
       state.isMouseDownOnDropdown = false;
+    });
+    dropdown.addEventListener("scroll", () => {
+      updateActiveIndicator(state);
     });
 
     document.body.appendChild(dropdown);
     state.dropdown = dropdown;
     syncDropdownTheme(state, dropdown);
     return dropdown;
+  }
+
+  function ensureActiveIndicator(state) {
+    if (!state?.dropdown) return null;
+    let indicator = state.dropdown.querySelector(`.${mentionActiveIndicatorClass}`);
+    if (indicator) return indicator;
+
+    indicator = document.createElement("div");
+    indicator.className = mentionActiveIndicatorClass;
+    state.dropdown.insertBefore(indicator, state.dropdown.firstChild);
+    return indicator;
+  }
+
+  function updateActiveIndicator(state, options = {}) {
+    if (!state?.dropdown) return;
+    const indicator = ensureActiveIndicator(state);
+    if (!indicator) return;
+
+    const shouldShow =
+      !!state.isOpen &&
+      !!state.isKeyboardNavigating &&
+      Number.isInteger(state.activeIndex) &&
+      state.activeIndex >= 0;
+    if (!shouldShow) {
+      indicator.classList.remove("is-visible");
+      indicator.style.top = "0px";
+      indicator.style.height = "0px";
+      return;
+    }
+
+    const rows = state.dropdown.querySelectorAll(".mention-picker-item");
+    const activeRow = rows[state.activeIndex];
+    if (!activeRow) {
+      indicator.classList.remove("is-visible");
+      indicator.style.top = "0px";
+      indicator.style.height = "0px";
+      return;
+    }
+
+    const immediate = !!options?.immediate;
+    if (immediate) {
+      indicator.classList.add(mentionActiveIndicatorNoAnimClass);
+    }
+    indicator.style.top = `${activeRow.offsetTop}px`;
+    indicator.style.height = `${activeRow.offsetHeight}px`;
+    indicator.classList.add("is-visible");
+    if (immediate) {
+      void indicator.offsetWidth;
+      indicator.classList.remove(mentionActiveIndicatorNoAnimClass);
+    }
   }
 
   function ensureState(input, options) {
@@ -365,6 +440,7 @@
       isOpen: false,
       isDropdownAbove: false,
       isMouseDownOnDropdown: false,
+      isKeyboardNavigating: false,
       lastSearchSignature: "",
       lastResultItems: [],
       isSelecting: false,
@@ -450,7 +526,10 @@
     if (!state || !state.input) return;
 
     const valueLength = readInputValue(state).length;
-    const safeCursor = Math.max(0, Math.min(Number(cursorIndex) || 0, valueLength));
+    const safeCursor = Math.max(
+      0,
+      Math.min(Number(cursorIndex) || 0, valueLength),
+    );
 
     const customSetter = state.options?.setCursor;
     if (typeof customSetter === "function") {
@@ -522,7 +601,6 @@
         delete state.input.dataset[mentionInputHandlerFlag];
       }
     }
-
   }
 
   function cleanupDetachedStates() {
@@ -553,10 +631,30 @@
     if (!dropdown) return;
     syncDropdownTheme(state, dropdown);
     dropdown.classList.add(mentionDropdownShowClass);
+    dropdown.classList.toggle(
+      mentionDropdownKeyboardNavClass,
+      !!state.isKeyboardNavigating,
+    );
     state.isOpen = true;
     mentionOpenStateSet.add(state);
     scheduleDetachedStateCleanup();
     positionDropdown(state);
+    updateActiveIndicator(state);
+  }
+
+  function setKeyboardNavigationMode(state, isKeyboardNavigating) {
+    if (!state) return;
+    const wasKeyboardNavigating = !!state.isKeyboardNavigating;
+    const nextMode = !!isKeyboardNavigating;
+    state.isKeyboardNavigating = nextMode;
+    if (!state.dropdown) return;
+    state.dropdown.classList.toggle(mentionDropdownKeyboardNavClass, nextMode);
+    const shouldPrimeWithoutAnimation =
+      !wasKeyboardNavigating &&
+      nextMode &&
+      Number.isInteger(state.activeIndex) &&
+      state.activeIndex >= 0;
+    updateActiveIndicator(state, { immediate: shouldPrimeWithoutAnimation });
   }
 
   function closeDropdown(state) {
@@ -573,6 +671,7 @@
     state.activeIndex = -1;
     state.mentionContext = null;
     state.isMouseDownOnDropdown = false;
+    state.isKeyboardNavigating = false;
     state.isOpen = false;
     mentionOpenStateSet.delete(state);
 
@@ -580,6 +679,7 @@
 
     state.dropdown.classList.remove(mentionDropdownShowClass);
     state.dropdown.classList.remove(mentionDropdownBelowClass);
+    state.dropdown.classList.remove(mentionDropdownKeyboardNavClass);
     state.dropdown.style.left = "";
     state.dropdown.style.top = "";
     state.dropdown.style.width = "";
@@ -597,8 +697,10 @@
       return null;
     }
 
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    const viewportHeight =
+      window.innerHeight || document.documentElement.clientHeight;
+    const viewportWidth =
+      window.innerWidth || document.documentElement.clientWidth;
     const verticalGap = 6;
     const viewportPadding = 8;
     const preferredHeight = 260;
@@ -614,7 +716,8 @@
     );
     const shouldShowAbove =
       availableSpaceAbove >= minHeight &&
-      (availableSpaceBelow < minHeight || availableSpaceAbove > availableSpaceBelow);
+      (availableSpaceBelow < minHeight ||
+        availableSpaceAbove > availableSpaceBelow);
 
     const dropdownWidth = Math.max(Math.floor(inputRect.width), 220);
     const maxLeft = Math.max(8, viewportWidth - dropdownWidth - 8);
@@ -648,7 +751,10 @@
     syncDropdownTheme(state, dropdown);
 
     state.isDropdownAbove = !!placement.isAbove;
-    dropdown.classList.toggle(mentionDropdownBelowClass, !state.isDropdownAbove);
+    dropdown.classList.toggle(
+      mentionDropdownBelowClass,
+      !state.isDropdownAbove,
+    );
     dropdown.style.left = `${placement.left}px`;
     dropdown.style.width = `${placement.width}px`;
     dropdown.style.maxHeight = `${placement.maxHeight}px`;
@@ -752,6 +858,7 @@
     }
 
     dropdown.innerHTML = "";
+    ensureActiveIndicator(state);
     state.items.forEach((item, index) => {
       const row = document.createElement("button");
       row.type = "button";
@@ -763,26 +870,47 @@
       row.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
+        setKeyboardNavigationMode(state, false);
         selectItem(state, index);
       });
       dropdown.appendChild(row);
     });
 
     openDropdown(state);
+    updateActiveIndicator(state);
   }
 
   function updateActiveItem(state, nextIndex) {
     if (!state || !state.items.length || !state.dropdown) return;
 
-    const maxIndex = state.items.length - 1;
-    const safeIndex = Math.max(0, Math.min(nextIndex, maxIndex));
+    const itemCount = state.items.length;
+    const parsedIndex = Number(nextIndex);
+    const normalizedIndex = Number.isFinite(parsedIndex)
+      ? Math.trunc(parsedIndex)
+      : state.activeIndex;
+    const safeIndex = ((normalizedIndex % itemCount) + itemCount) % itemCount;
     state.activeIndex = safeIndex;
 
     const rows = state.dropdown.querySelectorAll(".mention-picker-item");
     rows.forEach((row, index) => {
-      if (index === safeIndex) row.classList.add("active");
-      else row.classList.remove("active");
+      if (index === safeIndex) {
+        row.classList.add("active");
+      } else {
+        row.classList.remove("active");
+      }
     });
+
+    const activeRow = rows[safeIndex];
+    if (activeRow && state.isKeyboardNavigating) {
+      if (typeof activeRow.scrollIntoView === "function") {
+        activeRow.scrollIntoView({
+          block: "nearest",
+          inline: "nearest",
+          behavior: "smooth",
+        });
+      }
+    }
+    updateActiveIndicator(state);
   }
 
   function selectItem(state, index) {
@@ -794,7 +922,9 @@
 
     const safeIndex = Math.max(0, Math.min(index, state.items.length - 1));
     const selected = state.items[safeIndex];
-    const username = normalizeUsername(selected?.username || selected?.userName || "");
+    const username = normalizeUsername(
+      selected?.username || selected?.userName || "",
+    );
     if (!username || !state.mentionContext) {
       closeDropdown(state);
       return;
@@ -888,7 +1018,13 @@
   }
 
   async function executeSearch(state) {
-    if (!state || !state.mentionContext || !state.input || !state.input.isConnected) return;
+    if (
+      !state ||
+      !state.mentionContext ||
+      !state.input ||
+      !state.input.isConnected
+    )
+      return;
 
     const mentionContext = state.mentionContext;
     const query = mentionContext.query.trim();
@@ -897,10 +1033,15 @@
       return;
     }
 
-    const searchContext = getMentionSearchContext(state.options?.getSearchContext);
+    const searchContext = getMentionSearchContext(
+      state.options?.getSearchContext,
+    );
     const searchSignature = buildSearchSignature(query, searchContext);
 
-    if (state.lastSearchSignature === searchSignature && state.lastResultItems.length) {
+    if (
+      state.lastSearchSignature === searchSignature &&
+      state.lastResultItems.length
+    ) {
       state.rawItems = [...state.lastResultItems];
       renderItems(state, true);
       return;
@@ -1062,6 +1203,7 @@
           if (typeof event.stopImmediatePropagation === "function") {
             event.stopImmediatePropagation();
           }
+          setKeyboardNavigationMode(state, true);
           updateActiveItem(state, state.activeIndex + 1);
           return;
         }
@@ -1072,6 +1214,7 @@
           if (typeof event.stopImmediatePropagation === "function") {
             event.stopImmediatePropagation();
           }
+          setKeyboardNavigationMode(state, true);
           updateActiveItem(state, state.activeIndex - 1);
           return;
         }

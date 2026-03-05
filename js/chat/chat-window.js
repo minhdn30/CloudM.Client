@@ -2597,6 +2597,7 @@ const ChatWindow = {
     const otherAccountId =
       conv.otherMember?.accountId || conv.otherMemberId || "";
     const canNav = !conv.isGroup && otherAccountId;
+    const isMuted = !!(conv?.isMuted ?? conv?.IsMuted);
 
     chatBox.innerHTML = `
             <div class="chat-box-header">
@@ -2611,7 +2612,10 @@ const ChatWindow = {
                         ${shouldShowOnlineDot ? '<div class="chat-header-status"></div>' : ""}
                     </div>
                     <div class="chat-header-text">
-                        <div class="chat-header-name" >${name}</div>
+                        <div class="chat-header-name-row">
+                            <div class="chat-header-name" >${name}</div>
+                            ${isMuted ? '<i class="chat-header-muted-icon" data-lucide="bell-off" aria-label="Muted conversation" title="Muted conversation"></i>' : ""}
+                        </div>
                         <div class="chat-header-subtext">${subtext}</div>
                     </div>
                 </div>
@@ -3184,8 +3188,33 @@ const ChatWindow = {
     chat.data = chat.data || {};
     chat.data.isMuted = !!isMuted;
     chat.data.IsMuted = !!isMuted;
+    this.updateHeaderMuteIcon(chat);
     this.saveState();
     return true;
+  },
+
+  updateHeaderMuteIcon(chat) {
+    if (!chat?.element) return;
+    const nameRow = chat.element.querySelector(".chat-header-name-row");
+    if (!nameRow) return;
+
+    const shouldShowMuted = !!(chat.data?.isMuted ?? chat.data?.IsMuted);
+    const existingIcon = nameRow.querySelector(".chat-header-muted-icon");
+
+    if (!shouldShowMuted) {
+      if (existingIcon) existingIcon.remove();
+      return;
+    }
+
+    if (existingIcon) return;
+
+    const iconEl = document.createElement("i");
+    iconEl.className = "chat-header-muted-icon";
+    iconEl.setAttribute("data-lucide", "bell-off");
+    iconEl.setAttribute("aria-label", "Muted conversation");
+    iconEl.setAttribute("title", "Muted conversation");
+    nameRow.appendChild(iconEl);
+    if (window.lucide) lucide.createIcons({ container: nameRow });
   },
 
   setThemeStatus(conversationId, theme) {
@@ -7629,6 +7658,7 @@ const ChatWindow = {
                 if (window.lucide)
                   lucide.createIcons({ container: avatarContainer });
               }
+              this.updateHeaderMuteIcon(chat);
             }
             this.syncPresenceSnapshotForConversations([metaData]);
             this.applyPresenceToChatDom(id, metaData);
