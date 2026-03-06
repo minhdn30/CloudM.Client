@@ -675,6 +675,9 @@ function appEnsureChatSidebarOpen() {
 
 function closeAllOverlayModals(options = {}) {
   const keepChatSurface = options.keepChatSurface === true;
+  const keepNotificationsPanel =
+    options.keepNotificationsPanel === true ||
+    !!window.__keepNotificationsPanelOnNextRoute;
   const currentPath = appParseHash(window.location.hash || "").path;
   const shouldKeepStoryViewer = appIsStoryViewerRoute(currentPath);
 
@@ -759,7 +762,7 @@ function closeAllOverlayModals(options = {}) {
       window.closeChatSidebar();
   }
 
-  if (window.closeNotificationsPanel) {
+  if (!keepNotificationsPanel && window.closeNotificationsPanel) {
       window.closeNotificationsPanel();
   }
 
@@ -787,6 +790,29 @@ function closeAllOverlayModals(options = {}) {
   unlockScroll();
 }
 window.closeAllOverlayModals = closeAllOverlayModals;
+
+function restoreNotificationsPanelAfterRouteIfNeeded() {
+  const preserveToken = window.__keepNotificationsPanelOnNextRoute;
+  const shouldRestoreNotificationsPanel = !!preserveToken;
+  if (
+    !shouldRestoreNotificationsPanel ||
+    !window.NotificationsPanel ||
+    typeof window.NotificationsPanel.open !== "function"
+  ) {
+    return;
+  }
+
+  const attemptRestore = () => {
+    if (!window.__keepNotificationsPanelOnNextRoute) return;
+    if (window.NotificationsPanel?.isOpen) return;
+    Promise.resolve(window.NotificationsPanel.open()).catch(() => {});
+  };
+
+  attemptRestore();
+  setTimeout(attemptRestore, 120);
+  setTimeout(attemptRestore, 320);
+  setTimeout(attemptRestore, 700);
+}
 
 function getCacheKey(hash) {
     const parsed = appParseHash(hash || "");
@@ -1215,9 +1241,13 @@ window.reloadPage = reloadPage;
 window.reloadHome = reloadPage;
 
 function runRouter() {
-  router().catch((error) => {
-    console.error("Router error:", error);
-  });
+  return router()
+    .catch((error) => {
+      console.error("Router error:", error);
+    })
+    .finally(() => {
+      restoreNotificationsPanelAfterRouteIfNeeded();
+    });
 }
 
 if (AppRouteHelper?.observeRoute) {

@@ -476,6 +476,16 @@
     state.itemMap.clear();
   }
 
+  function preservePanelOnNextRouteChange() {
+    const preserveToken = Date.now();
+    global.__keepNotificationsPanelOnNextRoute = preserveToken;
+    setTimeout(() => {
+      if (global.__keepNotificationsPanelOnNextRoute === preserveToken) {
+        global.__keepNotificationsPanelOnNextRoute = false;
+      }
+    }, 1500);
+  }
+
   function normalizeNotificationItem(raw = {}) {
     const notificationId = readString(raw, "notificationId", "NotificationId");
     if (!notificationId) return null;
@@ -717,7 +727,8 @@
   }
 
   function resolveFollowRequestActionErrorMessage(status, isAccept) {
-    if (status === 401) return "Your session has expired. Please sign in again.";
+    if (status === 401)
+      return "Your session has expired. Please sign in again.";
     if (status === 403) {
       return isAccept
         ? "You do not have permission to accept this follow request."
@@ -782,7 +793,8 @@
       ? global.API?.Follows?.acceptRequest
       : global.API?.Follows?.removeRequest;
     if (typeof actionApi !== "function") {
-      if (global.toastError) global.toastError("Follow request API is unavailable.");
+      if (global.toastError)
+        global.toastError("Follow request API is unavailable.");
       return;
     }
 
@@ -797,7 +809,8 @@
     try {
       const res = await actionApi(requesterId);
       if (!res?.ok) {
-        const responseMessage = await readFollowRequestActionResponseMessage(res);
+        const responseMessage =
+          await readFollowRequestActionResponseMessage(res);
         if (
           shouldSilentlyRefreshResolvedFollowRequest(
             res.status,
@@ -1454,12 +1467,14 @@
 
     const profileTarget = resolved.profileTarget;
     if (global.RouteHelper?.buildProfilePath && global.RouteHelper?.goTo) {
+      preservePanelOnNextRouteChange();
       global.RouteHelper.goTo(
         global.RouteHelper.buildProfilePath(profileTarget),
       );
       return true;
     }
 
+    preservePanelOnNextRouteChange();
     global.location.hash = `#/${encodeURIComponent(profileTarget)}`;
     return true;
   }
@@ -1472,8 +1487,13 @@
     }
 
     if (typeof global.openPostDetailByCode === "function") {
+      preservePanelOnNextRouteChange();
       const openResult = await global.openPostDetailByCode(postCode);
-      return openResult !== false;
+      if (openResult === false) {
+        global.__keepNotificationsPanelOnNextRoute = false;
+        return false;
+      }
+      return true;
     }
 
     if (!global.API?.Posts?.getByPostCode) {
@@ -1499,10 +1519,12 @@
 
     if (global.RouteHelper?.buildPostDetailPath && global.RouteHelper?.goTo) {
       const path = global.RouteHelper.buildPostDetailPath(postCode);
+      preservePanelOnNextRouteChange();
       global.RouteHelper.goTo(path);
       return true;
     }
 
+    preservePanelOnNextRouteChange();
     global.location.hash = `#/posts/${encodeURIComponent(postCode)}`;
     return true;
   }
@@ -1515,12 +1537,17 @@
     }
 
     if (typeof global.openStoryViewerByStoryId === "function") {
+      preservePanelOnNextRouteChange();
       const status = await global.openStoryViewerByStoryId(storyId, {
         syncUrl: true,
         redirectOnNotFound: false,
         redirectOnForbidden: false,
       });
-      return status === STORY_OPEN_STATUS.SUCCESS;
+      if (status !== STORY_OPEN_STATUS.SUCCESS) {
+        global.__keepNotificationsPanelOnNextRoute = false;
+        return false;
+      }
+      return true;
     }
 
     if (!global.API?.Stories?.resolveByStoryId) {
@@ -1545,10 +1572,12 @@
     }
 
     if (global.RouteHelper?.goTo) {
+      preservePanelOnNextRouteChange();
       global.RouteHelper.goTo(`/stories/${encodeURIComponent(storyId)}`);
       return true;
     }
 
+    preservePanelOnNextRouteChange();
     global.location.hash = `#/stories/${encodeURIComponent(storyId)}`;
     return true;
   }
@@ -1575,9 +1604,7 @@
       return;
     }
 
-    if (opened) {
-      close();
-    }
+    return opened;
   }
 
   function cleanupRealtimeDedupeMap(force = false) {
