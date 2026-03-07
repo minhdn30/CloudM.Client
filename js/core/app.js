@@ -674,7 +674,11 @@ function appEnsureChatSidebarOpen() {
 }
 
 function closeAllOverlayModals(options = {}) {
-  const keepChatSurface = options.keepChatSurface === true;
+  const keepChatSidebar =
+    options.keepChatSidebar === true || options.keepChatSurface === true;
+  const keepNotificationsPanel =
+    options.keepNotificationsPanel === true ||
+    !!window.__keepNotificationsPanelOnNextRoute;
   const currentPath = appParseHash(window.location.hash || "").path;
   const shouldKeepStoryViewer = appIsStoryViewerRoute(currentPath);
 
@@ -752,14 +756,14 @@ function closeAllOverlayModals(options = {}) {
       }
   }
 
-  const isMessagesRoute = appIsChatPath(currentPath) || keepChatSurface;
+  const isMessagesRoute = appIsChatPath(currentPath);
 
   // Chat Sidebar
-  if (window.closeChatSidebar && !isMessagesRoute) {
+  if (window.closeChatSidebar && !keepChatSidebar && !isMessagesRoute) {
       window.closeChatSidebar();
   }
 
-  if (window.closeNotificationsPanel) {
+  if (!keepNotificationsPanel && window.closeNotificationsPanel) {
       window.closeNotificationsPanel();
   }
 
@@ -787,6 +791,29 @@ function closeAllOverlayModals(options = {}) {
   unlockScroll();
 }
 window.closeAllOverlayModals = closeAllOverlayModals;
+
+function restoreNotificationsPanelAfterRouteIfNeeded() {
+  const preserveToken = window.__keepNotificationsPanelOnNextRoute;
+  const shouldRestoreNotificationsPanel = !!preserveToken;
+  if (
+    !shouldRestoreNotificationsPanel ||
+    !window.NotificationsPanel ||
+    typeof window.NotificationsPanel.open !== "function"
+  ) {
+    return;
+  }
+
+  const attemptRestore = () => {
+    if (!window.__keepNotificationsPanelOnNextRoute) return;
+    if (window.NotificationsPanel?.isOpen) return;
+    Promise.resolve(window.NotificationsPanel.open()).catch(() => {});
+  };
+
+  attemptRestore();
+  setTimeout(attemptRestore, 120);
+  setTimeout(attemptRestore, 320);
+  setTimeout(attemptRestore, 700);
+}
 
 function getCacheKey(hash) {
     const parsed = appParseHash(hash || "");
@@ -981,7 +1008,10 @@ async function router() {
   lastHash = hash;
 
   // IMPORTANT: Close overlays first, which calls unlockScroll()
-  closeAllOverlayModals();
+  closeAllOverlayModals({
+    keepChatSidebar: !!window.ChatSidebar?.isOpen,
+    keepNotificationsPanel: !!window.NotificationsPanel?.isOpen,
+  });
 
   // Keep profile surface stable when switching sub-routes in the same profile
   // (tabs/follow-lists/highlight, etc.) to avoid full page rerender flicker.
@@ -1060,6 +1090,9 @@ async function router() {
       }
       
       PageCache.restore(nextKey, app);
+      if (window.lucide && typeof lucide.createIcons === "function") {
+          lucide.createIcons();
+      }
       
       if (appIsChatPath(path) && window.ChatPage && typeof window.ChatPage.handleUrlNavigation === 'function') {
           window.ChatPage.handleUrlNavigation();
@@ -1212,9 +1245,13 @@ window.reloadPage = reloadPage;
 window.reloadHome = reloadPage;
 
 function runRouter() {
-  router().catch((error) => {
-    console.error("Router error:", error);
-  });
+  return router()
+    .catch((error) => {
+      console.error("Router error:", error);
+    })
+    .finally(() => {
+      restoreNotificationsPanelAfterRouteIfNeeded();
+    });
 }
 
 if (AppRouteHelper?.observeRoute) {

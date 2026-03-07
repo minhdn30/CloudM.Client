@@ -238,6 +238,108 @@ body.is-profile-page .main-content::-webkit-scrollbar:horizontal {
   margin-left: auto; /* Push buttons to the far right */
   align-items: center;
   flex-shrink: 0;
+  position: relative;
+}
+
+.profile-more-menu-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.profile-more-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 208px;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid var(--border-secondary, var(--glass-border));
+  background: var(--bg-primary);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.22);
+  opacity: 0;
+  transform: translateY(-8px) scale(0.98);
+  pointer-events: none;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+  z-index: 40;
+}
+
+.profile-more-menu::before,
+.profile-more-menu::after {
+  content: "";
+  position: absolute;
+  right: 18px;
+  width: 12px;
+  height: 12px;
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.profile-more-menu::before {
+  top: -7px;
+  background: var(--border-secondary, var(--glass-border));
+  z-index: 0;
+}
+
+.profile-more-menu::after {
+  top: -6px;
+  background: var(--bg-primary);
+  z-index: 1;
+}
+
+.profile-more-menu.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.profile-more-menu button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
+  min-width: 0;
+}
+
+.profile-more-menu button:hover {
+  background: var(--bg-hover);
+}
+
+.profile-more-menu button i,
+.profile-more-menu button svg {
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.profile-more-menu button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-more-menu button.danger {
+  color: var(--danger);
+}
+
+.profile-more-menu button.danger i,
+.profile-more-menu button.danger svg {
+  color: inherit;
 }
 
 .profile-btn {
@@ -322,6 +424,7 @@ body.is-profile-page .main-content::-webkit-scrollbar:horizontal {
 }
 
 .profile-btn-following:hover,
+.profile-btn-requested:hover,
 .profile-btn-secondary:hover,
 .profile-btn-more:hover {
   background: var(--bg-active) !important;
@@ -333,6 +436,7 @@ body.is-profile-page .main-content::-webkit-scrollbar:horizontal {
 .profile-btn-message,
 .profile-btn-follow,
 .profile-btn-following,
+.profile-btn-requested,
 .profile-btn-secondary,
 .profile-btn-more {
   background: transparent !important;

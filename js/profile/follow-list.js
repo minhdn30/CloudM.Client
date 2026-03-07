@@ -8,24 +8,69 @@ const FollowListModule = (function () {
   let currentPage = 1;
   let targetId = null;
   let listType = "followers"; // 'followers' or 'following'
+  let isRouteBound = false;
   let hasNextPage = false;
   let isLoading = false;
   let searchKeyword = "";
   let sortState = null; // null: default, false: DESC, true: ASC
   const PAGE_SIZE = window.APP_CONFIG?.FOLLOW_LIST_PAGE_SIZE || 15;
 
+  function normalizeAccountId(value) {
+    return (value || "").toString().trim().toLowerCase();
+  }
+
+  function isCurrentViewerAccount(accountId) {
+    const targetId = normalizeAccountId(accountId);
+    if (!targetId) return false;
+    const currentId = normalizeAccountId(
+      APP_CONFIG.CURRENT_USER_ID || localStorage.getItem("accountId"),
+    );
+    return !!currentId && targetId === currentId;
+  }
+
+  function isOwnerFollowersList() {
+    return listType === "followers" && isCurrentViewerAccount(targetId);
+  }
+
   const MODAL_ID = "followListModal";
 
   function normalizeListType(type) {
-    if (FollowRouteHelper?.normalizeProfileFollowListType) {
-      return FollowRouteHelper.normalizeProfileFollowListType(type);
-    }
     const normalized = (type || "").toString().trim().toLowerCase();
+    if (normalized === "sent-requests" || normalized === "sentrequests") {
+      return "sent-requests";
+    }
+    if (FollowRouteHelper?.normalizeProfileFollowListType) {
+      return FollowRouteHelper.normalizeProfileFollowListType(normalized);
+    }
     if (normalized === "following") return "following";
     if (normalized === "followers" || normalized === "follower") {
       return "followers";
     }
     return "";
+  }
+
+  function getListTitle(type) {
+    switch (normalizeListType(type)) {
+      case "following":
+        return "Following";
+      case "sent-requests":
+        return "Pending Requests";
+      case "followers":
+      default:
+        return "Followers";
+    }
+  }
+
+  function getEmptyMessage(type) {
+    switch (normalizeListType(type)) {
+      case "following":
+        return "No following found";
+      case "sent-requests":
+        return "No pending requests found";
+      case "followers":
+      default:
+        return "No followers found";
+    }
   }
 
   function getCurrentProfileUsername() {
@@ -120,9 +165,15 @@ const FollowListModule = (function () {
       pageSize: PAGE_SIZE,
     };
 
-    return listType === "followers"
-      ? await API.Follows.getFollowers(accountId, request)
-      : await API.Follows.getFollowing(accountId, request);
+    if (listType === "followers") {
+      return await API.Follows.getFollowers(accountId, request);
+    }
+
+    if (listType === "following") {
+      return await API.Follows.getFollowing(accountId, request);
+    }
+
+    return await API.Follows.getSentRequests(request);
   }
 
   /**
@@ -132,11 +183,12 @@ const FollowListModule = (function () {
    */
   async function openFollowList(accountId, type = "followers", options = {}) {
     const normalizedType = normalizeListType(type) || "followers";
-    const syncRoute = options.syncRoute !== false;
+    const syncRoute = options.syncRoute !== false && normalizedType !== "sent-requests";
     const routeReplace = options.routeReplace === true;
     const profileUsername = (options.profileUsername || getCurrentProfileUsername())
       .toString()
       .trim();
+    const initialData = options.initialData || null;
 
     if (syncRoute && profileUsername) {
       const followHash = buildFollowRouteHash(profileUsername, normalizedType);
@@ -178,6 +230,7 @@ const FollowListModule = (function () {
 
     targetId = accountId;
     listType = normalizedType;
+    isRouteBound = options.routeBound === true;
     currentPage = 1;
     searchKeyword = "";
     sortState = null;
@@ -196,11 +249,14 @@ const FollowListModule = (function () {
 
       const titleEl = modal.querySelector(".modal-header h3 span");
       if (titleEl) {
-        titleEl.textContent =
-          normalizedType.charAt(0).toUpperCase() + normalizedType.slice(1);
+        titleEl.textContent = getListTitle(normalizedType);
       }
 
-      await _loadData(1);
+      if (initialData && typeof initialData === "object") {
+        _handleDataResponse(initialData, false);
+      } else {
+        await _loadData(1);
+      }
     } catch (error) {
       console.error(error);
       if (window.toastError) toastError("Could not load list");
@@ -229,7 +285,6 @@ const FollowListModule = (function () {
     if (isLoading) return;
 
     const loader = document.getElementById("followListLoader");
-    const listContainer = document.getElementById("followListItems");
 
     isLoading = true;
     if (loader) loader.style.display = "flex";
@@ -238,18 +293,31 @@ const FollowListModule = (function () {
       const res = await _fetchPage(targetId, page, searchKeyword, sortState);
 
       if (res.status === 403) {
-        if (window.toastError)
+        if (window.toastError) {
           toastError(
-            "This account is private or you don't have permission to view this list",
+            listType === "sent-requests"
+              ? "You do not have permission to view pending requests right now."
+              : "This account is private or you don't have permission to view this list",
           );
+        }
         closeFollowList();
-        redirectToProfileRoot(true);
+        if (listType !== "sent-requests") {
+          redirectToProfileRoot(true);
+        }
         return;
       }
       if (res.status === 404) {
-        if (window.toastError) toastError("Account not found");
+        if (window.toastError) {
+          toastError(
+            listType === "sent-requests"
+              ? "Could not load pending requests."
+              : "Account not found",
+          );
+        }
         closeFollowList();
-        redirectToNotFound(true);
+        if (listType !== "sent-requests") {
+          redirectToNotFound(true);
+        }
         return;
       }
       if (!res.ok) throw new Error("Load failed");
@@ -258,6 +326,7 @@ const FollowListModule = (function () {
       _handleDataResponse(data, append);
     } catch (error) {
       console.error(error);
+      if (loader) loader.style.display = "none";
       if (window.toastError) toastError("Failed to load items");
     } finally {
       isLoading = false;
@@ -286,7 +355,7 @@ const FollowListModule = (function () {
     if (items.length === 0 && currentPage === 1) {
       const emptyMsg = document.createElement("div");
       emptyMsg.className = "empty-list-msg";
-      emptyMsg.textContent = `No ${listType} found`;
+      emptyMsg.textContent = getEmptyMessage(listType);
       container.appendChild(emptyMsg);
       return;
     }
@@ -298,11 +367,17 @@ const FollowListModule = (function () {
       const avatarUrl = item.avatarUrl || APP_CONFIG.DEFAULT_AVATAR;
 
       let actionBtnHtml = "";
-      if (item.accountId === APP_CONFIG.CURRENT_USER_ID) {
+      if (isCurrentViewerAccount(item.accountId)) {
         actionBtnHtml = `
                     <button class="follow-btn view-profile-btn" onclick="viewProfile('${item.username}')">
                         <i data-lucide="user"></i>
                         <span>View Profile</span>
+                    </button>`;
+      } else if (isOwnerFollowersList()) {
+        actionBtnHtml = `
+                    <button class="follow-btn danger" onclick="FollowListModule.confirmRemoveFollower('${item.accountId}', this)">
+                        <i data-lucide="user-minus"></i>
+                        <span>Remove</span>
                     </button>`;
       } else {
         if (item.isFollowing) {
@@ -310,6 +385,16 @@ const FollowListModule = (function () {
                         <button class="follow-btn following" onclick="FollowListModule.handleFollow('${item.accountId}', this)">
                             <i data-lucide="check"></i>
                             <span>Following</span>
+                        </button>`;
+        } else if (item.isFollowRequested) {
+          const requestActionHandler =
+            listType === "sent-requests"
+              ? "FollowListModule.handleSentRequest"
+              : "FollowListModule.handleFollow";
+          actionBtnHtml = `
+                        <button class="follow-btn requested" onclick="${requestActionHandler}('${item.accountId}', this)">
+                            <i data-lucide="clock-3"></i>
+                            <span>Request Sent</span>
                         </button>`;
         } else {
           actionBtnHtml = `
@@ -326,7 +411,7 @@ const FollowListModule = (function () {
                     <div class="name-box">
                         <span class="fullname post-username">${PostUtils.truncateName(item.username)}</span>
                         <span class="username-subtext">${item.fullName || ""}</span>
-                        ${item.isFollower ? '<span class="follower-tag">Follows you</span>' : ""}
+                        ${item.isFollower && !isOwnerFollowersList() ? '<span class="follower-tag">Follows you</span>' : ""}
                     </div>
                 </div>
                 <div class="action-box">
@@ -342,12 +427,114 @@ const FollowListModule = (function () {
   async function handleFollow(accountId, btn) {
     if (!window.FollowModule) return;
     const isFollowing = btn.classList.contains("following");
+    const isRequested = btn.classList.contains("requested");
 
-    if (isFollowing) {
+    if (isFollowing || isRequested) {
       FollowModule.showUnfollowConfirm(accountId, btn);
     } else {
       await FollowModule.followUser(accountId, btn);
     }
+  }
+
+  async function reconcileFollowersListAfterRemoval() {
+    const listContainer = document.getElementById("followListItems");
+    if (!listContainer) return;
+
+    if (listContainer.querySelector(".follow-list-item")) {
+      return;
+    }
+
+    const existingEmpty = listContainer.querySelector(".empty-list-msg");
+    if (existingEmpty) {
+      existingEmpty.remove();
+    }
+
+    if (hasNextPage) {
+      currentPage = 1;
+      await _loadData(1, false);
+      return;
+    }
+
+    if (!listContainer.querySelector(".empty-list-msg")) {
+      const emptyMsg = document.createElement("div");
+      emptyMsg.className = "empty-list-msg";
+      emptyMsg.textContent = getEmptyMessage(listType);
+      listContainer.appendChild(emptyMsg);
+    }
+  }
+
+  async function removeFollowerRow(accountId) {
+    const modal = document.getElementById(MODAL_ID);
+    if (!modal) return;
+
+    const normalizedAccountId = normalizeAccountId(accountId);
+    const row = Array.from(modal.querySelectorAll(".user-info[data-account-id]"))
+      .find(
+        (element) =>
+          normalizeAccountId(element.dataset.accountId) === normalizedAccountId,
+      )
+      ?.closest(".follow-list-item");
+    if (!row) return;
+
+    row.style.opacity = "0";
+    row.style.transform = "translateY(-6px)";
+    row.style.pointerEvents = "none";
+
+    await new Promise((resolve) => setTimeout(resolve, 180));
+    row.remove();
+    await reconcileFollowersListAfterRemoval();
+  }
+
+  async function removeFollower(accountId, btn) {
+    const safeAccountId = normalizeAccountId(accountId);
+    if (!safeAccountId || !window.API?.Follows?.removeFollower) return null;
+
+    if (btn) btn.disabled = true;
+
+    try {
+      const res = await API.Follows.removeFollower(accountId);
+      if (!res.ok) {
+        if (window.toastError) {
+          toastError("Could not remove this follower right now.");
+        }
+        return null;
+      }
+
+      await removeFollowerRow(accountId);
+      if (window.toastSuccess) {
+        toastSuccess("Follower removed.");
+      }
+      return { removed: true, silent: false };
+    } catch (error) {
+      console.error(error);
+      if (window.toastError) {
+        toastError("Could not remove this follower right now.");
+      }
+      return null;
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function confirmRemoveFollower(accountId, btn) {
+    if (!window.FollowModule?.showRemoveFollowerConfirm) return;
+
+    await window.FollowModule.showRemoveFollowerConfirm(accountId, btn, {
+      onResolved: () => {},
+      execute: () => removeFollower(accountId, btn),
+    });
+  }
+
+  async function handleSentRequest(accountId, btn) {
+    if (!window.FollowModule) return;
+
+    await FollowModule.showUnfollowConfirm(accountId, btn, {
+      onResolved: (relation) => {
+        if (!relation || relation.isRequested) return;
+        currentPage = 1;
+        _loadData(1, false);
+      },
+    });
   }
 
   let searchTimeout = null;
@@ -396,11 +583,58 @@ const FollowListModule = (function () {
       modal.classList.remove("show");
       if (window.unlockScroll) unlockScroll();
     }
+    isRouteBound = false;
   }
 
   function closeFollowListFromUI() {
+    const shouldRedirect = isRouteBound;
     closeFollowList();
-    redirectToProfileRoot(false);
+    if (shouldRedirect) {
+      redirectToProfileRoot(false);
+    }
+  }
+
+  async function openSentFollowRequestList(accountId, options = {}) {
+    const safeAccountId = (accountId || "").toString().trim();
+    if (!safeAccountId) return;
+
+    try {
+      const res = await API.Follows.getSentRequests({
+        page: 1,
+        pageSize: PAGE_SIZE,
+        keyword: "",
+        sortByCreatedASC: null,
+      });
+
+      if (res.status === 401) {
+        if (window.toastError) toastError("Your session has expired. Please sign in again.");
+        return;
+      }
+
+      if (!res.ok) {
+        if (window.toastError) toastError("Could not load pending requests.");
+        return;
+      }
+
+      const data = await res.json();
+      const totalItems = Number(data?.totalItems ?? data?.TotalItems ?? 0);
+      if (!Number.isFinite(totalItems) || totalItems <= 0) {
+        if (window.toastInfo) {
+          toastInfo("You don't have any pending follow requests right now.");
+        }
+        return;
+      }
+
+      await openFollowList(accountId, "sent-requests", {
+        syncRoute: false,
+        routeBound: false,
+        profileUsername: options.profileUsername,
+        initialData: data,
+      });
+    } catch (error) {
+      console.error(error);
+      if (window.toastError) toastError("Could not load pending requests.");
+    }
   }
 
   async function _loadModalHTML() {
@@ -450,8 +684,11 @@ const FollowListModule = (function () {
     openFollowList,
     closeFollowList,
     closeFollowListFromUI,
+    openSentFollowRequestList,
     toggleSort: _toggleSort,
     handleFollow,
+    handleSentRequest,
+    confirmRemoveFollower,
     getCurrentTargetId: () => targetId,
     getCurrentListType: () => listType,
     isModalOpen: () => {

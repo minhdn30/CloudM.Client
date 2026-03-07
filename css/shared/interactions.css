@@ -193,6 +193,21 @@
     white-space: nowrap;
 }
 
+.interaction-item .follow-btn.danger {
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--danger);
+    border: none;
+}
+
+.interaction-item .follow-btn.danger i,
+.interaction-item .follow-btn.danger svg {
+    color: inherit;
+}
+
+.interaction-item .follow-btn.danger:hover {
+    background: rgba(239, 68, 68, 0.18);
+}
+
 .interaction-item .follow-btn i,
 .interaction-item .follow-btn svg {
     width: 16px;
@@ -203,7 +218,9 @@
 
 /* Ensure 'Following' button icon uses the button's text color */
 .interaction-item .follow-btn.following i,
-.interaction-item .follow-btn.following svg {
+.interaction-item .follow-btn.following svg,
+.interaction-item .follow-btn.requested i,
+.interaction-item .follow-btn.requested svg {
     color: inherit;
 }
 
@@ -229,8 +246,20 @@
     border: 1px solid var(--border-primary);
 }
 
+.interaction-item .follow-btn.requested {
+    background: var(--border-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+}
+
 /* Hover effect for following state */
 .interaction-item .follow-btn.following:hover {
+    background: var(--border-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-secondary);
+}
+
+.interaction-item .follow-btn.requested:hover {
     background: var(--border-secondary);
     color: var(--text-primary);
     border-color: var(--border-secondary);

@@ -546,8 +546,13 @@
         apiFetch(
           `/Stories/archive?page=${encodeURIComponent(page)}&pageSize=${encodeURIComponent(pageSize)}`,
         ),
-      resolveByStoryId: (storyId) =>
-        apiFetch(`/Stories/${encodeURIComponent(storyId)}/resolve`),
+      resolveByStoryId: (
+        storyId,
+        pageSize = window.APP_CONFIG?.PROFILE_ARCHIVED_STORIES_PAGE_SIZE || 12,
+      ) =>
+        apiFetch(
+          `/Stories/${encodeURIComponent(storyId)}/resolve?pageSize=${encodeURIComponent(pageSize)}`,
+        ),
       getActiveByAuthor: (authorId) =>
         apiFetch(`/Stories/authors/${encodeURIComponent(authorId)}/active`),
       markViewed: (storyIds = []) =>
@@ -724,6 +729,40 @@
         apiFetch(`/Follows/${targetId}`, { method: "POST" }),
       unfollow: (targetId) =>
         apiFetch(`/Follows/${targetId}`, { method: "DELETE" }),
+      status: (targetId) => apiFetch(`/Follows/status/${targetId}`),
+      getRequests: ({
+        limit = window.APP_CONFIG?.NOTIFICATIONS_PAGE_SIZE || 20,
+        cursorCreatedAt = null,
+        cursorRequesterId = null,
+      } = {}) => {
+        const safeLimit = Math.max(1, Math.min(Number(limit) || 20, 100));
+        let url = `/Follows/requests?limit=${encodeURIComponent(safeLimit)}`;
+        const safeCursorCreatedAt = (cursorCreatedAt || "").toString().trim();
+        const safeCursorRequesterId = (cursorRequesterId || "")
+          .toString()
+          .trim();
+        if (safeCursorCreatedAt && safeCursorRequesterId) {
+          url += `&cursorCreatedAt=${encodeURIComponent(safeCursorCreatedAt)}&cursorRequesterId=${encodeURIComponent(safeCursorRequesterId)}`;
+        }
+        return apiFetch(url);
+      },
+      getSentRequests: (request) => {
+        let url = `/Follows/requests/sent?page=${request.page}&pageSize=${request.pageSize}`;
+        if (request.keyword)
+          url += `&keyword=${encodeURIComponent(request.keyword)}`;
+        if (
+          request.sortByCreatedASC !== undefined &&
+          request.sortByCreatedASC !== null
+        )
+          url += `&sortByCreatedASC=${request.sortByCreatedASC}`;
+        return apiFetch(url);
+      },
+      acceptRequest: (requesterId) =>
+        apiFetch(`/Follows/requests/${requesterId}/accept`, { method: "POST" }),
+      removeRequest: (requesterId) =>
+        apiFetch(`/Follows/requests/${requesterId}`, { method: "DELETE" }),
+      removeFollower: (followerId) =>
+        apiFetch(`/Follows/followers/${followerId}`, { method: "DELETE" }),
       getFollowers: (accountId, request) => {
         let url = `/Follows/followers?accountId=${accountId}&page=${request.page}&pageSize=${request.pageSize}`;
         if (request.keyword)
