@@ -126,6 +126,21 @@ function initFloatingFields() {
 
 initFloatingFields();
 
+if (window.I18n?.translateDom) {
+  window.I18n.translateDom(document);
+}
+
+if (window.I18n?.t) {
+  document.title = window.I18n.t("auth.title", {}, document.title || "Auth");
+}
+
+if (window.I18n?.onChange) {
+  window.I18n.onChange(() => {
+    window.I18n?.translateDom?.(document);
+    document.title = window.I18n?.t("auth.title", {}, "Auth") || "Auth";
+  });
+}
+
 const verifyPopup = document.getElementById("verify-popup");
 const verifyTitle = document.getElementById("verify-title");
 const verifyDescription = document.getElementById("verify-description");
@@ -224,18 +239,76 @@ function clearPendingAutoLogin() {
 
 function getPasswordPolicyError(password) {
   if (!password) {
-    return "Password is required.";
+    return window.I18n?.t?.("auth.passwordPolicyRequired") || "Password is required.";
   }
 
   if (password.length < REGISTER_PASSWORD_MIN_LENGTH) {
-    return `Password must be at least ${REGISTER_PASSWORD_MIN_LENGTH} characters long.`;
+    return (
+      window.I18n?.t?.(
+        "auth.passwordPolicyLength",
+        { count: REGISTER_PASSWORD_MIN_LENGTH },
+        `Password must be at least ${REGISTER_PASSWORD_MIN_LENGTH} characters long.`,
+      ) ||
+      `Password must be at least ${REGISTER_PASSWORD_MIN_LENGTH} characters long.`
+    );
   }
 
   if (password.includes(" ") || PASSWORD_ACCENT_REGEX.test(password)) {
-    return "Password cannot contain Vietnamese accents or spaces.";
+    return (
+      window.I18n?.t?.(
+        "auth.passwordPolicyAccent",
+        {},
+        "Password cannot contain Vietnamese accents or spaces.",
+      ) || "Password cannot contain Vietnamese accents or spaces."
+    );
   }
 
   return null;
+}
+
+function authText(key, params, fallback) {
+  return window.I18n?.t ? window.I18n.t(key, params, fallback) : fallback || key;
+}
+
+function showAuthError(action, status, rawMessage, fallbackKey = "errors.auth.login") {
+  const normalizedRawMessage = (rawMessage || "").toString().trim();
+  if (action === "login" && normalizedRawMessage) {
+    showToast(normalizedRawMessage, "error");
+    return;
+  }
+
+  showToast(
+    window.UIErrors?.resolveMessage
+      ? window.UIErrors.resolveMessage(
+          "auth",
+          action,
+          status,
+          rawMessage,
+          fallbackKey,
+          authText(fallbackKey, {}, fallbackKey),
+        )
+      : authText(fallbackKey, {}, fallbackKey),
+    "error",
+  );
+}
+
+function showAuthInfoKey(key, type = "info", params = {}) {
+  const resolved = authText(key, params, "");
+  const safeMessage =
+    resolved && resolved !== key
+      ? resolved
+      : authText("errors.generic", {}, "Something went wrong. Please try again.");
+  showToast(safeMessage, type);
+}
+
+function buildReactivationToastHtml(message) {
+  return `<div>
+        <p style="margin-bottom: 8px;">${message}</p>
+        <div class="toast-actions">
+          <button class="toast-btn" onclick="window.reactivateAccountAction()">${authText("auth.reactivateNow", {}, "Reactivate Now")}</button>
+          <button class="toast-btn secondary" onclick="window.location.href='auth.html'">${authText("auth.later", {}, "Later")}</button>
+        </div>
+      </div>`;
 }
 
 function fillLoginCredentials(email, password) {
@@ -376,15 +449,12 @@ function ensureGoogleIdentityInitialized() {
 function startGoogleSignInPrecheck() {
   const clientId = String(appConfig.GOOGLE_CLIENT_ID || "").trim();
   if (!clientId) {
-    showToast("Google sign-in is not configured yet.", "error");
+    showAuthInfoKey("auth.googleNotConfigured", "error");
     return false;
   }
 
   if (!ensureGoogleIdentityInitialized()) {
-    showToast(
-      "Google sign-in is initializing. Please wait a moment and try again.",
-      "error",
-    );
+    showAuthInfoKey("auth.googleCanceled", "error");
     return false;
   }
 
@@ -394,10 +464,7 @@ function startGoogleSignInPrecheck() {
 async function handleGoogleCredentialResponse(response) {
   const idToken = response?.credential;
   if (!idToken) {
-    showToast(
-      "Google sign-in was canceled or unavailable. Please try again.",
-      "error",
-    );
+    showAuthInfoKey("auth.googleCanceled", "error");
     return;
   }
 
@@ -408,10 +475,7 @@ async function handleGoogleCredentialResponse(response) {
     const data = await res.json();
 
     if (!res.ok) {
-      showToast(
-        data.message || data.Message || "Google sign-in failed.",
-        "error",
-      );
+      showAuthError("google", res.status, data?.message || data?.Message, "errors.auth.google");
       return;
     }
 
@@ -426,13 +490,13 @@ async function handleGoogleCredentialResponse(response) {
 
     const loginData = data?.login || data;
     if (!loginData || !loginData.accessToken) {
-      showToast("Google sign-in failed. Please try again.", "error");
+      showAuthInfoKey("auth.googleFailed", "error");
       return;
     }
-    handleAuthenticatedRedirect(loginData, "Google sign-in successful!");
+    handleAuthenticatedRedirect(loginData, authText("auth.googleSuccess", {}, "Google sign-in successful!"));
   } catch (err) {
     console.error(err);
-    showToast("Server error. Please try again later.", "error");
+    showAuthInfoKey("errors.generic", "error");
   } finally {
     setSocialButtonPending(googleLoginBtn, false);
   }
@@ -465,7 +529,7 @@ function persistSessionFromLoginResponse(data) {
 
 function handleAuthenticatedRedirect(loginData, successMessage) {
   if (!loginData || typeof loginData !== "object") {
-    showToast("Login response is invalid. Please try again.", "error");
+    showAuthInfoKey("auth.invalidLoginResponse", "error");
     return false;
   }
 
@@ -473,13 +537,7 @@ function handleAuthenticatedRedirect(loginData, successMessage) {
 
   if (loginData.status === 1) {
     showToast(
-      `<div>
-        <p style="margin-bottom: 8px;">Your account is currently Inactive. Please reactivate to continue.</p>
-        <div class="toast-actions">
-          <button class="toast-btn" onclick="window.reactivateAccountAction()">Reactivate Now</button>
-          <button class="toast-btn secondary" onclick="window.location.href='auth.html'">Later</button>
-        </div>
-      </div>`,
+      buildReactivationToastHtml(authText("errors.account.restricted")),
       "error",
       0,
       true,
@@ -488,10 +546,7 @@ function handleAuthenticatedRedirect(loginData, successMessage) {
   }
 
   if (loginData.status === 5) {
-    showToast(
-      "Email is not verified. Please verify your email first.",
-      "error",
-    );
+    showAuthInfoKey("auth.emailNotVerified", "error");
     return false;
   }
 
@@ -549,16 +604,24 @@ function setVerifyModalContent(mode, step) {
 
   const isLoginMode = mode === VERIFY_MODAL_MODE.LOGIN;
   verifyTitle.textContent = isLoginMode
-    ? "Verify Email to Continue"
-    : "Verify Email";
+    ? authText("auth.verifyEmailToContinue", {}, "Verify Email to Continue")
+    : authText("auth.verifyEmail", {}, "Verify Email");
 
   if (step === VERIFY_MODAL_STEP.SEND) {
     verifyDescription.textContent =
-      "Your account is not verified yet. Click Send Code to receive a 6-digit code.";
+      authText(
+        "auth.verifySendPrompt",
+        {},
+        "Your account is not verified yet. Click Send Code to receive a 6-digit code.",
+      );
     return;
   }
 
-  verifyDescription.textContent = "Enter the 6-digit code sent to your email";
+  verifyDescription.textContent = authText(
+    "auth.verifyEmailDescription",
+    {},
+    "Enter the 6-digit code sent to your email",
+  );
 }
 
 function openVerifyModal({
@@ -616,22 +679,38 @@ function setForgotPasswordModalStep(step) {
     return;
   }
 
-  forgotPasswordTitle.textContent = "Forgot Password";
+  forgotPasswordTitle.textContent = authText(
+    "auth.forgotPasswordTitle",
+    {},
+    "Forgot Password",
+  );
 
   if (step === FORGOT_MODAL_STEP.EMAIL) {
     forgotPasswordDescription.textContent =
-      "Enter your account email to receive a 6-digit reset code.";
+      authText(
+        "auth.forgotPasswordDescription",
+        {},
+        "Enter your account email to receive a 6-digit reset code.",
+      );
     return;
   }
 
   if (step === FORGOT_MODAL_STEP.CODE) {
     forgotPasswordDescription.textContent =
-      "Enter the 6-digit code sent to your email.";
+      authText(
+        "auth.verifyEmailDescription",
+        {},
+        "Enter the 6-digit code sent to your email.",
+      );
     return;
   }
 
   forgotPasswordDescription.textContent =
-    "Create a new password for your account.";
+    authText(
+      "auth.forgotPasswordResetPrompt",
+      {},
+      "Create a new password for your account.",
+    );
 }
 
 function focusFirstForgotCodeInput() {
@@ -807,10 +886,7 @@ async function completeExternalProfile() {
   const fullName = (externalProfileFullnameInput?.value || "").trim();
 
   if (!provider || !credential) {
-    showToast(
-      "External sign-in session has expired. Please try Google sign-in again.",
-      "error",
-    );
+    showAuthInfoKey("auth.googleCanceled", "error");
     closeExternalProfileModal();
     return false;
   }
@@ -820,7 +896,14 @@ async function completeExternalProfile() {
     username.length > REGISTER_USERNAME_MAX_LENGTH
   ) {
     showToast(
-      `Username must be between ${REGISTER_USERNAME_MIN_LENGTH} and ${REGISTER_USERNAME_MAX_LENGTH} characters.`,
+      authText(
+        "auth.usernameLength",
+        {
+          min: REGISTER_USERNAME_MIN_LENGTH,
+          max: REGISTER_USERNAME_MAX_LENGTH,
+        },
+        `Username must be between ${REGISTER_USERNAME_MIN_LENGTH} and ${REGISTER_USERNAME_MAX_LENGTH} characters.`,
+      ),
       "error",
     );
     return false;
@@ -828,7 +911,11 @@ async function completeExternalProfile() {
 
   if (!USERNAME_REGEX.test(username)) {
     showToast(
-      "Username can only include letters, numbers, underscore (_), without spaces or accents.",
+      authText(
+        "auth.usernameCharactersOnly",
+        {},
+        "Username can only include letters, numbers, underscore (_), without spaces or accents.",
+      ),
       "error",
     );
     return false;
@@ -839,7 +926,14 @@ async function completeExternalProfile() {
     fullName.length > REGISTER_FULLNAME_MAX_LENGTH
   ) {
     showToast(
-      `Full name must be between ${REGISTER_FULLNAME_MIN_LENGTH} and ${REGISTER_FULLNAME_MAX_LENGTH} characters.`,
+      authText(
+        "auth.fullNameLength",
+        {
+          min: REGISTER_FULLNAME_MIN_LENGTH,
+          max: REGISTER_FULLNAME_MAX_LENGTH,
+        },
+        `Full name must be between ${REGISTER_FULLNAME_MIN_LENGTH} and ${REGISTER_FULLNAME_MAX_LENGTH} characters.`,
+      ),
       "error",
     );
     return false;
@@ -855,19 +949,24 @@ async function completeExternalProfile() {
     const data = await res.json();
 
     if (!res.ok) {
-      showToast(
-        data.message || data.Message || "Failed to complete your profile.",
-        "error",
+      showAuthError(
+        "complete-profile",
+        res.status,
+        data?.message || data?.Message,
+        "errors.auth.completeProfile",
       );
       return false;
     }
 
     closeExternalProfileModal();
-    handleAuthenticatedRedirect(data, "Google sign-in successful!");
+    handleAuthenticatedRedirect(
+      data,
+      authText("auth.googleSuccess", {}, "Google sign-in successful!"),
+    );
     return true;
   } catch (err) {
     console.error(err);
-    showToast("Server error. Please try again later.", "error");
+    showAuthInfoKey("errors.generic", "error");
     return false;
   }
 }
@@ -875,7 +974,7 @@ async function completeExternalProfile() {
 async function sendForgotPasswordCode({ switchToCode = true } = {}) {
   const email = (forgotEmailInput?.value || "").trim();
   if (!email) {
-    showToast("Email is required.", "error");
+    showAuthInfoKey("auth.emailRequired", "error");
     return false;
   }
 
@@ -884,15 +983,17 @@ async function sendForgotPasswordCode({ switchToCode = true } = {}) {
     const data = await res.json();
 
     if (!res.ok) {
-      showToast(
-        data.message || data.Message || "Failed to send reset code.",
-        "error",
+      showAuthError(
+        "forgot-password",
+        res.status,
+        data?.message || data?.Message,
+        "errors.auth.forgotPassword",
       );
       return false;
     }
 
     forgotPasswordPopup.dataset.email = email;
-    showToast("If your email exists, a reset code has been sent.", "success");
+    showAuthInfoKey("auth.resetCodeSent", "success");
 
     if (switchToCode) {
       setForgotPasswordModalStep(FORGOT_MODAL_STEP.CODE);
@@ -902,7 +1003,7 @@ async function sendForgotPasswordCode({ switchToCode = true } = {}) {
     return true;
   } catch (err) {
     console.error(err);
-    showToast("Server error. Please try again later.", "error");
+    showAuthInfoKey("errors.generic", "error");
     return false;
   }
 }
@@ -916,12 +1017,12 @@ async function verifyForgotPasswordCode() {
   const code = getForgotCode();
 
   if (!email) {
-    showToast("Email is required.", "error");
+    showAuthInfoKey("auth.emailRequired", "error");
     return false;
   }
 
   if (code.length !== 6) {
-    showToast("Please enter 6-digit code", "error");
+    showAuthInfoKey("auth.enterSixDigitCode", "error");
     return false;
   }
 
@@ -930,10 +1031,7 @@ async function verifyForgotPasswordCode() {
     const data = await res.json();
 
     if (!res.ok) {
-      showToast(
-        data.message || data.Message || "Verification failed.",
-        "error",
-      );
+      showAuthError("verify", res.status, data?.message || data?.Message, "errors.auth.verify");
       resetForgotCodeInputs(true);
       return false;
     }
@@ -947,7 +1045,7 @@ async function verifyForgotPasswordCode() {
     return true;
   } catch (err) {
     console.error(err);
-    showToast("Server error. Please try again later.", "error");
+    showAuthInfoKey("errors.generic", "error");
     return false;
   }
 }
@@ -963,12 +1061,12 @@ async function resetForgottenPassword() {
   const confirmPassword = forgotConfirmPasswordInput?.value || "";
 
   if (!email) {
-    showToast("Email is required.", "error");
+    showAuthInfoKey("auth.emailRequired", "error");
     return false;
   }
 
   if (!code || code.length !== 6) {
-    showToast("Please verify your reset code first.", "error");
+    showAuthInfoKey("auth.verifyResetCodeFirst", "error");
     setForgotPasswordModalStep(FORGOT_MODAL_STEP.CODE);
     resetForgotCodeInputs(true);
     return false;
@@ -981,7 +1079,7 @@ async function resetForgottenPassword() {
   }
 
   if (newPassword !== confirmPassword) {
-    showToast("Password and Confirm Password do not match.", "error");
+    showAuthInfoKey("auth.passwordMismatch", "error");
     return false;
   }
 
@@ -995,28 +1093,30 @@ async function resetForgottenPassword() {
     const data = await res.json();
 
     if (!res.ok) {
-      showToast(
-        data.message || data.Message || "Reset password failed.",
-        "error",
+      showAuthError(
+        "forgot-password",
+        res.status,
+        data?.message || data?.Message,
+        "errors.auth.forgotPassword",
       );
       return false;
     }
 
     fillLoginCredentials(email, newPassword);
     closeForgotPasswordModal();
-    showToast("Password reset successful. Please sign in again.", "success");
+    showAuthInfoKey("auth.passwordResetSuccess", "success");
     container.classList.remove("right-panel-active");
     return true;
   } catch (err) {
     console.error(err);
-    showToast("Server error. Please try again later.", "error");
+    showAuthInfoKey("errors.generic", "error");
     return false;
   }
 }
 
 async function sendVerificationCode(email, { switchToCode = true } = {}) {
   if (!email) {
-    showToast("Email not found.", "error");
+    showAuthInfoKey("auth.emailNotFound", "error");
     return false;
   }
 
@@ -1025,14 +1125,11 @@ async function sendVerificationCode(email, { switchToCode = true } = {}) {
     const data = await res.json();
 
     if (!res.ok) {
-      showToast(
-        data.message || data.Message || "Failed to send code.",
-        "error",
-      );
+      showAuthError("verify", res.status, data?.message || data?.Message, "errors.auth.verify");
       return false;
     }
 
-    showToast("Verification email sent! Please check your inbox.", "success");
+    showAuthInfoKey("auth.verificationEmailSent", "success");
 
     if (switchToCode) {
       const mode = verifyPopup?.dataset.mode || VERIFY_MODAL_MODE.SIGNUP;
@@ -1044,7 +1141,7 @@ async function sendVerificationCode(email, { switchToCode = true } = {}) {
     return true;
   } catch (err) {
     console.error(err);
-    showToast("Server error. Please try again later.", "error");
+    showAuthInfoKey("errors.generic", "error");
     return false;
   }
 }
@@ -1062,7 +1159,7 @@ async function loginAfterEmailVerification() {
     const data = await res.json();
 
     if (!res.ok) {
-      showToast(data.message || "Email verified. Please sign in.", "error");
+      showAuthError("login", res.status, data?.message || data?.Message, "errors.auth.login");
       return false;
     }
 
@@ -1070,13 +1167,7 @@ async function loginAfterEmailVerification() {
 
     if (data.status === 1) {
       showToast(
-        `<div>
-          <p style="margin-bottom: 8px;">Your account is currently Inactive. Please reactivate to continue.</p>
-          <div class="toast-actions">
-            <button class="toast-btn" onclick="window.reactivateAccountAction()">Reactivate Now</button>
-            <button class="toast-btn secondary" onclick="window.location.href='auth.html'">Later</button>
-          </div>
-        </div>`,
+        buildReactivationToastHtml(authText("errors.account.restricted")),
         "error",
         0,
         true,
@@ -1085,11 +1176,11 @@ async function loginAfterEmailVerification() {
     }
 
     if (data.status === 5) {
-      showToast("Email is not verified. Please request a new code.", "error");
+      showAuthInfoKey("auth.emailNotVerified", "error");
       return false;
     }
 
-    showToast("Email verified and login successful!", "success");
+    showAuthInfoKey("auth.emailVerifiedLoginSuccess", "success");
     setTimeout(() => {
       window.location.href = "index.html";
     }, 600);
@@ -1097,7 +1188,7 @@ async function loginAfterEmailVerification() {
     return true;
   } catch (err) {
     console.error(err);
-    showToast("Server error. Please try again later.", "error");
+    showAuthInfoKey("errors.generic", "error");
     return false;
   }
 }
@@ -1133,7 +1224,7 @@ loginForm.addEventListener("submit", async (e) => {
   signInSubmitBtn.disabled = true;
   signInSubmitBtn.classList.add("is-loading");
   signInSubmitBtn.setAttribute("aria-busy", "true");
-  signInSubmitBtn.innerHTML = `<span>Signing in...</span><span class="spinner spinner-tiny auth-btn-spinner" aria-hidden="true"></span>`;
+  signInSubmitBtn.innerHTML = `<span>${authText("auth.signingIn", {}, "Signing in...")}</span><span class="spinner spinner-tiny auth-btn-spinner" aria-hidden="true"></span>`;
 
   function resetSignInButton() {
     signInSubmitBtn.disabled = false;
@@ -1147,12 +1238,12 @@ loginForm.addEventListener("submit", async (e) => {
   const password = (loginPasswordInput?.value || "").trim();
 
   if (!email) {
-    showToast("Email is required.", "error");
+    showAuthInfoKey("auth.emailRequired", "error");
     resetSignInButton();
     return;
   }
   if (!password) {
-    showToast("Password is required.", "error");
+    showAuthInfoKey("auth.passwordRequired", "error");
     resetSignInButton();
     return;
   }
@@ -1167,7 +1258,7 @@ loginForm.addEventListener("submit", async (e) => {
     const data = await res.json();
 
     if (!res.ok) {
-      showToast(data.message || "Login failed", "error");
+      showAuthError("login", res.status, data?.message || data?.Message, "errors.auth.login");
       if (isEmailNotVerifiedResponse(res, data)) {
         setPendingAutoLogin(email, password);
         openVerifyModal({
@@ -1186,13 +1277,7 @@ loginForm.addEventListener("submit", async (e) => {
     if (data.status === 1) {
       // Inactive
       showToast(
-        `<div>
-            <p style="margin-bottom: 8px;">Your account is currently Inactive. Please reactivate to continue.</p>
-            <div class="toast-actions">
-              <button class="toast-btn" onclick="window.reactivateAccountAction()">Reactivate Now</button>
-              <button class="toast-btn secondary" onclick="window.location.href='auth.html'">Later</button>
-            </div>
-          </div>`,
+        buildReactivationToastHtml(authText("errors.account.restricted")),
         "error",
         0, // Persistent
         true, // HTML
@@ -1202,7 +1287,7 @@ loginForm.addEventListener("submit", async (e) => {
     }
     if (data.status === 5) {
       // EmailNotVerified
-      showToast("Email is not verified. Please verify your email.", "error");
+      showAuthInfoKey("auth.emailNotVerified", "error");
       setPendingAutoLogin(email, password);
       openVerifyModal({
         email,
@@ -1214,13 +1299,13 @@ loginForm.addEventListener("submit", async (e) => {
     }
 
     // login thành công — giữ loading xoay cho đến khi redirect
-    showToast("Login successful!", "success");
+    showAuthInfoKey("auth.loginSuccess", "success");
     setTimeout(() => {
       window.location.href = "index.html";
     }, 800);
   } catch (err) {
     console.error(err);
-    showToast("Server error. Please try again later.", "error");
+    showAuthInfoKey("errors.generic", "error");
     resetSignInButton();
   }
 });
@@ -1272,7 +1357,10 @@ const signupSubmitBtn = signupForm?.querySelector(
 signupForm.addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  await runWithPendingButton(signupSubmitBtn, "Signing up...", async () => {
+  await runWithPendingButton(
+    signupSubmitBtn,
+    authText("auth.signingUp", {}, "Signing up..."),
+    async () => {
     const username = document.getElementById("signup-username").value.trim();
     const email = document.getElementById("signup-email").value.trim();
     const fullname = document.getElementById("signup-fullname").value.trim();
@@ -1280,7 +1368,7 @@ signupForm.addEventListener("submit", async (e) => {
     const cfpassword = document.getElementById("cf-password").value;
 
     if (!username || !email || !fullname || !password || !cfpassword) {
-      showToast("Please fill in all fields completely.", "error");
+      showAuthInfoKey("auth.fillAllFields", "error");
       return;
     }
 
@@ -1289,7 +1377,14 @@ signupForm.addEventListener("submit", async (e) => {
       username.length > REGISTER_USERNAME_MAX_LENGTH
     ) {
       showToast(
-        `Username must be between ${REGISTER_USERNAME_MIN_LENGTH} and ${REGISTER_USERNAME_MAX_LENGTH} characters.`,
+        authText(
+          "auth.usernameLength",
+          {
+            min: REGISTER_USERNAME_MIN_LENGTH,
+            max: REGISTER_USERNAME_MAX_LENGTH,
+          },
+          `Username must be between ${REGISTER_USERNAME_MIN_LENGTH} and ${REGISTER_USERNAME_MAX_LENGTH} characters.`,
+        ),
         "error",
       );
       return;
@@ -1297,7 +1392,11 @@ signupForm.addEventListener("submit", async (e) => {
 
     if (!USERNAME_REGEX.test(username)) {
       showToast(
-        "Username can only include letters, numbers, underscore (_), without spaces or accents.",
+        authText(
+          "auth.usernameCharactersOnly",
+          {},
+          "Username can only include letters, numbers, underscore (_), without spaces or accents.",
+        ),
         "error",
       );
       return;
@@ -1308,7 +1407,14 @@ signupForm.addEventListener("submit", async (e) => {
       fullname.length > REGISTER_FULLNAME_MAX_LENGTH
     ) {
       showToast(
-        `Full name must be between ${REGISTER_FULLNAME_MIN_LENGTH} and ${REGISTER_FULLNAME_MAX_LENGTH} characters.`,
+        authText(
+          "auth.fullNameLength",
+          {
+            min: REGISTER_FULLNAME_MIN_LENGTH,
+            max: REGISTER_FULLNAME_MAX_LENGTH,
+          },
+          `Full name must be between ${REGISTER_FULLNAME_MIN_LENGTH} and ${REGISTER_FULLNAME_MAX_LENGTH} characters.`,
+        ),
         "error",
       );
       return;
@@ -1321,7 +1427,7 @@ signupForm.addEventListener("submit", async (e) => {
     }
 
     if (password !== cfpassword) {
-      showToast("Password and Confirm Password do not match.", "error");
+      showAuthInfoKey("auth.passwordMismatch", "error");
       return;
     }
 
@@ -1335,11 +1441,11 @@ signupForm.addEventListener("submit", async (e) => {
       const data = await res.json();
 
       if (!res.ok) {
-        showToast(data.message || data.Message || "Sign up failed", "error");
+        showAuthError("signup", res.status, data?.message || data?.Message, "errors.auth.signup");
         return;
       }
 
-      showToast("Registration successful!", "success");
+      showAuthInfoKey("auth.signUpSuccess", "success");
       const sent = await sendVerificationCode(email, { switchToCode: false });
       if (!sent) {
         return;
@@ -1353,9 +1459,10 @@ signupForm.addEventListener("submit", async (e) => {
       });
     } catch (err) {
       console.error(err);
-      showToast("Server error. Please try again later.", "error");
+      showAuthInfoKey("errors.generic", "error");
     }
-  });
+    },
+  );
 });
 //=== Verify code form ===
 verifyBtn.addEventListener("click", async () => {
@@ -1365,12 +1472,12 @@ verifyBtn.addEventListener("click", async () => {
   const email = verifyPopup?.dataset.email;
 
   if (!email) {
-    showToast("Email not found.", "error");
+    showAuthInfoKey("auth.emailNotFound", "error");
     return;
   }
 
   if (code.length !== 6) {
-    showToast("Please enter 6-digit code", "error");
+    showAuthInfoKey("auth.enterSixDigitCode", "error");
     return;
   }
 
@@ -1380,7 +1487,7 @@ verifyBtn.addEventListener("click", async () => {
     const data = await res.json();
 
     if (!res.ok) {
-      showToast(data.message || "Verification failed", "error");
+      showAuthError("verify", res.status, data?.message || data?.Message, "errors.auth.verify");
       resetCodeInputs();
       return;
     }
@@ -1389,13 +1496,13 @@ verifyBtn.addEventListener("click", async () => {
     closeVerifyModal();
 
     if (!autoLoggedIn) {
-      showToast("Email verified successfully!", "success");
+      showAuthInfoKey("auth.emailVerified", "success");
       // Chuyển sang login nếu không auto-login được
       container.classList.remove("right-panel-active");
     }
   } catch (err) {
     console.error(err);
-    showToast("Server error. Please try again later.", "error");
+    showAuthInfoKey("errors.generic", "error");
   }
 });
 // Close popup when X is clicked
@@ -1450,17 +1557,25 @@ if (popupContent) {
 
 //=== send/resend code ===
 sendCodeBtn.addEventListener("click", async () => {
-  await runWithPendingButton(sendCodeBtn, "Sending...", async () => {
-    const email = verifyPopup?.dataset.email;
-    return sendVerificationCode(email, { switchToCode: true });
-  });
+  await runWithPendingButton(
+    sendCodeBtn,
+    authText("auth.sending", {}, "Sending..."),
+    async () => {
+      const email = verifyPopup?.dataset.email;
+      return sendVerificationCode(email, { switchToCode: true });
+    },
+  );
 });
 
 resendBtn.addEventListener("click", async () => {
-  await runWithPendingButton(resendBtn, "Resending...", async () => {
-    const email = verifyPopup?.dataset.email;
-    return sendVerificationCode(email, { switchToCode: false });
-  });
+  await runWithPendingButton(
+    resendBtn,
+    authText("auth.resending", {}, "Resending..."),
+    async () => {
+      const email = verifyPopup?.dataset.email;
+      return sendVerificationCode(email, { switchToCode: false });
+    },
+  );
 });
 
 if (forgotPasswordLink) {
@@ -1475,8 +1590,10 @@ if (forgotPasswordLink) {
 
 if (forgotSendCodeBtn) {
   forgotSendCodeBtn.addEventListener("click", async () => {
-    await runWithPendingButton(forgotSendCodeBtn, "Sending...", () =>
-      sendForgotPasswordCode({ switchToCode: true }),
+    await runWithPendingButton(
+      forgotSendCodeBtn,
+      authText("auth.sending", {}, "Sending..."),
+      () => sendForgotPasswordCode({ switchToCode: true }),
     );
   });
 }
@@ -1485,8 +1602,10 @@ if (forgotEmailInput) {
   forgotEmailInput.addEventListener("keydown", async (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      await runWithPendingButton(forgotSendCodeBtn, "Sending...", () =>
-        sendForgotPasswordCode({ switchToCode: true }),
+      await runWithPendingButton(
+        forgotSendCodeBtn,
+        authText("auth.sending", {}, "Sending..."),
+        () => sendForgotPasswordCode({ switchToCode: true }),
       );
     }
   });
@@ -1494,8 +1613,10 @@ if (forgotEmailInput) {
 
 if (forgotResendCodeBtn) {
   forgotResendCodeBtn.addEventListener("click", async () => {
-    await runWithPendingButton(forgotResendCodeBtn, "Resending...", () =>
-      sendForgotPasswordCode({ switchToCode: false }),
+    await runWithPendingButton(
+      forgotResendCodeBtn,
+      authText("auth.resending", {}, "Resending..."),
+      () => sendForgotPasswordCode({ switchToCode: false }),
     );
   });
 }
