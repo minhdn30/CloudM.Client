@@ -240,14 +240,11 @@
   function translateAutoNode(element) {
     if (!element || element.nodeType !== Node.ELEMENT_NODE) return;
     if (element.hasAttribute("data-i18n-ignore")) return;
-    if (
+    const insideUserContent =
       element.hasAttribute("data-i18n-user-content") ||
-      element.closest("[data-i18n-user-content]")
-    ) {
-      return;
-    }
+      element.closest("[data-i18n-user-content]");
 
-    ["placeholder", "title", "aria-label", "alt"].forEach((attributeName) => {
+    ["placeholder", "title", "aria-label", "alt", "data-placeholder"].forEach((attributeName) => {
       const currentValue = element.getAttribute(attributeName);
       const originalAttribute = `data-i18n-original-${attributeName}`;
       const originalValue = element.getAttribute(originalAttribute) || currentValue;
@@ -260,6 +257,10 @@
         element.setAttribute(attributeName, translated);
       }
     });
+
+    if (insideUserContent) {
+      return;
+    }
 
     Array.from(element.childNodes || []).forEach((node) => {
       if (node.nodeType !== Node.TEXT_NODE) return;
@@ -323,6 +324,16 @@
           "placeholder",
           "data-i18n-placeholder",
           "data-i18n-placeholder-params",
+        ),
+      );
+    target
+      .querySelectorAll("[data-i18n-data-placeholder]")
+      .forEach((element) =>
+        translateElementAttribute(
+          element,
+          "data-placeholder",
+          "data-i18n-data-placeholder",
+          "data-i18n-data-placeholder-params",
         ),
       );
     target

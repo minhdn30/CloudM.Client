@@ -99,6 +99,21 @@
     return "#/";
   }
 
+  function navigateToProfileAfterLanguageChange() {
+    const targetHash = getMyProfileHash();
+    hasUnsavedChanges = false;
+    window.onbeforeunload = null;
+    if (window.PageCache?.clearAll) {
+      window.PageCache.clearAll();
+    }
+    if (window.location.hash !== targetHash) {
+      window.location.hash = targetHash;
+    }
+    window.setTimeout(() => {
+      window.location.reload();
+    }, 0);
+  }
+
   function getSettingsDefaults() {
     return {
       phonePrivacy: 2,
@@ -358,9 +373,9 @@
         <h3>${t("profile.settings.discardChangesTitle")}</h3>
         <p>${t("profile.settings.discardChangesDescription")}</p>
       </div>
-      <div class="unfollow-actions">
-        <button class="unfollow-btn unfollow-confirm" data-action="discard">${t("common.buttons.discard")}</button>
+      <div class="unfollow-actions unfollow-actions-inline">
         <button class="unfollow-btn unfollow-cancel" data-action="keep">${t("common.buttons.cancel")}</button>
+        <button class="unfollow-btn unfollow-confirm" data-action="discard">${t("common.buttons.discard")}</button>
       </div>
     `;
 
@@ -422,6 +437,9 @@
 
     try {
       const data = getUICurrentValues();
+      const previousLanguage = normalizeLanguage(
+        window.I18n?.getLanguage?.() ?? originalSettings?.language ?? data.language,
+      );
       const apiData = {};
       Object.entries(data).forEach(([key, value]) => {
         const apiKey = key.charAt(0).toUpperCase() + key.slice(1);
@@ -441,6 +459,7 @@
       const normalizedLanguage = normalizeLanguage(
         newSettings?.language ?? newSettings?.Language ?? data.language,
       );
+      const shouldReloadAfterSave = normalizedLanguage !== previousLanguage;
 
       const postPrivacy =
         newSettings?.defaultPostPrivacy ?? newSettings?.DefaultPostPrivacy;
@@ -466,6 +485,10 @@
       }
 
       setTimeout(() => {
+        if (shouldReloadAfterSave) {
+          navigateToProfileAfterLanguageChange();
+          return;
+        }
         window.location.hash = getMyProfileHash();
       }, 1000);
     } catch (error) {

@@ -164,9 +164,7 @@
         ? "common.media.videoUnavailable"
         : "common.media.imageUnavailable";
     const fallback =
-      kind === "video"
-        ? "This video could not be loaded"
-        : "This image could not be loaded";
+      kind === "video" ? "Video unavailable" : "Image unavailable";
     const label =
       i18n && typeof i18n.t === "function" ? i18n.t(key, {}, fallback) : fallback;
     const overlay = document.createElement("div");
@@ -187,9 +185,7 @@
     const key = isVideo
       ? "common.media.videoUnavailable"
       : "common.media.imageUnavailable";
-    const fallback = isVideo
-      ? "This video could not be loaded"
-      : "This image could not be loaded";
+    const fallback = isVideo ? "Video unavailable" : "Image unavailable";
     const label =
       global.I18n && typeof global.I18n.t === "function"
         ? global.I18n.t(key, {}, fallback)

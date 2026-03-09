@@ -311,7 +311,7 @@
 
         // Validation: Only error if BOTH content and media are missing
         if (content.length === 0 && !this.hasMedia) {
-            toastError(epT("post.editTagging.contentOrMediaRequired", {}, "Post must have content or media files."));
+            toastError(epT("post.editTagging.contentOrMediaRequired", {}, "Post must have content or media files"));
             return;
         }
 
@@ -330,7 +330,7 @@
             );
 
             if (Number(this.selectedPrivacy) === 2 && addNewTagIds.length > 0) {
-                toastWarning(epT("post.editTagging.privateTagRestriction", {}, "You cannot tag people on a private post."));
+                toastWarning(epT("post.editTagging.privateTagRestriction", {}, "You cannot tag people on a private post"));
                 return;
             }
 
@@ -376,7 +376,7 @@
                 window.currentPostDetailData.totalTaggedAccounts = nextTaggedAccounts.length;
             }
             
-            toastSuccess(epT("post.editTagging.updateSuccess", {}, "Post updated successfully"));
+            toastSuccess(epT("post.editTagging.updateSuccess", {}, "Post updated"));
             
             // Update UI immediately
             this.updateUI(updatedPost);
@@ -752,7 +752,13 @@
         } catch (error) {
             if (requestSequence !== this.tagSearchRequestSequence) return;
             console.error("Failed to search edit-post tag accounts:", error);
-            this.renderPostTagEmptyState(epT("post.editTagging.serverUnavailable", {}, "Could not connect to server."));
+            this.renderPostTagEmptyState(
+              epT(
+                "post.editTagging.serverUnavailable",
+                {},
+                "Can't connect to the server",
+              ),
+            );
         }
     };
 
@@ -786,7 +792,7 @@
         const container = document.getElementById("editPostTagSearchResults");
         if (!container) return;
 
-        container.innerHTML = `<div class="post-tag-empty-state">${epEscapeHtml(message || epT("common.empty.noResults", {}, "No results."))}</div>`;
+        container.innerHTML = `<div class="post-tag-empty-state">${epEscapeHtml(message || epT("common.empty.noResults", {}, "No results"))}</div>`;
         container.style.display = "flex";
     };
 
@@ -797,8 +803,8 @@
         if (!this.tagSearchResults.length) {
             this.renderPostTagEmptyState(
                 keyword
-                    ? epT("post.editTagging.noMatchingUsers", {}, "No matching users found.")
-                    : epT("post.editTagging.noUsersAvailable", {}, "No users available for tagging."),
+                    ? epT("post.editTagging.noMatchingUsers", {}, "No matching users found")
+                    : epT("post.editTagging.noUsersAvailable", {}, "No users available for tagging"),
             );
             return;
         }

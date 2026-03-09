@@ -1464,7 +1464,7 @@
 
         if (typeof global.toastSuccess === "function") {
           global.toastSuccess(
-            stT("story.viewer.replySent", {}, "Reply sent!"),
+            stT("story.viewer.replySent", {}, "Reply sent"),
           );
         }
       } else {
@@ -1531,7 +1531,7 @@
             story.currentUserReactType === undefined;
           global.toastSuccess(
             isUnreact
-              ? stT("story.viewer.reactionRemoved", {}, "Reaction removed.")
+              ? stT("story.viewer.reactionRemoved", {}, "Reaction removed")
               : stT(
                   "story.viewer.reactedWithEmoji",
                   { emoji },
@@ -1545,7 +1545,7 @@
             stT(
               "story.viewer.reactionUpdateFailed",
               {},
-              "Failed to update reaction.",
+              "Couldn't update reaction",
             ),
           );
         }
@@ -1733,8 +1733,8 @@
         ${message ? `<p>${stEscapeHtml(message)}</p>` : ""}
       </div>
       <div class="unfollow-actions">
-        <button type="button" class="unfollow-btn ${isDanger ? "unfollow-confirm" : "unfollow-cancel"}" data-action="confirm">${stEscapeHtml(confirmText)}</button>
         <button type="button" class="unfollow-btn unfollow-cancel" data-action="cancel">${stEscapeHtml(cancelText)}</button>
+        <button type="button" class="unfollow-btn ${isDanger ? "unfollow-confirm" : "unfollow-cancel"}" data-action="confirm">${stEscapeHtml(confirmText)}</button>
       </div>
     `;
 
@@ -1787,11 +1787,15 @@
     stPauseProgressTimer();
 
     stShowSystemConfirm({
-      title: stT("story.viewer.removeFromGroupTitle", {}, "Remove from Group"),
+      title: stT(
+        "story.viewer.removeFromGroupTitle",
+        {},
+        "Remove from highlight",
+      ),
       message: stT(
         "story.viewer.removeFromGroupDescription",
         {},
-        "Are you sure you want to remove this story from the highlight group?",
+        "Are you sure you want to remove this story from the highlight?",
       ),
       confirmText: stT("common.buttons.remove", {}, "Remove"),
       cancelText: stT("common.buttons.cancel", {}, "Cancel"),
@@ -1988,7 +1992,7 @@
       if (res?.ok) {
         if (global.toastSuccess) {
           global.toastSuccess(
-            stT("story.viewer.deleteSuccess", {}, "Story deleted."),
+            stT("story.viewer.deleteSuccess", {}, "Story deleted"),
           );
         }
 
@@ -2029,7 +2033,7 @@
       } else {
         if (global.toastError) {
           global.toastError(
-            stT("story.viewer.deleteFailed", {}, "Failed to delete story."),
+            stT("story.viewer.deleteFailed", {}, "Couldn't delete story"),
           );
         }
         stResumeProgressTimer();
@@ -2037,7 +2041,7 @@
     } catch (_) {
       if (global.toastError) {
         global.toastError(
-          stT("story.viewer.deleteFailed", {}, "Failed to delete story."),
+          stT("story.viewer.deleteFailed", {}, "Couldn't delete story"),
         );
       }
       stResumeProgressTimer();
@@ -2197,7 +2201,7 @@
     const fallbackReason = stT(
       "story.viewer.unavailable",
       {},
-      "This story is no longer available.",
+      "This story is no longer available",
     );
     const resolvedReason = (() => {
       const normalizedReason =
@@ -2408,7 +2412,7 @@
           stT(
             "common.media.videoUnavailable",
             {},
-            "This video could not be loaded",
+            "Video unavailable",
           ),
           "video-off",
         );
@@ -2426,7 +2430,7 @@
           stT(
             "common.media.videoUnavailable",
             {},
-            "This video could not be loaded",
+            "Video unavailable",
           ),
           "video-off",
         );
@@ -2441,7 +2445,7 @@
         stT(
           "story.viewer.unavailable",
           {},
-          "This story is no longer available.",
+          "This story is no longer available",
         ),
       );
       stMountPreviewShell(previewShell, direction);
@@ -2460,7 +2464,7 @@
         stT(
           "common.media.imageUnavailable",
           {},
-          "This image could not be loaded",
+          "Image unavailable",
         ),
         "image-off",
       );
@@ -3058,7 +3062,9 @@
         const classes = ["sn-story-viewer-strip-item", isActive ? "active" : ""]
           .filter(Boolean)
           .join(" ");
-        const displayName = stEscapeHtml(group?.name || "highlight");
+        const displayName = stEscapeHtml(
+          group?.name || stT("story.viewer.highlightFallbackName", {}, "highlight"),
+        );
         const thumbHtml = stBuildHighlightGroupStripThumbMarkup(
           group,
           defaultAvatar,
@@ -3892,7 +3898,7 @@
         stT(
           "story.viewer.unavailable",
           {},
-          "This story is no longer available.",
+          "This story is no longer available",
         ),
       );
     }
@@ -3904,7 +3910,7 @@
         stT(
           "story.viewer.permissionDenied",
           {},
-          "You no longer have permission to view this story.",
+          "You no longer have permission to view this story",
         ),
       );
     }
@@ -3913,7 +3919,7 @@
   function stToastStoryLoadFailed() {
     if (typeof global.toastError === "function") {
       global.toastError(
-        stT("story.viewer.loadFailed", {}, "Failed to load story."),
+        stT("story.viewer.loadFailed", {}, "Couldn't load story"),
       );
     }
   }
@@ -3924,7 +3930,7 @@
         stT(
           "story.viewer.highlightGroupUnavailable",
           {},
-          "This highlight group is no longer available.",
+          "This highlight is no longer available",
         ),
       );
     }
@@ -3936,7 +3942,7 @@
         stT(
           "story.viewer.loadHighlightFailed",
           {},
-          "Failed to load highlight stories.",
+          "Couldn't load highlight stories",
         ),
       );
     }
@@ -4095,7 +4101,7 @@
           stT(
             "story.viewer.resolveRouteFailed",
             {},
-            "Failed to resolve story route.",
+            "Failed to resolve story route",
           ),
         );
       }
@@ -4373,7 +4379,7 @@
     if (!global.API?.Stories?.getHighlightGroupStories) {
       if (global.toastError) {
         global.toastError(
-          stT("story.viewer.apiUnavailable", {}, "Story API is unavailable."),
+          stT("story.viewer.apiUnavailable", {}, "Story API isn't available"),
         );
       }
       return STORY_OPEN_STATUS.ERROR;
@@ -4528,7 +4534,7 @@
           accountId: normalizedTargetAccountId,
           name:
             viewerState.highlightGroupName ||
-            stT("story.viewer.highlightFallbackName", {}, "highlight"),
+            stT("story.viewer.highlightFallbackName", {}, "Highlights"),
           coverImageUrl: payload?.coverImageUrl ?? payload?.CoverImageUrl ?? "",
           storyCount: stories.length,
           fallbackStory: stories[0] || null,
@@ -4594,7 +4600,7 @@
             stT(
               "story.viewer.unavailableGroup",
               {},
-              "This story is no longer available in this group.",
+              "This story is no longer available in this highlight",
             ),
           );
         }
@@ -4653,7 +4659,7 @@
     if (!global.API?.Stories?.getActiveByAuthor) {
       if (global.toastError) {
         global.toastError(
-          stT("story.viewer.apiUnavailable", {}, "Story API is unavailable."),
+          stT("story.viewer.apiUnavailable", {}, "Story API isn't available"),
         );
       }
       return STORY_OPEN_STATUS.ERROR;
@@ -5112,7 +5118,7 @@
             stT(
               "story.viewer.invalidHighlightLink",
               {},
-              "Invalid highlight link.",
+              "Invalid highlight link",
             ),
           );
         }
@@ -5136,7 +5142,7 @@
               stT(
                 "story.viewer.openHighlightUnavailable",
                 {},
-                "Unable to open this highlight link right now.",
+                "Can't open this highlight link right now",
               ),
             );
           }
@@ -5164,7 +5170,7 @@
             stT(
               "story.viewer.invalidHighlightLink",
               {},
-              "Invalid highlight link.",
+              "Invalid highlight link",
             ),
           );
         }

@@ -451,7 +451,7 @@ async function cgSearchAccountsForInvite(keyword, { showLoading = true } = {}) {
       const errorMessage = await cgReadFriendlyApiError(res, {
         action: "search-group-invite-accounts",
         fallbackKey: "errors.chat.members_search_failed",
-        fallbackMessage: "Failed to search members",
+        fallbackMessage: "Couldn't search members",
       });
       cgRenderEmptyState(errorMessage);
       return;
@@ -475,7 +475,7 @@ async function cgSearchAccountsForInvite(keyword, { showLoading = true } = {}) {
     if (requestSequence !== cgSearchRequestSequence) return;
     console.error("Failed to search group invite accounts:", err);
     cgRenderEmptyState(
-      cgT("errors.chat.connection_failed", "Could not connect to server"),
+      cgT("errors.chat.connection_failed", "Can't connect to the server"),
     );
   }
 }
@@ -866,7 +866,7 @@ async function cgHandleCreateGroup() {
     console.error("Failed to create group:", err);
     if (window.toastError) {
       window.toastError(
-        cgT("errors.chat.connection_failed", "Could not connect to server"),
+        cgT("errors.chat.connection_failed", "Can't connect to the server"),
       );
     }
   } finally {

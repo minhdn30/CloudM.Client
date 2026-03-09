@@ -131,13 +131,18 @@ if (window.I18n?.translateDom) {
 }
 
 if (window.I18n?.t) {
-  document.title = window.I18n.t("auth.title", {}, document.title || "Auth");
+  document.title = window.I18n.t(
+    "auth.title",
+    {},
+    document.title || "CloudM Auth",
+  );
 }
 
 if (window.I18n?.onChange) {
   window.I18n.onChange(() => {
     window.I18n?.translateDom?.(document);
-    document.title = window.I18n?.t("auth.title", {}, "Auth") || "Auth";
+    document.title =
+      window.I18n?.t("auth.title", {}, "CloudM Auth") || "CloudM Auth";
   });
 }
 
@@ -239,7 +244,13 @@ function clearPendingAutoLogin() {
 
 function getPasswordPolicyError(password) {
   if (!password) {
-    return window.I18n?.t?.("auth.passwordPolicyRequired") || "Password is required.";
+    return (
+      window.I18n?.t?.(
+        "auth.passwordPolicyRequired",
+        {},
+        "Please enter a password",
+      ) || "Please enter a password"
+    );
   }
 
   if (password.length < REGISTER_PASSWORD_MIN_LENGTH) {
@@ -247,9 +258,9 @@ function getPasswordPolicyError(password) {
       window.I18n?.t?.(
         "auth.passwordPolicyLength",
         { count: REGISTER_PASSWORD_MIN_LENGTH },
-        `Password must be at least ${REGISTER_PASSWORD_MIN_LENGTH} characters long.`,
+        `Password must be at least ${REGISTER_PASSWORD_MIN_LENGTH} characters long`,
       ) ||
-      `Password must be at least ${REGISTER_PASSWORD_MIN_LENGTH} characters long.`
+      `Password must be at least ${REGISTER_PASSWORD_MIN_LENGTH} characters long`
     );
   }
 
@@ -258,8 +269,8 @@ function getPasswordPolicyError(password) {
       window.I18n?.t?.(
         "auth.passwordPolicyAccent",
         {},
-        "Password cannot contain Vietnamese accents or spaces.",
-      ) || "Password cannot contain Vietnamese accents or spaces."
+        "Password cannot contain spaces or Vietnamese accents",
+      ) || "Password cannot contain spaces or Vietnamese accents"
     );
   }
 
@@ -270,26 +281,74 @@ function authText(key, params, fallback) {
   return window.I18n?.t ? window.I18n.t(key, params, fallback) : fallback || key;
 }
 
-function showAuthError(action, status, rawMessage, fallbackKey = "errors.auth.login") {
-  const normalizedRawMessage = (rawMessage || "").toString().trim();
-  if (action === "login" && normalizedRawMessage) {
-    showToast(normalizedRawMessage, "error");
-    return;
+function resolveAuthErrorMessageKey(action, status, rawMessage, fallbackKey) {
+  const normalizedAction = (action || "").toString().trim().toLowerCase();
+  const safeStatus = Number(status) || 0;
+  const normalizedRaw = (rawMessage || "").toString().trim().toLowerCase();
+
+  const literalKey = window.I18n?.resolveLiteralKey?.(rawMessage);
+  if (literalKey) {
+    return literalKey;
   }
 
-  showToast(
-    window.UIErrors?.resolveMessage
-      ? window.UIErrors.resolveMessage(
-          "auth",
-          action,
-          status,
-          rawMessage,
-          fallbackKey,
-          authText(fallbackKey, {}, fallbackKey),
-        )
-      : authText(fallbackKey, {}, fallbackKey),
-    "error",
+  if (normalizedAction === "login") {
+    if (safeStatus === 401) {
+      if (
+        normalizedRaw.includes("not verified") ||
+        normalizedRaw.includes("verify your email")
+      ) {
+        return "auth.emailNotVerifiedLogin";
+      }
+      return "auth.invalidCredentials";
+    }
+
+    if (
+      normalizedRaw.includes("invalid credentials") ||
+      normalizedRaw.includes("invalid password") ||
+      normalizedRaw.includes("invalid email") ||
+      normalizedRaw.includes("wrong password")
+    ) {
+      return "auth.invalidCredentials";
+    }
+  }
+
+  if (normalizedRaw.includes("username already")) {
+    return "auth.usernameAlreadyExists";
+  }
+
+  if (normalizedRaw.includes("email already")) {
+    return "auth.emailAlreadyExists";
+  }
+
+  if (
+    normalizedRaw.includes("not verified") ||
+    normalizedRaw.includes("verify your email")
+  ) {
+    return normalizedAction === "login"
+      ? "auth.emailNotVerifiedLogin"
+      : "auth.emailNotVerified";
+  }
+
+  const uiErrorKey = window.UIErrors?.resolveKey
+    ? window.UIErrors.resolveKey("auth", action, status, rawMessage)
+    : "";
+
+  if (uiErrorKey && uiErrorKey !== "errors.generic") {
+    return uiErrorKey;
+  }
+
+  return fallbackKey || "errors.generic";
+}
+
+function showAuthError(action, status, rawMessage, fallbackKey = "errors.auth.login") {
+  const messageKey = resolveAuthErrorMessageKey(
+    action,
+    status,
+    rawMessage,
+    fallbackKey,
   );
+  const fallbackMessage = authText(fallbackKey, {}, fallbackKey);
+  showToast(authText(messageKey, {}, fallbackMessage), "error");
 }
 
 function showAuthInfoKey(key, type = "info", params = {}) {
@@ -297,7 +356,7 @@ function showAuthInfoKey(key, type = "info", params = {}) {
   const safeMessage =
     resolved && resolved !== key
       ? resolved
-      : authText("errors.generic", {}, "Something went wrong. Please try again.");
+      : authText("errors.generic", {}, "Something went wrong, please try again");
   showToast(safeMessage, type);
 }
 
@@ -305,7 +364,7 @@ function buildReactivationToastHtml(message) {
   return `<div>
         <p style="margin-bottom: 8px;">${message}</p>
         <div class="toast-actions">
-          <button class="toast-btn" onclick="window.reactivateAccountAction()">${authText("auth.reactivateNow", {}, "Reactivate Now")}</button>
+          <button class="toast-btn" onclick="window.reactivateAccountAction()">${authText("auth.reactivateNow", {}, "Reactivate now")}</button>
           <button class="toast-btn secondary" onclick="window.location.href='auth.html'">${authText("auth.later", {}, "Later")}</button>
         </div>
       </div>`;
@@ -453,8 +512,13 @@ function startGoogleSignInPrecheck() {
     return false;
   }
 
+  if (!window.google?.accounts?.id) {
+    showAuthInfoKey("auth.googleInitializing", "error");
+    return false;
+  }
+
   if (!ensureGoogleIdentityInitialized()) {
-    showAuthInfoKey("auth.googleCanceled", "error");
+    showAuthInfoKey("auth.googleInitializing", "error");
     return false;
   }
 
@@ -493,7 +557,10 @@ async function handleGoogleCredentialResponse(response) {
       showAuthInfoKey("auth.googleFailed", "error");
       return;
     }
-    handleAuthenticatedRedirect(loginData, authText("auth.googleSuccess", {}, "Google sign-in successful!"));
+    handleAuthenticatedRedirect(
+      loginData,
+      authText("auth.googleSuccess", {}, "Google sign-in successful"),
+    );
   } catch (err) {
     console.error(err);
     showAuthInfoKey("errors.generic", "error");
@@ -546,7 +613,7 @@ function handleAuthenticatedRedirect(loginData, successMessage) {
   }
 
   if (loginData.status === 5) {
-    showAuthInfoKey("auth.emailNotVerified", "error");
+    showAuthInfoKey("auth.emailNotVerifiedLogin", "error");
     return false;
   }
 
@@ -612,7 +679,7 @@ function setVerifyModalContent(mode, step) {
       authText(
         "auth.verifySendPrompt",
         {},
-        "Your account is not verified yet. Click Send Code to receive a 6-digit code.",
+        "Your account is not verified yet. Click Send Code to receive a 6-digit code",
       );
     return;
   }
@@ -690,7 +757,7 @@ function setForgotPasswordModalStep(step) {
       authText(
         "auth.forgotPasswordDescription",
         {},
-        "Enter your account email to receive a 6-digit reset code.",
+        "Enter your account email to receive a 6-digit reset code",
       );
     return;
   }
@@ -700,7 +767,7 @@ function setForgotPasswordModalStep(step) {
       authText(
         "auth.verifyEmailDescription",
         {},
-        "Enter the 6-digit code sent to your email.",
+        "Enter the 6-digit code sent to your email",
       );
     return;
   }
@@ -709,7 +776,7 @@ function setForgotPasswordModalStep(step) {
     authText(
       "auth.forgotPasswordResetPrompt",
       {},
-      "Create a new password for your account.",
+      "Create a new password for your account",
     );
 }
 
@@ -886,7 +953,7 @@ async function completeExternalProfile() {
   const fullName = (externalProfileFullnameInput?.value || "").trim();
 
   if (!provider || !credential) {
-    showAuthInfoKey("auth.googleCanceled", "error");
+    showAuthInfoKey("auth.externalSignInExpired", "error");
     closeExternalProfileModal();
     return false;
   }
@@ -914,7 +981,7 @@ async function completeExternalProfile() {
       authText(
         "auth.usernameCharactersOnly",
         {},
-        "Username can only include letters, numbers, underscore (_), without spaces or accents.",
+        "Username can only include letters, numbers, underscore (_), without spaces or accents",
       ),
       "error",
     );
@@ -961,7 +1028,7 @@ async function completeExternalProfile() {
     closeExternalProfileModal();
     handleAuthenticatedRedirect(
       data,
-      authText("auth.googleSuccess", {}, "Google sign-in successful!"),
+      authText("auth.googleSuccess", {}, "Google sign-in successful"),
     );
     return true;
   } catch (err) {
@@ -1287,7 +1354,7 @@ loginForm.addEventListener("submit", async (e) => {
     }
     if (data.status === 5) {
       // EmailNotVerified
-      showAuthInfoKey("auth.emailNotVerified", "error");
+      showAuthInfoKey("auth.emailNotVerifiedLogin", "error");
       setPendingAutoLogin(email, password);
       openVerifyModal({
         email,
@@ -1383,7 +1450,7 @@ signupForm.addEventListener("submit", async (e) => {
             min: REGISTER_USERNAME_MIN_LENGTH,
             max: REGISTER_USERNAME_MAX_LENGTH,
           },
-          `Username must be between ${REGISTER_USERNAME_MIN_LENGTH} and ${REGISTER_USERNAME_MAX_LENGTH} characters.`,
+          `Username must be between ${REGISTER_USERNAME_MIN_LENGTH} and ${REGISTER_USERNAME_MAX_LENGTH} characters`,
         ),
         "error",
       );
@@ -1395,7 +1462,7 @@ signupForm.addEventListener("submit", async (e) => {
         authText(
           "auth.usernameCharactersOnly",
           {},
-          "Username can only include letters, numbers, underscore (_), without spaces or accents.",
+          "Username can only include letters, numbers, underscore (_), without spaces or accents",
         ),
         "error",
       );
@@ -1413,7 +1480,7 @@ signupForm.addEventListener("submit", async (e) => {
             min: REGISTER_FULLNAME_MIN_LENGTH,
             max: REGISTER_FULLNAME_MAX_LENGTH,
           },
-          `Full name must be between ${REGISTER_FULLNAME_MIN_LENGTH} and ${REGISTER_FULLNAME_MAX_LENGTH} characters.`,
+          `Full name must be between ${REGISTER_FULLNAME_MIN_LENGTH} and ${REGISTER_FULLNAME_MAX_LENGTH} characters`,
         ),
         "error",
       );
@@ -1661,8 +1728,10 @@ if (forgotPasswordPopup) {
 
 if (externalProfileSubmitBtn) {
   externalProfileSubmitBtn.addEventListener("click", async () => {
-    await runWithPendingButton(externalProfileSubmitBtn, "Completing...", () =>
-      completeExternalProfile(),
+    await runWithPendingButton(
+      externalProfileSubmitBtn,
+      authText("auth.completing", {}, "Completing..."),
+      () => completeExternalProfile(),
     );
   });
 }
@@ -1673,7 +1742,7 @@ if (externalProfileFullnameInput) {
       e.preventDefault();
       await runWithPendingButton(
         externalProfileSubmitBtn,
-        "Completing...",
+        authText("auth.completing", {}, "Completing..."),
         () => completeExternalProfile(),
       );
     }

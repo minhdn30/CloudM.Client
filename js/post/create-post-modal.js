@@ -262,12 +262,14 @@ function showDiscardConfirmation() {
       <h3>${cpEscapeHtml(cpT("post.create.discardTitle", {}, "Discard post?"))}</h3>
       <p>${cpEscapeHtml(cpT("post.create.discardDescription", {}, "If you leave, your edits won't be saved."))}</p>
     </div>
-    <button class="post-option post-option-danger" onclick="confirmDiscardPost()">
-      ${cpEscapeHtml(cpT("common.buttons.discard", {}, "Discard"))}
-    </button>
-    <button class="post-option post-option-cancel" onclick="cancelDiscardPost()">
-      ${cpEscapeHtml(cpT("common.buttons.cancel", {}, "Cancel"))}
-    </button>
+    <div class="post-options-actions">
+      <button class="post-option post-option-cancel" onclick="cancelDiscardPost()">
+        ${cpEscapeHtml(cpT("common.buttons.cancel", {}, "Cancel"))}
+      </button>
+      <button class="post-option post-option-danger" onclick="confirmDiscardPost()">
+        ${cpEscapeHtml(cpT("common.buttons.discard", {}, "Discard"))}
+      </button>
+    </div>
   `;
 
   overlay.appendChild(popup);
@@ -1250,7 +1252,7 @@ async function cpSearchPostTagAccounts(keyword) {
 
   if (!window.API?.Accounts?.searchPostTagAccounts) {
     cpRenderPostTagEmptyState(
-      cpT("post.editTagging.searchUnavailable", {}, "Search is unavailable."),
+      cpT("post.editTagging.searchUnavailable", {}, "Search is temporarily unavailable"),
     );
     return;
   }
@@ -1281,7 +1283,7 @@ async function cpSearchPostTagAccounts(keyword) {
       let message = cpT(
         "post.editTagging.searchLoadFailed",
         {},
-        "Failed to load users",
+        "Couldn't load users",
       );
       try {
         const errorData = await res.json();
@@ -1323,7 +1325,7 @@ async function cpSearchPostTagAccounts(keyword) {
       cpT(
         "post.editTagging.serverUnavailable",
         {},
-        "Could not connect to server",
+        "Can't connect to the server",
       ),
     );
   }
@@ -1929,7 +1931,7 @@ async function submitPost() {
           cpT(
             "post.submit.createSuccess",
             {},
-            "Post uploaded successfully!",
+            "Post shared",
           ),
         );
       }
@@ -1992,7 +1994,7 @@ async function submitPost() {
           cpT(
             "common.auth.sessionExpired",
             {},
-            "Your session has expired. Please sign in again.",
+            "Your session has expired, please sign in again",
           ),
         );
       }

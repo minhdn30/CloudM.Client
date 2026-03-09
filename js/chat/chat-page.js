@@ -4402,7 +4402,7 @@ const ChatPage = {
           window.toastInfo(
             this.t(
               "errors.chat.message_action_unavailable",
-              "Message action is unavailable right now.",
+              "Can't message right now",
             ),
           );
         return false;
@@ -4652,7 +4652,7 @@ const ChatPage = {
           window.toastInfo(
             this.t(
               "errors.chat.confirm_unavailable",
-              "Confirmation popup is unavailable.",
+              "Confirmation popup isn't available",
             ),
           );
         return;
@@ -4735,7 +4735,7 @@ const ChatPage = {
           window.toastInfo(
             this.t(
               "errors.chat.confirm_unavailable",
-              "Confirmation popup is unavailable.",
+              "Confirmation popup isn't available",
             ),
           );
         return;
@@ -4819,7 +4819,7 @@ const ChatPage = {
           window.toastInfo(
             this.t(
               "errors.chat.confirm_unavailable",
-              "Confirmation popup is unavailable.",
+              "Confirmation popup isn't available",
             ),
           );
         return;
@@ -4902,7 +4902,7 @@ const ChatPage = {
           window.toastInfo(
             this.t(
               "errors.chat.confirm_unavailable",
-              "Confirmation popup is unavailable.",
+              "Confirmation popup isn't available",
             ),
           );
         return;
@@ -5407,7 +5407,7 @@ const ChatPage = {
                 <div class="chat-members-toolbar">
                     <button type="button" class="chat-members-filter-btn" id="chat-members-admin-filter-btn">
                         <i data-lucide="shield"></i>
-                        <span>${this.t("chat.members.admin_only", "Admins only")}</span>
+                        <span>${this.t("chat.members.role.admin", "Admin")}</span>
                     </button>
                     <button type="button" class="chat-members-add-btn" id="chat-members-add-btn">
                         <i data-lucide="user-plus"></i>
@@ -5722,7 +5722,7 @@ const ChatPage = {
                 <div class="chat-search-empty">
                     <i data-lucide="frown" style="width: 40px; height: 40px; opacity: 0.18;"></i>
                     <p>${escapeHtml(
-                      this.t("chat.search.no_results", 'No results for "{keyword}"', {
+                      this.t('chat.search.no_results', 'No results for "{keyword}"', {
                         keyword: this.searchKeyword,
                       }),
                     )}</p>
@@ -6591,7 +6591,7 @@ const ChatPage = {
         window.toastInfo(
           this.t(
             "errors.chat.confirm_unavailable",
-            "Confirmation popup is unavailable.",
+            "Confirmation popup isn't available",
           ),
         );
       return;
@@ -7215,7 +7215,7 @@ const ChatPage = {
     const oldScrollHeight = msgContainer.scrollHeight;
     const loadMessagesErrorText = this.t(
       "errors.chat.load_messages_failed",
-      "Failed to load messages.",
+      "Couldn't load messages",
     );
 
     if (!isLoadMore) {
@@ -7370,7 +7370,7 @@ const ChatPage = {
 
     const fallbackMessage = this.t(
       "errors.chat.conversation_unavailable",
-      "This conversation is no longer available or you don't have permission to view it.",
+      "This conversation is no longer available or you don't have permission to view it",
     );
     const message = await this._readConversationApiErrorMessage(
       res,
@@ -8337,7 +8337,7 @@ const ChatPage = {
       statusEl.className += " msg-status-failed";
       statusEl.textContent = this.t(
         "chat.message.status.failed_retry",
-        "Failed to send. Click to retry.",
+        "Send failed, tap to retry",
       );
       statusEl.onclick = () => this.retryMessage(tempId, content);
     }

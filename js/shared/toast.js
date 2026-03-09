@@ -6,9 +6,9 @@ function getToastFallbackMessage(type = "info") {
       ? window.I18n.t(
           "common.feedback.successGeneric",
           {},
-          "Action completed successfully.",
+          "Done",
         )
-      : "Action completed successfully.";
+      : "Done";
   }
 
   if (type === "error") {
@@ -22,8 +22,8 @@ function getToastFallbackMessage(type = "info") {
   }
 
   return window.I18n?.t
-    ? window.I18n.t("common.feedback.infoGeneric", {}, "Action completed.")
-    : "Action completed.";
+    ? window.I18n.t("common.feedback.infoGeneric", {}, "Action completed")
+    : "Action completed";
 }
 
 function resolveToastMessage(message, type = "info") {

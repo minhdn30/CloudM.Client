@@ -115,18 +115,41 @@
           </div>
         </div>
 
-        <div class="dropdown-item" id="sidebar-language-item" onclick="openLanguageMenu(event)">
+        <div
+          class="dropdown-item has-submenu"
+          id="sidebar-language-item"
+          onclick="openLanguageMenu(event)"
+          aria-haspopup="true"
+          aria-expanded="false"
+        >
           <i data-lucide="languages"></i>
           <span data-i18n="common.navigation.language">Language</span>
-          <span class="dropdown-value" id="sidebar-language-value">English</span>
+          <span class="dropdown-value" id="sidebar-language-value" data-i18n="sidebar.currentLanguage">English</span>
+          <i class="submenu-indicator" data-lucide="chevron-right"></i>
         </div>
 
-        <div class="create-dropdown" id="languageDropdown">
-          <div class="dropdown-item" onclick="selectLanguageOption(event, 'en')">
+        <div class="submenu-dropdown" id="languageDropdown" role="menu">
+          <div class="submenu-dropdown-header">
+            <i data-lucide="languages"></i>
+            <span data-i18n="sidebar.languageMenuTitle">Language</span>
+          </div>
+          <div
+            class="dropdown-item"
+            data-language="en"
+            role="menuitemradio"
+            aria-checked="true"
+            onclick="selectLanguageOption(event, 'en')"
+          >
             <i data-lucide="check"></i>
             <span data-i18n="common.labels.english">English</span>
           </div>
-          <div class="dropdown-item" onclick="selectLanguageOption(event, 'vi')">
+          <div
+            class="dropdown-item"
+            data-language="vi"
+            role="menuitemradio"
+            aria-checked="false"
+            onclick="selectLanguageOption(event, 'vi')"
+          >
             <i data-lucide="check"></i>
             <span data-i18n="common.labels.vietnamese">Tiếng Việt</span>
           </div>

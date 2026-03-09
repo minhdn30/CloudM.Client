@@ -441,7 +441,7 @@ async function openPostDetailByCode(postCode, options = null) {
 
             if (window.toastError) {
                 toastError(
-                    pdT("post.detail.openFailed", {}, "Failed to open this post."),
+                    pdT("post.detail.openFailed", {}, "Couldn't open this post"),
                 );
             }
             if (isRouteDriven) {
@@ -478,7 +478,7 @@ async function openPostDetailByCode(postCode, options = null) {
 
         if (window.toastError) {
             toastError(
-                pdT("post.detail.openFailed", {}, "Failed to open this post."),
+                    pdT("post.detail.openFailed", {}, "Couldn't open this post"),
             );
         }
         if (isRouteDriven) {
@@ -549,12 +549,14 @@ function showDiscardCommentConfirmation() {
             <h3>${pdT("post.comments.discardTitle", {}, "Discard comment?")}</h3>
             <p>${pdT("post.comments.discardDescription", {}, "If you leave, your comment won't be saved.")}</p>
         </div>
-        <button class="post-option post-option-danger" onclick="confirmDiscardComment()">
-            ${pdT("common.buttons.discard", {}, "Discard")}
-        </button>
-        <button class="post-option post-option-cancel" onclick="cancelDiscardComment()">
-            ${pdT("common.buttons.cancel", {}, "Cancel")}
-        </button>
+        <div class="post-options-actions">
+            <button class="post-option post-option-cancel" onclick="cancelDiscardComment()">
+                ${pdT("common.buttons.cancel", {}, "Cancel")}
+            </button>
+            <button class="post-option post-option-danger" onclick="confirmDiscardComment()">
+                ${pdT("common.buttons.discard", {}, "Discard")}
+            </button>
+        </div>
     `;
 
     overlay.appendChild(popup);
@@ -603,12 +605,14 @@ function showDiscardEditConfirmation() {
             <h3>${escapeHtml(discardTitle)}</h3>
             <p>${escapeHtml(discardDescription)}</p>
         </div>
-        <button class="post-option post-option-danger" onclick="confirmDiscardEdit()">
-            ${escapeHtml(discardText)}
-        </button>
-        <button class="post-option post-option-cancel" onclick="cancelDiscardEdit()">
-            ${escapeHtml(cancelText)}
-        </button>
+        <div class="post-options-actions">
+            <button class="post-option post-option-cancel" onclick="cancelDiscardEdit()">
+                ${escapeHtml(cancelText)}
+            </button>
+            <button class="post-option post-option-danger" onclick="confirmDiscardEdit()">
+                ${escapeHtml(discardText)}
+            </button>
+        </div>
     `;
 
     overlay.appendChild(popup);

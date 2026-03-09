@@ -819,7 +819,7 @@
       titleEl.textContent = puT(
         "post.taggedAccounts.title",
         {},
-        "Tagged People",
+        "Tagged accounts",
       );
     }
 
@@ -842,7 +842,7 @@
         <div class="modal-backdrop" onclick="PostUtils.closePostTaggedAccountsModal()"></div>
         <div class="modal-content">
           <div class="modal-header">
-            <h3>${puEscapeHtml(puT("post.taggedAccounts.title", {}, "Tagged People"))}</h3>
+            <h3>${puEscapeHtml(puT("post.taggedAccounts.title", {}, "Tagged accounts"))}</h3>
             <button class="close-btn" onclick="PostUtils.closePostTaggedAccountsModal()">
               <i data-lucide="x"></i>
             </button>
@@ -976,7 +976,7 @@
         actionBtn.className = "follow-btn requested";
         actionBtn.innerHTML = `
           <i data-lucide="clock-3"></i>
-          <span>${puT("common.buttons.requestSent", {}, "Request Sent")}</span>
+          <span>${puT("common.buttons.requestSent", {}, "Request sent")}</span>
         `;
         actionBtn.addEventListener("click", (event) => {
           event.stopPropagation();

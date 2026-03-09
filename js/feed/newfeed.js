@@ -167,7 +167,7 @@
                 ? isAuthorRequested
                   ? `<button class="follow-btn requested" onclick="FollowModule.showUnfollowConfirm('${post.author.accountId}', this)">
                     <i data-lucide="clock-3"></i>
-                    <span data-i18n="common.buttons.requestSent">${feedT("common.buttons.requestSent", {}, "Request Sent")}</span>
+                    <span data-i18n="common.buttons.requestSent">${feedT("common.buttons.requestSent", {}, "Request sent")}</span>
                    </button>`
                   : `<button class="follow-btn" onclick="FollowModule.followUser('${post.author.accountId}', this)">
                     <i data-lucide="user-plus"></i>

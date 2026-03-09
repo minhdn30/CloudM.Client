@@ -753,6 +753,19 @@ function csClearTextContent() {
   csSetTextCount();
 }
 
+function csSyncTextEditorPlaceholder() {
+  const { textEditor } = csGetElements();
+  if (!textEditor) {
+    return;
+  }
+
+  textEditor.dataset.placeholder = csT(
+    "story.create.textPlaceholder",
+    {},
+    "Type your story...",
+  );
+}
+
 function csApplyStoryModeUI() {
   const { textSection, mediaSection, previewHint, modeChoiceButtons, textEditor } =
     csGetElements();
@@ -788,11 +801,7 @@ function csApplyStoryModeUI() {
   }
 
   if (textEditor) {
-    textEditor.dataset.placeholder = csT(
-      "story.create.textPlaceholder",
-      {},
-      "Type your story...",
-    );
+    csSyncTextEditorPlaceholder();
   }
 
   csRenderPreview();
@@ -1140,8 +1149,8 @@ async function csReadErrorMessage(
     fallbackKey,
     {},
     action === "create"
-      ? "Failed to create story."
-      : "Failed to load story.",
+      ? "Couldn't create story"
+      : "Couldn't load story",
   );
   if (!res) return fallbackMessage;
 
@@ -1378,11 +1387,17 @@ function csBindEvents() {
 
 function csRefreshLocalizedUi() {
   const { modal } = csGetElements();
-  if (!modal || !modal.classList.contains("show")) {
+  if (!modal) {
     return;
   }
 
   window.I18n?.translateDom?.(modal);
+  csSyncTextEditorPlaceholder();
+
+  if (!modal.classList.contains("show")) {
+    return;
+  }
+
   window.StoryMediaEditor?.refreshLocalization?.();
   csApplyStoryModeUI();
   window.csSelectPrivacy(createStoryModalState.privacy);
@@ -1606,7 +1621,7 @@ window.toggleCreateStoryEmojiPicker = async function (event) {
         csT(
           "story.create.emojiUnavailable",
           {},
-          "Emoji picker is unavailable.",
+          "Can't open the emoji picker right now",
         ),
       );
     }
@@ -1687,12 +1702,14 @@ window.csShowDiscardConfirmation = function () {
             "If you leave, your edits won't be saved.",
           )}</p>
       </div>
-      <button class="post-option post-option-danger" onclick="csConfirmDiscard()">
-          ${csT("common.buttons.discard", {}, "Discard")}
-      </button>
-      <button class="post-option post-option-cancel" onclick="csCancelDiscard()">
-          ${csT("common.buttons.cancel", {}, "Cancel")}
-      </button>
+      <div class="post-options-actions">
+          <button class="post-option post-option-cancel" onclick="csCancelDiscard()">
+              ${csT("common.buttons.cancel", {}, "Cancel")}
+          </button>
+          <button class="post-option post-option-danger" onclick="csConfirmDiscard()">
+              ${csT("common.buttons.discard", {}, "Discard")}
+          </button>
+      </div>
   `;
 
   overlay.appendChild(popup);
@@ -1876,7 +1893,7 @@ window.submitCreateStory = async function () {
   if (!window.API?.Stories?.create) {
     if (window.toastError) {
       toastError(
-        csT("story.create.apiUnavailable", {}, "Story API is unavailable."),
+        csT("story.create.apiUnavailable", {}, "Story API isn't available"),
       );
     }
     return;
@@ -1906,12 +1923,12 @@ window.submitCreateStory = async function () {
     if (!mediaFile || mediaContentType === null) {
       if (window.toastError) {
         toastError(
-          csT(
-            "story.create.uploadMediaFirst",
-            {},
-            "Please upload an image or video first.",
-          ),
-        );
+            csT(
+              "story.create.uploadMediaFirst",
+              {},
+              "Please upload an image or video first",
+            ),
+          );
       }
       csSetSubmitting(false);
       if (typeof window.hideGlobalLoader === "function") {
@@ -1939,7 +1956,7 @@ window.submitCreateStory = async function () {
             csT(
               "story.create.processImageFailed",
               {},
-              "Failed to process image. Uploading original.",
+              "Couldn't process the image. Uploading the original",
             ),
           );
         }
@@ -1979,7 +1996,7 @@ window.submitCreateStory = async function () {
         csT(
           "story.create.createSuccess",
           {},
-          "Story created successfully.",
+          "Story created successfully",
         ),
       );
     }
@@ -1993,7 +2010,7 @@ window.submitCreateStory = async function () {
         csT(
           "story.create.serverUnavailable",
           {},
-          "Could not connect to server.",
+          "Can't connect to the server",
         ),
       );
     }

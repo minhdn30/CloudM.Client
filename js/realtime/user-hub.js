@@ -743,7 +743,7 @@
                 uhT(
                   "notification.toast.newFollower",
                   {},
-                  "You have a new follower!",
+                  "You have a new follower",
                 ),
               );
             }
@@ -760,7 +760,7 @@
                 uhT(
                   "notification.toast.newFollowRequest",
                   {},
-                  "You have a new follow request.",
+                  "You have a new follow request",
                 ),
               );
             }
@@ -773,7 +773,7 @@
                 uhT(
                   "notification.toast.followRequestAccepted",
                   {},
-                  "Your follow request was accepted.",
+                  "Your follow request was accepted",
                 ),
               );
             } else if (window.toastInfo) {
@@ -781,7 +781,7 @@
                 uhT(
                   "notification.toast.followRequestAccepted",
                   {},
-                  "Your follow request was accepted.",
+                  "Your follow request was accepted",
                 ),
               );
             }

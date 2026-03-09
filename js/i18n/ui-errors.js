@@ -8,6 +8,60 @@
     return (value || "").toString().trim().toLowerCase();
   }
 
+  function resolveAuthMessageKey(action, status, rawServerMessage) {
+    const normalizedAction = (action || "").toString().trim().toLowerCase();
+    const safeStatus = normalizeStatus(status);
+    const normalizedMessage = normalizeMessage(rawServerMessage);
+    if (!normalizedMessage) return "";
+
+    if (
+      normalizedAction === "login" &&
+      (normalizedMessage.includes("invalid credentials") ||
+        normalizedMessage.includes("invalid email or password") ||
+        normalizedMessage.includes("wrong username or password") ||
+        normalizedMessage.includes("username or password is incorrect") ||
+        normalizedMessage.includes("sai tài khoản hoặc mật khẩu"))
+    ) {
+      return "auth.invalidCredentials";
+    }
+
+    if (
+      (normalizedAction === "signup" || normalizedAction === "complete-profile") &&
+      (normalizedMessage.includes("username already exists") ||
+        normalizedMessage.includes("username already exist"))
+    ) {
+      return "auth.usernameAlreadyExists";
+    }
+
+    if (
+      (normalizedAction === "signup" || normalizedAction === "complete-profile") &&
+      (normalizedMessage.includes("email already exists") ||
+        normalizedMessage.includes("email already exist"))
+    ) {
+      return "auth.emailAlreadyExists";
+    }
+
+    if (
+      normalizedAction === "login" &&
+      (normalizedMessage.includes("email is not verified") ||
+        normalizedMessage.includes("verify your email"))
+    ) {
+      return "auth.emailNotVerifiedLogin";
+    }
+
+    if (normalizedAction === "verify" && safeStatus === 400) {
+      if (
+        normalizedMessage.includes("invalid code") ||
+        normalizedMessage.includes("code is invalid") ||
+        normalizedMessage.includes("code has expired")
+      ) {
+        return "auth.verifyFailed";
+      }
+    }
+
+    return "";
+  }
+
   function resolveUiErrorKey(feature, action, status, rawServerMessage) {
     const normalizedFeature = (feature || "").toString().trim().toLowerCase();
     const normalizedAction = (action || "").toString().trim().toLowerCase();
@@ -144,6 +198,15 @@
     params = {},
   ) {
     const normalizedRaw = (rawServerMessage || "").toString().trim();
+    const normalizedFeature = (feature || "").toString().trim().toLowerCase();
+    const authMessageKey =
+      normalizedFeature === "auth"
+        ? resolveAuthMessageKey(action, status, rawServerMessage)
+        : "";
+    if (authMessageKey && global.I18n?.t) {
+      return global.I18n.t(authMessageKey, params, authMessageKey);
+    }
+
     const formatted = formatUiError(feature, action, status, rawServerMessage, params);
     const fallback =
       global.I18n?.t && fallbackKey
@@ -174,8 +237,6 @@
           return translatedLiteral;
         }
       }
-
-      return normalizedRaw;
     }
 
     return fallback;

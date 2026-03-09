@@ -168,8 +168,12 @@
         .toString()
         .trim(),
       name:
-        (rawGroup?.name ?? rawGroup?.Name ?? "highlight").toString().trim() ||
-        "highlight",
+        (rawGroup?.name ??
+          rawGroup?.Name ??
+          shT("story.viewer.highlightFallbackName", {}, "highlight"))
+          .toString()
+          .trim() ||
+        shT("story.viewer.highlightFallbackName", {}, "highlight"),
       coverImageUrl: rawGroup?.coverImageUrl ?? rawGroup?.CoverImageUrl ?? "",
       storyCount:
         Number.parseInt(
@@ -707,7 +711,7 @@
         const message = await readApiErrorMessage(
           response,
           "profile.highlights.removeStoryFailed",
-          "Failed to remove story from highlight group.",
+          "Failed to remove story from the highlight",
         );
         if (window.toastError) {
           toastError(message);
@@ -728,7 +732,7 @@
             shT(
               "profile.highlights.removeStoryDeletedGroupSuccess",
               {},
-              "Story removed and empty highlight group deleted.",
+              "Story removed and empty highlight deleted",
             ),
           );
         } else {
@@ -736,7 +740,7 @@
             shT(
               "profile.highlights.removeStorySuccess",
               {},
-              "Story removed from highlight group.",
+              "Story removed from the highlight",
             ),
           );
         }
@@ -750,7 +754,7 @@
           shT(
             "profile.highlights.removeStoryFailed",
             {},
-            "Failed to remove story from highlight group.",
+            "Failed to remove story from the highlight",
           ),
         );
       }
@@ -807,7 +811,9 @@
     const groupItemsHtml = groups
       .map((group) => {
         const safeGroupId = escapeAttr(group.storyHighlightGroupId);
-        const safeGroupName = escapeHtml(group.name || "highlight");
+        const safeGroupName = escapeHtml(
+          group.name || shT("story.viewer.highlightFallbackName", {}, "highlight"),
+        );
         const storyCount = Math.max(0, Number(group.storyCount || 0));
         const storyCountText = shT(
           storyCount === 1
@@ -844,7 +850,7 @@
           type="button"
           class="profile-highlights-nav profile-highlights-nav-prev is-hidden"
           data-action="scroll-highlights-prev"
-          aria-label="${escapeAttr(shT("profile.highlights.prevGroupsAria", {}, "Previous highlight groups"))}"
+          aria-label="${escapeAttr(shT("profile.highlights.prevGroupsAria", {}, "Previous highlights"))}"
         >
           <i data-lucide="chevron-left"></i>
         </button>
@@ -856,7 +862,7 @@
           type="button"
           class="profile-highlights-nav profile-highlights-nav-next is-hidden"
           data-action="scroll-highlights-next"
-          aria-label="${escapeAttr(shT("profile.highlights.nextGroupsAria", {}, "Next highlight groups"))}"
+          aria-label="${escapeAttr(shT("profile.highlights.nextGroupsAria", {}, "Next highlights"))}"
         >
           <i data-lucide="chevron-right"></i>
         </button>
@@ -955,7 +961,7 @@
           shT(
             "profile.highlights.apiUnavailable",
             {},
-            "Story highlight API is unavailable.",
+            "Highlights aren't available right now",
           ),
         );
       }
@@ -975,7 +981,7 @@
         const message = await readApiErrorMessage(
           response,
           "profile.highlights.loadFailed",
-          "Failed to load story highlights.",
+          "Couldn't load story highlights",
         );
         if (!silent && window.toastError) {
           toastError(message);
@@ -1008,7 +1014,7 @@
           shT(
             "profile.highlights.loadFailed",
             {},
-            "Failed to load story highlights.",
+            "Couldn't load story highlights",
           ),
         );
       }
@@ -1033,7 +1039,7 @@
           shT(
             "profile.highlights.viewerUnavailable",
             {},
-            "Story viewer is unavailable.",
+            "Can't open the story viewer right now",
           ),
         );
       }
@@ -1180,6 +1186,7 @@
       confirmText = shT("common.buttons.confirm", {}, "Confirm"),
       cancelText = shT("common.buttons.cancel", {}, "Cancel"),
       isDanger = false,
+      inlineActions = false,
       onConfirm = null,
       onCancel = null,
     } = options;
@@ -1210,9 +1217,9 @@
         <h3>${escapeHtml(title)}</h3>
         ${message ? `<p>${escapeHtml(message)}</p>` : ""}
       </div>
-      <div class="unfollow-actions">
-        <button type="button" class="unfollow-btn ${isDanger ? "unfollow-confirm" : "unfollow-cancel"}" data-action="confirm">${escapeHtml(confirmText)}</button>
+      <div class="unfollow-actions${inlineActions ? " unfollow-actions-inline" : ""}">
         <button type="button" class="unfollow-btn unfollow-cancel" data-action="cancel">${escapeHtml(cancelText)}</button>
+        <button type="button" class="unfollow-btn ${isDanger ? "unfollow-confirm" : "unfollow-cancel"}" data-action="confirm">${escapeHtml(confirmText)}</button>
       </div>
     `;
 
@@ -1263,18 +1270,18 @@
       title: shT(
         "profile.highlights.deleteGroupConfirmTitle",
         {},
-        "Delete highlight group",
+        "Delete highlight",
       ),
       message: groupName
         ? shT(
             "profile.highlights.deleteGroupConfirmNamed",
             { name: groupName },
-            `Delete highlight group "${groupName}"? This action cannot be undone.`,
+            `Delete highlight "${groupName}"? This action cannot be undone.`,
           )
         : shT(
             "profile.highlights.deleteGroupConfirmUnnamed",
             {},
-            "Delete this highlight group? This action cannot be undone.",
+            "Delete this highlight? This action cannot be undone.",
           ),
       confirmText: shT("common.buttons.delete", {}, "Delete"),
       cancelText: shT("common.buttons.cancel", {}, "Cancel"),
@@ -1287,9 +1294,9 @@
           if (!response.ok) {
             const message = await readApiErrorMessage(
               response,
-              "profile.highlights.deleteGroupFailed",
-              "Failed to delete highlight group.",
-            );
+            "profile.highlights.deleteGroupFailed",
+            "Failed to delete highlight",
+          );
             if (window.toastError) toastError(message);
             return;
           }
@@ -1299,7 +1306,7 @@
               shT(
                 "profile.highlights.deleteGroupSuccess",
                 {},
-                "Highlight group deleted.",
+                "Highlight group deleted",
               ),
             );
           }
@@ -1311,7 +1318,7 @@
               shT(
                 "profile.highlights.deleteGroupFailed",
                 {},
-                "Failed to delete highlight group.",
+                "Failed to delete highlight",
               ),
             );
           }
@@ -1328,7 +1335,7 @@
     }
 
     const shell = createHighlightModalShell(
-      shT("profile.highlights.createTitle", {}, "Create highlight group"),
+      shT("profile.highlights.createTitle", {}, "Create highlight"),
       "",
       {
       centerTitle: true,
@@ -1344,6 +1351,7 @@
             confirmText: shT("common.buttons.discard", {}, "Discard"),
             cancelText: shT("common.buttons.cancel", {}, "Cancel"),
             isDanger: true,
+            inlineActions: true,
             onConfirm: closeFn,
           });
         } else {
@@ -1517,7 +1525,7 @@
           const message = await readApiErrorMessage(
             response,
             "profile.highlights.createFailed",
-            "Failed to create highlight group.",
+            "Failed to create highlight",
           );
           if (window.toastError) {
             toastError(message);
@@ -1530,7 +1538,7 @@
             shT(
               "profile.highlights.createSuccess",
               {},
-              "Highlight group created.",
+              "Highlight group created",
             ),
           );
         }
@@ -1543,7 +1551,7 @@
             shT(
               "profile.highlights.createFailed",
               {},
-              "Failed to create highlight group.",
+              "Failed to create highlight",
             ),
           );
         }
@@ -1725,7 +1733,7 @@
             })
             .join("")
         : !state.isLoadingCandidates
-          ? `<div class="profile-highlight-candidate-empty"><i data-lucide="image-off"></i><div class="profile-highlight-candidate-empty-title">${escapeHtml(shT("profile.highlights.noStoriesAvailable", {}, "No stories available."))}</div><div class="profile-highlight-candidate-empty-subtitle">${escapeHtml(shT("profile.highlights.createStoryFirst", {}, "Create at least one story first to add to your highlights."))}</div></div>`
+          ? `<div class="profile-highlight-candidate-empty"><i data-lucide="image-off"></i><div class="profile-highlight-candidate-empty-title">${escapeHtml(shT("profile.highlights.noStoriesAvailable", {}, "No stories available"))}</div><div class="profile-highlight-candidate-empty-subtitle">${escapeHtml(shT("profile.highlights.createStoryFirst", {}, "Create at least one story first to add to a highlight."))}</div></div>`
           : "";
 
       shell.bodyEl.innerHTML = `
@@ -1917,7 +1925,7 @@
       shT(
         "profile.highlights.addStoriesTitle",
         {},
-        "Add stories to highlight group",
+        "Add stories to highlight",
       ),
       "",
       { centerTitle: true },
@@ -1957,7 +1965,7 @@
           const message = await readApiErrorMessage(
             response,
             "profile.highlights.storiesLoadFailed",
-            "Failed to load stories.",
+            "Failed to load stories",
           );
           if (window.toastError) {
             toastError(message);
@@ -2014,7 +2022,7 @@
             shT(
               "profile.highlights.selectAtLeastOneStory",
               {},
-              "Please select at least one story.",
+              "Please select at least one story",
             ),
           );
         }
@@ -2027,7 +2035,7 @@
             shT(
               "profile.highlights.maxStories",
               { max: HIGHLIGHT_STORY_MAX_PER_GROUP },
-              `Maximum ${HIGHLIGHT_STORY_MAX_PER_GROUP} stories are allowed in a group.`,
+              `Maximum ${HIGHLIGHT_STORY_MAX_PER_GROUP} stories are allowed in a group`,
             ),
           );
         }
@@ -2046,7 +2054,7 @@
           const message = await readApiErrorMessage(
             response,
             "profile.highlights.addStoriesFailed",
-            "Failed to add stories.",
+            "Failed to add stories",
           );
           if (window.toastError) {
             toastError(message);
@@ -2059,7 +2067,7 @@
             shT(
               "profile.highlights.addStoriesSuccess",
               {},
-              "Stories added to highlight group.",
+              "Stories added to the highlight",
             ),
           );
         }
@@ -2072,7 +2080,7 @@
             shT(
               "profile.highlights.addStoriesFailed",
               {},
-              "Failed to add stories.",
+              "Failed to add stories",
             ),
           );
         }
@@ -2110,7 +2118,7 @@
             })
             .join("")
         : !state.isLoadingCandidates
-          ? `<div class="profile-highlight-candidate-empty"><i data-lucide="image-off"></i><div class="profile-highlight-candidate-empty-title">${escapeHtml(shT("profile.highlights.noStoriesAvailable", {}, "No stories available."))}</div><div class="profile-highlight-candidate-empty-subtitle">${escapeHtml(shT("profile.highlights.createStoryFirst", {}, "Create at least one story first to add to your highlights."))}</div></div>`
+          ? `<div class="profile-highlight-candidate-empty"><i data-lucide="image-off"></i><div class="profile-highlight-candidate-empty-title">${escapeHtml(shT("profile.highlights.noStoriesAvailable", {}, "No stories available"))}</div><div class="profile-highlight-candidate-empty-subtitle">${escapeHtml(shT("profile.highlights.createStoryFirst", {}, "Create at least one story first to add to a highlight."))}</div></div>`
           : "";
 
       shell.bodyEl.innerHTML = `
@@ -2241,7 +2249,7 @@
     if (!group?.storyHighlightGroupId || !isCurrentProfileOwner()) return;
 
     const shell = createHighlightModalShell(
-      shT("profile.highlights.editTitle", {}, "Edit highlight group"),
+      shT("profile.highlights.editTitle", {}, "Edit highlight"),
       "",
       {
       centerTitle: true,
@@ -2264,6 +2272,7 @@
             confirmText: shT("common.buttons.discard", {}, "Discard"),
             cancelText: shT("common.buttons.cancel", {}, "Cancel"),
             isDanger: true,
+            inlineActions: true,
             onConfirm: closeFn,
           });
         } else {
@@ -2336,7 +2345,7 @@
           const message = await readApiErrorMessage(
             response,
             "profile.highlights.updateFailed",
-            "Failed to update highlight group.",
+            "Failed to update highlight",
           );
           if (window.toastError) {
             toastError(message);
@@ -2349,7 +2358,7 @@
             shT(
               "profile.highlights.updateSuccess",
               {},
-              "Highlight group updated.",
+              "Highlight group updated",
             ),
           );
         }
@@ -2362,7 +2371,7 @@
             shT(
               "profile.highlights.updateFailed",
               {},
-              "Failed to update highlight group.",
+              "Failed to update highlight",
             ),
           );
         }

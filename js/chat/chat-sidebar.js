@@ -44,7 +44,7 @@ const ChatSidebar = {
       },
       1: {
         nameKey: "chat.sidebar.settings.followers_or_following",
-        name: "Followers or Following",
+        name: "Followers or following",
         icon: "users",
         className: "neutral",
       },
@@ -80,6 +80,62 @@ const ChatSidebar = {
   },
 
   formatRelativeTime(value, short = false) {
+    if (short) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "";
+
+      const diffSeconds = Math.max(
+        0,
+        Math.floor((Date.now() - date.getTime()) / 1000),
+      );
+      if (diffSeconds < 60) {
+        return this.t("chat.sidebar.time.justNow", "just now");
+      }
+
+      const minutes = Math.floor(diffSeconds / 60);
+      if (minutes < 60) {
+        return this.t(
+          minutes === 1
+            ? "chat.sidebar.time.minuteOne"
+            : "chat.sidebar.time.minuteOther",
+          minutes === 1 ? "{count} min" : "{count} mins",
+          { count: minutes },
+        );
+      }
+
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) {
+        return this.t(
+          hours === 1
+            ? "chat.sidebar.time.hourOne"
+            : "chat.sidebar.time.hourOther",
+          hours === 1 ? "{count} hour" : "{count} hours",
+          { count: hours },
+        );
+      }
+
+      const days = Math.floor(hours / 24);
+      if (days < 7) {
+        return this.t(
+          days === 1
+            ? "chat.sidebar.time.dayOne"
+            : "chat.sidebar.time.dayOther",
+          days === 1 ? "{count} day" : "{count} days",
+          { count: days },
+        );
+      }
+
+      const weeks = Math.floor(days / 7);
+      const safeWeeks = Math.max(1, weeks);
+      return this.t(
+        safeWeeks === 1
+          ? "chat.sidebar.time.weekOne"
+          : "chat.sidebar.time.weekOther",
+        safeWeeks === 1 ? "{count} week" : "{count} weeks",
+        { count: safeWeeks },
+      );
+    }
+
     if (
       window.ChatCommon &&
       typeof window.ChatCommon.formatRelativeTime === "function"
@@ -87,7 +143,9 @@ const ChatSidebar = {
       return window.ChatCommon.formatRelativeTime(value, short);
     }
 
-    return window.PostUtils?.timeAgo ? window.PostUtils.timeAgo(value, short) : "";
+    return window.PostUtils?.timeAgo
+      ? window.PostUtils.timeAgo(value, short)
+      : "";
   },
 
   async readFriendlyApiError(res, options = {}) {
@@ -95,7 +153,10 @@ const ChatSidebar = {
       typeof options?.fallbackMessage === "string" &&
       options.fallbackMessage.trim().length > 0
         ? options.fallbackMessage
-        : this.t("errors.chat.generic", "Something went wrong. Please try again.");
+        : this.t(
+            "errors.chat.generic",
+            "Something went wrong. Please try again.",
+          );
 
     if (
       window.ChatCommon &&
@@ -119,7 +180,9 @@ const ChatSidebar = {
 
   getFriendlyErrorMessage(error, fallbackKey, fallbackMessage, params = {}) {
     const uiMessage =
-      typeof error?.chatUiMessage === "string" ? error.chatUiMessage.trim() : "";
+      typeof error?.chatUiMessage === "string"
+        ? error.chatUiMessage.trim()
+        : "";
     if (uiMessage) return uiMessage;
     return this.t(fallbackKey, fallbackMessage, params);
   },
@@ -271,9 +334,7 @@ const ChatSidebar = {
       canShowStatus: legacyIsOnline,
       isOnline: legacyIsOnline,
       showDot: legacyIsOnline,
-      text: legacyIsOnline
-        ? this.t("common.labels.online", "Online")
-        : "",
+      text: legacyIsOnline ? this.t("common.labels.online", "Online") : "",
     };
   },
 
@@ -509,7 +570,8 @@ const ChatSidebar = {
       if (senderId === myId) {
         prefix = `${this.t("common.labels.you", "You")}: `;
       } else if (isGroup) {
-        const senderPayload = resolvedMessage?.sender || resolvedMessage?.Sender || {};
+        const senderPayload =
+          resolvedMessage?.sender || resolvedMessage?.Sender || {};
         const senderName = this.getGroupSenderName(senderPayload, conv);
         prefix = `${senderName}: `;
       }
@@ -835,8 +897,7 @@ const ChatSidebar = {
   renderLayout() {
     const panel = document.getElementById("chat-panel");
     const username =
-      localStorage.getItem("username") ||
-      this.t("common.labels.user", "User");
+      localStorage.getItem("username") || this.t("common.labels.user", "User");
     this.closeSettingsPopup();
 
     panel.innerHTML = `
@@ -946,7 +1007,7 @@ const ChatSidebar = {
       throw new Error(
         this.t(
           "chat.sidebar.settings.apiUnavailable",
-          "Chat settings API is unavailable.",
+          "Chat settings aren't available right now",
         ),
       );
     }
@@ -956,7 +1017,7 @@ const ChatSidebar = {
       const message = await this.readFriendlyApiError(res, {
         action: "load-sidebar-settings",
         fallbackKey: "errors.chat.settings_load_failed",
-        fallbackMessage: "Failed to load settings.",
+        fallbackMessage: "Couldn't load settings",
       });
       throw this.createUiError(message);
     }
@@ -1034,7 +1095,7 @@ const ChatSidebar = {
       const message = this.getFriendlyErrorMessage(
         error,
         "errors.chat.settings_load_failed",
-        "Failed to load settings.",
+        "Couldn't load settings",
       );
       const body = popup.querySelector(".chat-settings-popup-body");
       if (body) {
@@ -1160,17 +1221,14 @@ const ChatSidebar = {
         const message = await this.readFriendlyApiError(res, {
           action: "update-sidebar-settings",
           fallbackKey: "errors.chat.settings_update_failed",
-          fallbackMessage: "Failed to update settings.",
+          fallbackMessage: "Couldn't update settings",
         });
         throw this.createUiError(message);
       }
 
       if (window.toastSuccess) {
         toastSuccess(
-          this.t(
-            "chat.sidebar.settings.updated",
-            "Chat settings updated.",
-          ),
+          this.t("chat.sidebar.settings.updated", "Chat settings updated"),
         );
       }
       this.closeSettingsPopup();
@@ -1178,7 +1236,7 @@ const ChatSidebar = {
       const message = this.getFriendlyErrorMessage(
         error,
         "errors.chat.settings_update_failed",
-        "Failed to update settings.",
+        "Couldn't update settings",
       );
       if (window.toastError) {
         toastError(message);
@@ -1257,7 +1315,7 @@ const ChatSidebar = {
             window.toastInfo(
               this.t(
                 "chat.sidebar.more.createGroupComingSoon",
-                "Create Group feature coming soon!",
+                "Create group is in progress",
               ),
             );
         }
@@ -1272,7 +1330,7 @@ const ChatSidebar = {
           window.toastInfo(
             this.t(
               "chat.sidebar.more.blockedUsersComingSoon",
-              "Blocked Users list coming soon!",
+              "Blocked list is in progress",
             ),
           );
         menu.remove();
@@ -1510,7 +1568,9 @@ const ChatSidebar = {
           window.ChatPage &&
           typeof window.ChatPage.updateHeaderUnreadState === "function"
         ) {
-          window.ChatPage.updateHeaderUnreadState(window.ChatPage.currentChatId);
+          window.ChatPage.updateHeaderUnreadState(
+            window.ChatPage.currentChatId,
+          );
         }
 
         window.dispatchEvent(
@@ -1555,8 +1615,7 @@ const ChatSidebar = {
     const listContainer = document.getElementById("chat-conversation-list");
 
     if (!isAppend && items.length === 0) {
-      listContainer.innerHTML =
-        `<div style="padding:20px; text-align:center; color:var(--text-tertiary);">${this.t("chat.sidebar.noMessagesYet", "No messages yet")}</div>`;
+      listContainer.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text-tertiary);">${this.t("chat.sidebar.noMessagesYet", "No messages yet")}</div>`;
       this.updateActiveItemIndicator();
       return;
     }
@@ -2020,10 +2079,10 @@ const ChatSidebar = {
       conv.lastMessage = null;
       conv.lastMessageSentAt = null;
       conv.lastMessagePreview = conv.isGroup
-        ? this.t("chat.sidebar.preview.groupCreated", "Group created")
+        ? this.t("chat.sidebar.preview.groupCreated", "Group created.")
         : this.t(
             "chat.sidebar.preview.startedConversation",
-            "Started a conversation",
+            "Conversation started.",
           );
     }
 
@@ -2056,7 +2115,7 @@ const ChatSidebar = {
     conv.lastMessage.Content = null;
     conv.lastMessagePreview = this.t(
       "chat.sidebar.preview.recalledMessage",
-      "Message recalled",
+      "Message was recalled",
     );
     return this.renderConversationLastMessage(conv);
   },

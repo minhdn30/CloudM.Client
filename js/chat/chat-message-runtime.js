@@ -385,7 +385,7 @@
             statusEl.className += ' msg-status-failed';
             statusEl.textContent = runtimeT(
                 'chat.message.status.failed_retry',
-                'Failed to send. Click to retry.',
+                'Send failed, tap to retry',
             );
             if (typeof retryHandler === 'function') {
                 statusEl.onclick = () => retryHandler(tempId, content);

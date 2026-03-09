@@ -423,17 +423,14 @@ const ChatCommon = {
     let rawServerMessage = "";
     let validationErrors = null;
 
-    const parseSource = typeof response.clone === "function" ? response.clone() : null;
+    const parseSource =
+      typeof response.clone === "function" ? response.clone() : null;
     const jsonSource = parseSource || response;
 
     try {
       const data = await jsonSource.json();
       const messageCandidate =
-        data?.message ||
-        data?.Message ||
-        data?.title ||
-        data?.Title ||
-        "";
+        data?.message || data?.Message || data?.title || data?.Title || "";
       rawServerMessage =
         typeof messageCandidate === "string" ? messageCandidate.trim() : "";
       validationErrors =
@@ -516,11 +513,7 @@ const ChatCommon = {
             typeof resolved.key === "string" &&
             resolved.key.trim().length > 0
           ) {
-            return this.t(
-              resolved.key,
-              fallbackMessage,
-              context,
-            );
+            return this.t(resolved.key, fallbackMessage, context);
           }
         } catch (_err) {
           // ignore UI error mapper failures and fall back safely
@@ -1844,12 +1837,8 @@ const ChatCommon = {
     return /^vi\b/i.test(this.getCurrentLanguage());
   },
 
-  chatSystemT(key, englishFallback, vietnameseFallback, params = {}) {
-    return this.t(
-      key,
-      this.isVietnameseLanguage() ? vietnameseFallback : englishFallback,
-      params,
-    );
+  chatSystemT(key, englishFallback, params = {}) {
+    return this.t(key, englishFallback, params);
   },
 
   buildSystemMentionList(values) {
@@ -1916,7 +1905,6 @@ const ChatCommon = {
         return this.chatSystemT(
           "chat.system.group_created",
           "{actor} created this group.",
-          "{actor} đã tạo nhóm này.",
           { actor },
         );
       }
@@ -1929,7 +1917,6 @@ const ChatCommon = {
           ? this.chatSystemT(
               "chat.system.member_added",
               "{actor} added {targets} to the group.",
-              "{actor} đã thêm {targets} vào nhóm.",
               {
                 actor,
                 targets,
@@ -1938,7 +1925,6 @@ const ChatCommon = {
           : this.chatSystemT(
               "chat.system.member_added_generic",
               "{actor} added new members to the group.",
-              "{actor} đã thêm thành viên mới vào nhóm.",
               { actor },
             );
       }
@@ -1947,7 +1933,6 @@ const ChatCommon = {
         return this.chatSystemT(
           "chat.system.member_kicked",
           "{actor} removed {target} from the group.",
-          "{actor} đã xóa {target} khỏi nhóm.",
           {
             actor,
             target,
@@ -1959,7 +1944,6 @@ const ChatCommon = {
         return this.chatSystemT(
           "chat.system.admin_granted",
           "{actor} made {target} an admin.",
-          "{actor} đã đặt {target} làm quản trị viên.",
           {
             actor,
             target,
@@ -1971,7 +1955,6 @@ const ChatCommon = {
         return this.chatSystemT(
           "chat.system.admin_revoked",
           "{actor} removed admin role from {target}.",
-          "{actor} đã gỡ vai trò quản trị viên của {target}.",
           {
             actor,
             target,
@@ -1983,7 +1966,6 @@ const ChatCommon = {
         return this.chatSystemT(
           "chat.system.member_left",
           "{actor} left the group.",
-          "{actor} đã rời khỏi nhóm.",
           { actor },
         );
       }
@@ -1992,7 +1974,6 @@ const ChatCommon = {
         return this.chatSystemT(
           "chat.system.owner_transferred",
           "{actor} transferred group ownership to {target}.",
-          "{actor} đã chuyển quyền sở hữu nhóm cho {target}.",
           {
             actor,
             target,
@@ -2008,7 +1989,6 @@ const ChatCommon = {
           return this.chatSystemT(
             "chat.system.group_renamed",
             '{actor} changed the group name to "{conversationName}".',
-            '{actor} đã đổi tên nhóm thành "{conversationName}".',
             {
               actor,
               conversationName,
@@ -2018,18 +1998,18 @@ const ChatCommon = {
       }
 
       if (actor && Number.isFinite(action) && action === 12) {
-        const avatarRemoved = !!(parsed?.avatarRemoved ?? parsed?.AvatarRemoved);
+        const avatarRemoved = !!(
+          parsed?.avatarRemoved ?? parsed?.AvatarRemoved
+        );
         return avatarRemoved
           ? this.chatSystemT(
               "chat.system.group_avatar_removed",
               "{actor} removed the group avatar.",
-              "{actor} đã xóa ảnh nhóm.",
               { actor },
             )
           : this.chatSystemT(
               "chat.system.group_avatar_updated",
               "{actor} updated the group avatar.",
-              "{actor} đã cập nhật ảnh nhóm.",
               { actor },
             );
       }
@@ -2038,9 +2018,12 @@ const ChatCommon = {
         const conversationName = (parsed?.conversationName || "")
           .toString()
           .trim();
-        const avatarRemoved = !!(parsed?.avatarRemoved ?? parsed?.AvatarRemoved);
+        const avatarRemoved = !!(
+          parsed?.avatarRemoved ?? parsed?.AvatarRemoved
+        );
         const hasConversationNameChanged = !!(
-          parsed?.hasConversationNameChanged ?? parsed?.HasConversationNameChanged
+          parsed?.hasConversationNameChanged ??
+          parsed?.HasConversationNameChanged
         );
         const hasConversationAvatarChanged = !!(
           parsed?.hasConversationAvatarChanged ??
@@ -2052,7 +2035,6 @@ const ChatCommon = {
             ? this.chatSystemT(
                 "chat.system.group_info_updated_removed_avatar",
                 '{actor} changed the group name to "{conversationName}" and removed the group avatar.',
-                '{actor} đã đổi tên nhóm thành "{conversationName}" và xóa ảnh nhóm.',
                 {
                   actor,
                   conversationName,
@@ -2061,7 +2043,6 @@ const ChatCommon = {
             : this.chatSystemT(
                 "chat.system.group_info_updated",
                 '{actor} changed the group name to "{conversationName}" and updated the group avatar.',
-                '{actor} đã đổi tên nhóm thành "{conversationName}" và cập nhật ảnh nhóm.',
                 {
                   actor,
                   conversationName,
@@ -2158,13 +2139,14 @@ const ChatCommon = {
         );
       }
 
-      const groupCreatedMatch = content.match(/^@?([^\s@]+)\s+created this group\.$/i);
+      const groupCreatedMatch = content.match(
+        /^@?([^\s@]+)\s+created this group\.$/i,
+      );
       if (groupCreatedMatch) {
         const actor = this.toMentionUsername(groupCreatedMatch[1]);
         return this.chatSystemT(
           "chat.system.group_created",
           "{actor} created this group.",
-          "{actor} đã tạo nhóm này.",
           { actor },
         );
       }
@@ -2184,7 +2166,6 @@ const ChatCommon = {
           ? this.chatSystemT(
               "chat.system.member_added",
               "{actor} added {targets} to the group.",
-              "{actor} đã thêm {targets} vào nhóm.",
               {
                 actor,
                 targets,
@@ -2193,7 +2174,6 @@ const ChatCommon = {
           : this.chatSystemT(
               "chat.system.member_added_generic",
               "{actor} added new members to the group.",
-              "{actor} đã thêm thành viên mới vào nhóm.",
               { actor },
             );
       }
@@ -2206,7 +2186,6 @@ const ChatCommon = {
         return this.chatSystemT(
           "chat.system.member_added_generic",
           "{actor} added new members to the group.",
-          "{actor} đã thêm thành viên mới vào nhóm.",
           { actor },
         );
       }
@@ -2220,7 +2199,6 @@ const ChatCommon = {
         return this.chatSystemT(
           "chat.system.member_kicked",
           "{actor} removed {target} from the group.",
-          "{actor} đã xóa {target} khỏi nhóm.",
           {
             actor,
             target,
@@ -2228,13 +2206,14 @@ const ChatCommon = {
         );
       }
 
-      const memberLeftMatch = content.match(/^@?([^\s@]+)\s+left the group\.$/i);
+      const memberLeftMatch = content.match(
+        /^@?([^\s@]+)\s+left the group\.$/i,
+      );
       if (memberLeftMatch) {
         const actor = this.toMentionUsername(memberLeftMatch[1]);
         return this.chatSystemT(
           "chat.system.member_left",
           "{actor} left the group.",
-          "{actor} đã rời khỏi nhóm.",
           { actor },
         );
       }
@@ -2248,7 +2227,6 @@ const ChatCommon = {
         return this.chatSystemT(
           "chat.system.admin_granted",
           "{actor} made {target} an admin.",
-          "{actor} đã đặt {target} làm quản trị viên.",
           {
             actor,
             target,
@@ -2265,7 +2243,6 @@ const ChatCommon = {
         return this.chatSystemT(
           "chat.system.admin_revoked",
           "{actor} removed admin role from {target}.",
-          "{actor} đã gỡ vai trò quản trị viên của {target}.",
           {
             actor,
             target,
@@ -2282,7 +2259,6 @@ const ChatCommon = {
         return this.chatSystemT(
           "chat.system.owner_transferred",
           "{actor} transferred group ownership to {target}.",
-          "{actor} đã chuyển quyền sở hữu nhóm cho {target}.",
           {
             actor,
             target,
@@ -2299,7 +2275,6 @@ const ChatCommon = {
         return this.chatSystemT(
           "chat.system.group_info_updated_removed_avatar",
           '{actor} changed the group name to "{conversationName}" and removed the group avatar.',
-          '{actor} đã đổi tên nhóm thành "{conversationName}" và xóa ảnh nhóm.',
           {
             actor,
             conversationName,
@@ -2316,7 +2291,6 @@ const ChatCommon = {
         return this.chatSystemT(
           "chat.system.group_info_updated",
           '{actor} changed the group name to "{conversationName}" and updated the group avatar.',
-          '{actor} đã đổi tên nhóm thành "{conversationName}" và cập nhật ảnh nhóm.',
           {
             actor,
             conversationName,
@@ -2333,7 +2307,6 @@ const ChatCommon = {
         return this.chatSystemT(
           "chat.system.group_renamed",
           '{actor} changed the group name to "{conversationName}".',
-          '{actor} đã đổi tên nhóm thành "{conversationName}".',
           {
             actor,
             conversationName,
@@ -2349,7 +2322,6 @@ const ChatCommon = {
         return this.chatSystemT(
           "chat.system.group_avatar_removed",
           "{actor} removed the group avatar.",
-          "{actor} đã xóa ảnh nhóm.",
           { actor },
         );
       }
@@ -2362,7 +2334,6 @@ const ChatCommon = {
         return this.chatSystemT(
           "chat.system.group_avatar_updated",
           "{actor} updated the group avatar.",
-          "{actor} đã cập nhật ảnh nhóm.",
           { actor },
         );
       }
@@ -2446,7 +2417,9 @@ const ChatCommon = {
         id: accountId,
         username: username || this.getUnknownUsernameLabel(),
         fullName:
-          fullName || username || this.t("chat.common.unknown_user", "Unknown user"),
+          fullName ||
+          username ||
+          this.t("chat.common.unknown_user", "Unknown user"),
         avatarUrl: avatarUrl || window.APP_CONFIG?.DEFAULT_AVATAR,
       };
     };
@@ -2736,15 +2709,12 @@ const ChatCommon = {
         if (requestSequence !== searchRequestSequence) return;
 
         if (!res.ok) {
-          const message = await this.readFriendlyApiError(
-            res,
-            {
-              feature: "chat",
-              action: "search-group-members",
-              fallbackKey: "errors.chat.members_search_failed",
-              fallbackMessage: "Failed to search members",
-            },
-          );
+          const message = await this.readFriendlyApiError(res, {
+            feature: "chat",
+            action: "search-group-members",
+            fallbackKey: "errors.chat.members_search_failed",
+            fallbackMessage: "Failed to search members",
+          });
           renderEmptyState(message);
           return;
         }
@@ -2833,10 +2803,7 @@ const ChatCommon = {
         console.error("Failed to add group members:", error);
         if (window.toastError) {
           window.toastError(
-            this.t(
-              "errors.chat.add_members_failed",
-              "Failed to add members",
-            ),
+            this.t("errors.chat.add_members_failed", "Failed to add members"),
           );
         }
       } finally {
@@ -3879,10 +3846,7 @@ const ChatCommon = {
     }
 
     const statusText = info.isPostUnavailable
-      ? this.t(
-          "chat.post_share.unavailable",
-          "Post is no longer available",
-        )
+      ? this.t("chat.post_share.unavailable", "Post is no longer available")
       : this.t("chat.post_share.tap_to_view", "Tap to view post");
     const snippetHtml = safeSnippet
       ? `<div class="msg-post-share-snippet">${escapeHtml(safeSnippet)}</div>`
@@ -4041,8 +4005,7 @@ const ChatCommon = {
     if (isSystemMessage) {
       const senderId = msg.sender?.accountId || msg.senderId || "";
       const systemText = this.getSystemMessageText(msg);
-      const rawSystemContent =
-        msg?.content ?? msg?.Content ?? "";
+      const rawSystemContent = msg?.content ?? msg?.Content ?? "";
       const rawSystemData =
         msg?.systemMessageDataJson ?? msg?.SystemMessageDataJson ?? "";
       return `
@@ -4340,9 +4303,15 @@ const ChatCommon = {
                                 ? window.I18n.translateServerText(
                                     window.APP_CONFIG.CHAT_HIDDEN_MESSAGE_TEXT,
                                     {},
-                                    this.t("chat.message.hidden", "Message hidden"),
+                                    this.t(
+                                      "chat.message.hidden",
+                                      "Message hidden",
+                                    ),
                                   )
-                                : this.t("chat.message.hidden", "Message hidden"),
+                                : this.t(
+                                    "chat.message.hidden",
+                                    "Message hidden",
+                                  ),
                             )}</em>`;
                           } else if (rt.isRecalled) {
                             rtPreview = `<em>${escapeHtml(
@@ -4533,7 +4502,7 @@ const ChatCommon = {
                   msg.status
                     ? `
                     <div class="msg-status ${msg.status === "pending" ? "msg-status-sending" : msg.status === "sent" ? "msg-status-sent" : "msg-status-failed"}">
-                        ${msg.status === "pending" ? '<span class="msg-loading-dots"><span class="msg-loading-dot"></span><span class="msg-loading-dot"></span><span class="msg-loading-dot"></span></span>' : msg.status === "sent" ? escapeHtml(this.t("chat.message.status.sent", "Sent")) : escapeHtml(this.t("chat.message.status.failed_retry", "Failed to send. Click to retry."))}
+                        ${msg.status === "pending" ? '<span class="msg-loading-dots"><span class="msg-loading-dot"></span><span class="msg-loading-dot"></span><span class="msg-loading-dot"></span></span>' : msg.status === "sent" ? escapeHtml(this.t("chat.message.status.sent", "Sent")) : escapeHtml(this.t("chat.message.status.failed_retry", "Send failed, tap to retry"))}
                     </div>
                 `
                     : ""
@@ -5086,14 +5055,8 @@ const ChatCommon = {
     const items = Array.isArray(medias) ? medias : [];
     if (!items.length) {
       return {
-        sentText: this.t(
-          "chat.preview.media.sent_file",
-          "Sent a media file",
-        ),
-        replyWithText: this.t(
-          "chat.preview.media.reply_file",
-          "a media file",
-        ),
+        sentText: this.t("chat.preview.media.sent_file", "Sent a media file"),
+        replyWithText: this.t("chat.preview.media.reply_file", "a media file"),
       };
     }
 
@@ -5111,14 +5074,8 @@ const ChatCommon = {
       if (mediaType === 0) {
         if (count === 1) {
           return {
-            sentText: this.t(
-              "chat.preview.media.sent_photo",
-              "Sent a photo",
-            ),
-            replyWithText: this.t(
-              "chat.preview.media.reply_photo",
-              "a photo",
-            ),
+            sentText: this.t("chat.preview.media.sent_photo", "Sent a photo"),
+            replyWithText: this.t("chat.preview.media.reply_photo", "a photo"),
           };
         }
         return {
@@ -5137,14 +5094,8 @@ const ChatCommon = {
       if (mediaType === 1) {
         if (count === 1) {
           return {
-            sentText: this.t(
-              "chat.preview.media.sent_video",
-              "Sent a video",
-            ),
-            replyWithText: this.t(
-              "chat.preview.media.reply_video",
-              "a video",
-            ),
+            sentText: this.t("chat.preview.media.sent_video", "Sent a video"),
+            replyWithText: this.t("chat.preview.media.reply_video", "a video"),
           };
         }
         return {
@@ -5163,14 +5114,8 @@ const ChatCommon = {
       if (mediaType === 2) {
         if (count === 1) {
           return {
-            sentText: this.t(
-              "chat.preview.media.sent_audio",
-              "Sent an audio",
-            ),
-            replyWithText: this.t(
-              "chat.preview.media.reply_audio",
-              "an audio",
-            ),
+            sentText: this.t("chat.preview.media.sent_audio", "Sent an audio"),
+            replyWithText: this.t("chat.preview.media.reply_audio", "an audio"),
           };
         }
         return {
@@ -5236,15 +5181,21 @@ const ChatCommon = {
     if (!raw) return "";
     const normalized = raw.replace(/[.!]+$/g, "").trim();
 
-    const repliedStoryWithTextMatch = normalized.match(/^Replied to your story:\s+([\s\S]+)$/i);
+    const repliedStoryWithTextMatch = normalized.match(
+      /^Replied to your story:\s+([\s\S]+)$/i,
+    );
     if (repliedStoryWithTextMatch) {
-      return this.t("chat.preview.reply_story_with_text", "Replied to your story: {content}", {
-        content: repliedStoryWithTextMatch[1].trim(),
-      });
+      return this.t(
+        "chat.preview.reply_story_with_text",
+        "Replied to your story: {content}",
+        {
+          content: repliedStoryWithTextMatch[1].trim(),
+        },
+      );
     }
 
     if (/^Message(?: was)? recalled$/i.test(normalized)) {
-      return this.t("chat.preview.message_recalled", "Message recalled");
+      return this.t("chat.preview.message_recalled", "Message was recalled");
     }
 
     if (/^Replied to your story$/i.test(normalized)) {
@@ -5252,7 +5203,10 @@ const ChatCommon = {
     }
 
     if (/^Replied with a shared post$/i.test(normalized)) {
-      return this.t("chat.preview.reply_shared_post", "Replied with a shared post");
+      return this.t(
+        "chat.preview.reply_shared_post",
+        "Replied with a shared post",
+      );
     }
 
     if (/^Replied with (?:a )?photo$/i.test(normalized)) {
@@ -5284,7 +5238,9 @@ const ChatCommon = {
       });
     }
 
-    const repliedWithTextMatch = normalized.match(/^Replied with\s+([\s\S]+)$/i);
+    const repliedWithTextMatch = normalized.match(
+      /^Replied with\s+([\s\S]+)$/i,
+    );
     if (repliedWithTextMatch) {
       const replyContent = repliedWithTextMatch[1].trim();
       return this.t("chat.preview.reply_media", "Replied with {content}", {
@@ -5325,15 +5281,25 @@ const ChatCommon = {
       const count = sentCountMatch[1];
       const unit = sentCountMatch[2].toLowerCase();
       if (unit === "photos") {
-        return this.t("chat.preview.media.sent_photos", "Sent {count} photos", { count });
+        return this.t("chat.preview.media.sent_photos", "Sent {count} photos", {
+          count,
+        });
       }
       if (unit === "videos") {
-        return this.t("chat.preview.media.sent_videos", "Sent {count} videos", { count });
+        return this.t("chat.preview.media.sent_videos", "Sent {count} videos", {
+          count,
+        });
       }
       if (unit === "audio files") {
-        return this.t("chat.preview.media.sent_audio_files", "Sent {count} audio files", { count });
+        return this.t(
+          "chat.preview.media.sent_audio_files",
+          "Sent {count} audio files",
+          { count },
+        );
       }
-      return this.t("chat.preview.media.sent_files", "Sent {count} files", { count });
+      return this.t("chat.preview.media.sent_files", "Sent {count} files", {
+        count,
+      });
     }
 
     return "";
@@ -5364,10 +5330,7 @@ const ChatCommon = {
 
     if (lastMessage?.isRecalled || lastMessage?.IsRecalled) {
       return {
-        text: this.t(
-          "chat.preview.message_recalled",
-          "Message recalled",
-        ),
+        text: this.t("chat.preview.message_recalled", "Message was recalled"),
         isDerived: true,
       };
     }
@@ -5392,8 +5355,9 @@ const ChatCommon = {
           !hasReply &&
           contentText.length > 0 &&
           normalizedServerPreview === contentText;
-        const translatedLegacyPreview =
-          this.translateLegacyServerPreview(normalizedServerPreview);
+        const translatedLegacyPreview = this.translateLegacyServerPreview(
+          normalizedServerPreview,
+        );
 
         return {
           text:
@@ -5429,10 +5393,7 @@ const ChatCommon = {
         };
       }
       return {
-        text: this.t(
-          "chat.preview.reply_story",
-          "Replied to your story",
-        ),
+        text: this.t("chat.preview.reply_story", "Replied to your story"),
         isDerived: true,
       };
     }
@@ -5441,11 +5402,9 @@ const ChatCommon = {
       if (contentText.length > 0) {
         return {
           text: hasReply
-            ? this.t(
-                "chat.preview.reply_text",
-                "Replied: {content}",
-                { content: contentText },
-              )
+            ? this.t("chat.preview.reply_text", "Replied: {content}", {
+                content: contentText,
+              })
             : contentText,
           isDerived: hasReply,
         };
@@ -5456,11 +5415,9 @@ const ChatCommon = {
       );
       return {
         text: hasReply
-          ? this.t(
-              "chat.preview.reply_media",
-              "Replied with {content}",
-              { content: mediaSummary.replyWithText },
-            )
+          ? this.t("chat.preview.reply_media", "Replied with {content}", {
+              content: mediaSummary.replyWithText,
+            })
           : mediaSummary.sentText,
         isDerived: true,
       };
@@ -5470,21 +5427,16 @@ const ChatCommon = {
       if (contentText.length > 0) {
         return {
           text: hasReply
-            ? this.t(
-                "chat.preview.reply_text",
-                "Replied: {content}",
-                { content: contentText },
-              )
+            ? this.t("chat.preview.reply_text", "Replied: {content}", {
+                content: contentText,
+              })
             : contentText,
           isDerived: hasReply,
         };
       }
       if (hasReply) {
         return {
-          text: this.t(
-            "chat.preview.reply_message",
-            "Replied to a message",
-          ),
+          text: this.t("chat.preview.reply_message", "Replied to a message"),
           isDerived: true,
         };
       }
@@ -5526,11 +5478,8 @@ const ChatCommon = {
     const isGroup = !!(conv?.isGroup ?? conv?.IsGroup ?? false);
     return {
       text: isGroup
-        ? this.t("chat.preview.group_created", "Group created")
-        : this.t(
-            "chat.preview.conversation_started",
-            "Started a conversation",
-          ),
+        ? this.t("chat.preview.group_created", "Group created.")
+        : this.t("chat.preview.conversation_started", "Conversation started."),
       isDerived: true,
     };
   },

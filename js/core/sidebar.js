@@ -196,6 +196,19 @@ async function loadSidebar() {
       if (window.I18n?.translateDom) {
         window.I18n.translateDom(document.getElementById("sidebar"));
       }
+      if (document.getElementById("languageDropdown")?.classList.contains("show")) {
+        lucide.createIcons();
+        positionLanguageMenu();
+      }
+    });
+  }
+
+  if (!window.__sidebarLanguageMenuResizeBound) {
+    window.__sidebarLanguageMenuResizeBound = true;
+    window.addEventListener("resize", () => {
+      if (document.getElementById("languageDropdown")?.classList.contains("show")) {
+        positionLanguageMenu();
+      }
     });
   }
 }
@@ -334,12 +347,11 @@ function closeAllDropdowns() {
   const moreDropdown = document.getElementById("moreDropdown");
   const settingsDropdown = document.getElementById("settingsDropdown");
   const createDropdown = document.getElementById("createDropdown");
-  const languageDropdown = document.getElementById("languageDropdown");
 
   moreDropdown?.classList.remove("show");
   settingsDropdown?.classList.remove("show");
   createDropdown?.classList.remove("show");
-  languageDropdown?.classList.remove("show");
+  closeLanguageMenu();
   sidebar?.classList.remove("expanded");
   sidebarContainer?.classList.remove("expanded");
 }
@@ -350,12 +362,11 @@ function toggleMoreMenu(e) {
   const moreDropdown = document.getElementById("moreDropdown");
   const settingsDropdown = document.getElementById("settingsDropdown");
   const createDropdown = document.getElementById("createDropdown");
-  const languageDropdown = document.getElementById("languageDropdown");
 
   // Close settings and create if open
   settingsDropdown.classList.remove("show");
   createDropdown?.classList.remove("show");
-  languageDropdown?.classList.remove("show");
+  closeLanguageMenu();
 
   // Toggle more menu
   const isOpening = !moreDropdown.classList.contains("show");
@@ -379,11 +390,10 @@ function toggleSettingsMenu(e) {
   const sidebar = document.querySelector(".sidebar");
   const moreDropdown = document.getElementById("moreDropdown");
   const settingsDropdown = document.getElementById("settingsDropdown");
-  const languageDropdown = document.getElementById("languageDropdown");
 
   // Hide more menu and show settings
   moreDropdown.classList.remove("show");
-  languageDropdown?.classList.remove("show");
+  closeLanguageMenu();
 
   // Reset animation by removing and re-adding the class
   settingsDropdown.classList.remove("show");
@@ -403,11 +413,10 @@ function backToMoreMenu(e) {
   const sidebar = document.querySelector(".sidebar");
   const moreDropdown = document.getElementById("moreDropdown");
   const settingsDropdown = document.getElementById("settingsDropdown");
-  const languageDropdown = document.getElementById("languageDropdown");
 
   // Hide settings and show more menu
   settingsDropdown.classList.remove("show");
-  languageDropdown?.classList.remove("show");
+  closeLanguageMenu();
 
   // Reset animation by removing and re-adding the class
   moreDropdown.classList.remove("show");
@@ -425,12 +434,11 @@ function toggleCreateMenu(e) {
   const createDropdown = document.getElementById("createDropdown");
   const moreDropdown = document.getElementById("moreDropdown");
   const settingsDropdown = document.getElementById("settingsDropdown");
-  const languageDropdown = document.getElementById("languageDropdown");
 
   // Close other menus
   moreDropdown?.classList.remove("show");
   settingsDropdown?.classList.remove("show");
-  languageDropdown?.classList.remove("show");
+  closeLanguageMenu();
 
   // Toggle create menu
   const isOpening = !createDropdown.classList.contains("show");
@@ -780,6 +788,7 @@ function navigate(e, route, clickedEl = null) {
 // Theme toggle functionality
 function toggleTheme(e) {
   e.stopPropagation();
+  closeLanguageMenu();
   if (
     window.themeManager &&
     typeof window.themeManager.toggleTheme === "function"
@@ -832,12 +841,89 @@ function loadThemePreference() {
 }
 
 // Settings menu functions (placeholder)
+function setLanguageMenuExpanded(isExpanded) {
+  const languageItem = document.getElementById("sidebar-language-item");
+  languageItem?.setAttribute("aria-expanded", isExpanded ? "true" : "false");
+  languageItem?.classList.toggle("is-submenu-open", Boolean(isExpanded));
+}
+
+function updateLanguageOptionSelection(language = "") {
+  const normalizedLanguage = window.I18n?.normalizeLanguage
+    ? window.I18n.normalizeLanguage(language)
+    : (language || "").toString().trim().toLowerCase();
+
+  document
+    .querySelectorAll("#languageDropdown .dropdown-item[data-language]")
+    .forEach((item) => {
+      const isSelected =
+        item.dataset.language?.toLowerCase() === normalizedLanguage;
+      item.dataset.selected = isSelected ? "true" : "false";
+      item.setAttribute("aria-checked", isSelected ? "true" : "false");
+    });
+}
+
+function closeLanguageMenu() {
+  document.getElementById("languageDropdown")?.classList.remove("show");
+  setLanguageMenuExpanded(false);
+}
+
+function positionLanguageMenu() {
+  const dropdown = document.getElementById("languageDropdown");
+  const languageItem = document.getElementById("sidebar-language-item");
+  const settingsDropdown = document.getElementById("settingsDropdown");
+  if (!dropdown || !languageItem || !settingsDropdown) return;
+
+  dropdown.style.left = "";
+  dropdown.style.right = "";
+  dropdown.style.top = "";
+
+  const gutter = 12;
+  const settingsRect = settingsDropdown.getBoundingClientRect();
+  const itemRect = languageItem.getBoundingClientRect();
+  const dropdownRect = dropdown.getBoundingClientRect();
+  const dropdownWidth = dropdownRect.width || 240;
+  const dropdownHeight = dropdownRect.height || dropdown.offsetHeight || 0;
+
+  const canOpenRight =
+    settingsRect.right + gutter + dropdownWidth <= window.innerWidth - 8;
+  const canOpenLeft = settingsRect.left - gutter - dropdownWidth >= 8;
+
+  let left = settingsDropdown.offsetWidth + gutter;
+  if (!canOpenRight && canOpenLeft) {
+    left = -(dropdownWidth + gutter);
+  } else if (!canOpenRight) {
+    left = Math.max(8, settingsDropdown.offsetWidth - dropdownWidth);
+  }
+
+  let top = itemRect.top - settingsRect.top;
+  const maxTop = Math.max(
+    8,
+    window.innerHeight - settingsRect.top - dropdownHeight - 8,
+  );
+  top = Math.max(8, Math.min(top, maxTop));
+
+  dropdown.style.left = `${left}px`;
+  dropdown.style.top = `${top}px`;
+}
+
 function openLanguageMenu(e) {
   e.stopPropagation();
   const dropdown = document.getElementById("languageDropdown");
   if (!dropdown) return;
-  dropdown.classList.toggle("show");
+
+  const isOpening = !dropdown.classList.contains("show");
+  if (!isOpening) {
+    closeLanguageMenu();
+    return;
+  }
+
+  updateLanguageOptionSelection(window.I18n?.getLanguage?.());
+  dropdown.classList.remove("show");
+  void dropdown.offsetWidth;
+  dropdown.classList.add("show");
+  setLanguageMenuExpanded(true);
   lucide.createIcons();
+  positionLanguageMenu();
 }
 
 function updateSidebarLanguageValue() {
@@ -846,15 +932,31 @@ function updateSidebarLanguageValue() {
   valueElement.textContent = window.I18n.formatLanguageLabel(
     window.I18n.getLanguage(),
   );
+  updateLanguageOptionSelection(window.I18n.getLanguage());
 }
 
-async function selectLanguageOption(e, language) {
-  e.stopPropagation();
+function sidebarReloadAfterLanguageChange() {
+  if (window.__languageChangeReloadInFlight) return;
+  window.__languageChangeReloadInFlight = true;
+
+  if (window.PageCache?.clearAll) {
+    window.PageCache.clearAll();
+  }
+
+  window.setTimeout(() => {
+    window.location.reload();
+  }, 0);
+}
+
+async function applySidebarLanguageSelection(language) {
+  if (window.__sidebarLanguageChangeInFlight) return;
+  window.__sidebarLanguageChangeInFlight = true;
+
   const nextLanguage = window.I18n?.setLanguage
     ? window.I18n.setLanguage(language)
     : language;
   updateSidebarLanguageValue();
-  document.getElementById("languageDropdown")?.classList.remove("show");
+  closeLanguageMenu();
   lucide.createIcons();
 
   try {
@@ -873,38 +975,61 @@ async function selectLanguageOption(e, language) {
 
     window.I18n?.clearPendingLanguageSync?.(nextLanguage);
     window.AccountSettingsPage?.syncLanguageSelection?.(nextLanguage);
-    window.toastSuccess?.(
-      window.I18n?.t
-        ? window.I18n.t("sidebar.languageUpdated")
-        : "Language updated.",
-    );
   } catch (error) {
     console.error("Failed to sync language preference:", error);
-    window.toastInfo?.(
-      window.I18n?.t
-        ? window.I18n.t("sidebar.languageUpdatedLocalOnly")
-        : "Language updated on this device. We couldn't sync it yet.",
-    );
+  } finally {
+    window.__sidebarLanguageChangeInFlight = false;
+    sidebarReloadAfterLanguageChange();
   }
+}
+
+async function selectLanguageOption(e, language) {
+  e.stopPropagation();
+
+  const currentPath = sidebarParseHash(window.location.hash || "").path;
+  const isDirtyAccountSettings =
+    sidebarIsAccountSettingsPath(currentPath) &&
+    window.getAccountSettingsModified &&
+    window.getAccountSettingsModified();
+
+  if (
+    isDirtyAccountSettings &&
+    typeof window.showDiscardAccountSettingsConfirmation === "function"
+  ) {
+    closeLanguageMenu();
+    window.showDiscardAccountSettingsConfirmation(
+      () => {
+        applySidebarLanguageSelection(language);
+      },
+      () => {},
+    );
+    return;
+  }
+
+  await applySidebarLanguageSelection(language);
 }
 
 function openNotificationSettings(e) {
   e.stopPropagation();
+  closeLanguageMenu();
   window.toastInfo?.(window.I18n?.t("sidebar.featureComingSoon") || "");
 }
 
 function openPrivacySettings(e) {
   e.stopPropagation();
+  closeLanguageMenu();
   window.toastInfo?.(window.I18n?.t("sidebar.featureComingSoon") || "");
 }
 
 function openHelp(e) {
   e.stopPropagation();
+  closeLanguageMenu();
   window.toastInfo?.(window.I18n?.t("sidebar.featureComingSoon") || "");
 }
 
 function openAbout(e) {
   e.stopPropagation();
+  closeLanguageMenu();
   window.toastInfo?.(window.I18n?.t("sidebar.featureComingSoon") || "");
 }
 async function loadCreateChatGroupModal() {

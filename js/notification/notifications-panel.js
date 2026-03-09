@@ -188,21 +188,19 @@
       .toString()
       .trim()
       .toLowerCase();
-    const isVi = /^vi\b/.test(lang);
-
     if (diffMs < 60 * 1000) {
-      return npT("common.labels.justNow", {}, isVi ? "vừa xong" : "just now");
+      return npT("notifications.time.justNow", {}, "just now");
     }
     if (diffMs < 60 * 60 * 1000) {
       const minutes = Math.floor(diffMs / (60 * 1000));
-      return isVi ? `${minutes}p` : `${minutes}m`;
+      return npT("notifications.time.minuteShort", { count: minutes }, "{count}m");
     }
     if (diffMs < 24 * 60 * 60 * 1000) {
       const hours = Math.floor(diffMs / (60 * 60 * 1000));
-      return isVi ? `${hours}g` : `${hours}h`;
+      return npT("notifications.time.hourShort", { count: hours }, "{count}h");
     }
     const days = Math.floor(diffMs / (24 * 60 * 60 * 1000));
-    return isVi ? `${days}n` : `${days}d`;
+    return npT("notifications.time.dayShort", { count: days }, "{count}d");
   }
 
   function resolvePanelWidthPx() {
@@ -1026,13 +1024,6 @@
     return parsedAction;
   }
 
-  function ensureSentencePunctuation(text) {
-    const raw = (text || "").toString().trim();
-    if (!raw) return raw;
-    if (/[.!?]$/.test(raw)) return raw;
-    return `${raw}.`;
-  }
-
   function getFollowRequestActorId(item) {
     const actor = item?.actor || {};
     const actorId = readString(actor, "accountId", "AccountId");
@@ -1307,9 +1298,7 @@
     const actorAvatar = item.actor.avatarUrl || resolveDefaultAvatarUrl();
     const actorUsername = getActorDisplayUsername(item);
     const actorTitle = getActorTitleParts(item);
-    const actionText = ensureSentencePunctuation(
-      buildDisplayActionText(item, isUnavailable),
-    );
+    const actionText = buildDisplayActionText(item, isUnavailable);
     const thumbnailMediaKind = resolveThumbnailMediaKind(item);
     const timeLabel = getTimeAgoDisplay(item.lastEventAt || item.createdAt);
     const unreadClass = item.isRead ? "" : " unread";
@@ -1750,10 +1739,8 @@
     state.staleToastCount += 1;
 
     if (global.toastInfo) {
-      const translated = npTranslateLiteral(message) || message;
-      global.toastInfo(
-        translated || npT("notification.fallback.unavailable"),
-      );
+      const translated = npTranslateLiteral(message);
+      global.toastInfo(translated || npT("notification.fallback.unavailable"));
     }
   }
 
@@ -1767,7 +1754,7 @@
     if (state.staleToastCount >= state.staleToastMax) return;
     state.staleToastCount += 1;
 
-    const translated = npTranslateLiteral(message) || message;
+    const translated = npTranslateLiteral(message);
     if (global.toastError) {
       global.toastError(translated || npT("notification.fallback.openFailed"));
       return;

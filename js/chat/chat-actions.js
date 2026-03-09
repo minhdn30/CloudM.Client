@@ -24,10 +24,18 @@ const ChatActions = {
   _menuAutoCloseBound: false,
 
   t(key, params = {}, fallback = "") {
-    return window.I18n?.t ? window.I18n.t(key, params, fallback || key) : fallback || key;
+    return window.I18n?.t
+      ? window.I18n.t(key, params, fallback || key)
+      : fallback || key;
   },
 
-  uiError(action, status = 0, rawMessage = "", fallbackKey = "errors.generic", fallback = "Something went wrong.") {
+  uiError(
+    action,
+    status = 0,
+    rawMessage = "",
+    fallbackKey = "errors.generic",
+    fallback = "Something went wrong.",
+  ) {
     if (window.UIErrors?.resolveMessage) {
       return window.UIErrors.resolveMessage(
         "chat",
@@ -39,7 +47,12 @@ const ChatActions = {
       );
     }
 
-    const uiError = window.UIErrors?.format?.("chat", action, status, rawMessage);
+    const uiError = window.UIErrors?.format?.(
+      "chat",
+      action,
+      status,
+      rawMessage,
+    );
     if (uiError?.key && uiError.key !== "errors.generic") {
       return uiError.message;
     }
@@ -50,7 +63,9 @@ const ChatActions = {
     if (this._isLanguageBound || !window.I18n?.onChange) return;
     this._isLanguageBound = true;
     window.I18n.onChange(() => {
-      const reactorsMessageId = (this.currentReactorsModal?.dataset?.messageId || "")
+      const reactorsMessageId = (
+        this.currentReactorsModal?.dataset?.messageId || ""
+      )
         .toString()
         .toLowerCase();
       if (reactorsMessageId) {
@@ -678,7 +693,11 @@ const ChatActions = {
         console.error("Failed to load message reactions:", err);
         if (window.toastError) {
           window.toastError(
-            this.t("chat.actions.react.loadFailed", {}, "Failed to load reactions."),
+            this.t(
+              "chat.actions.react.loadFailed",
+              {},
+              "Failed to load reactions.",
+            ),
           );
         }
         return;
@@ -949,7 +968,10 @@ const ChatActions = {
       {},
       "Message hidden",
     );
-    if (window.I18n?.translateServerText && window.APP_CONFIG?.CHAT_HIDDEN_MESSAGE_TEXT) {
+    if (
+      window.I18n?.translateServerText &&
+      window.APP_CONFIG?.CHAT_HIDDEN_MESSAGE_TEXT
+    ) {
       return window.I18n.translateServerText(
         window.APP_CONFIG.CHAT_HIDDEN_MESSAGE_TEXT,
         {},
@@ -1397,14 +1419,13 @@ const ChatActions = {
     if (!list) return;
 
     if (!list.querySelector(".chat-pinned-item")) {
-      list.innerHTML =
-        `<div class="chat-pinned-empty">${this.escapeHtml(
-          this.t(
-            "chat.actions.pin.noPinnedMessages",
-            {},
-            "No pinned messages in this conversation.",
-          ),
-        )}</div>`;
+      list.innerHTML = `<div class="chat-pinned-empty">${this.escapeHtml(
+        this.t(
+          "chat.actions.pin.noPinnedMessages",
+          {},
+          "No pinned messages in this conversation",
+        ),
+      )}</div>`;
     }
   },
 
@@ -1478,7 +1499,7 @@ const ChatActions = {
     if (!this.isGuid(normalizedConversationId) || !normalizedMessageId) {
       window.toastError &&
         window.toastError(
-          this.t("chat.actions.pin.invalid", {}, "Failed to pin message."),
+          this.t("chat.actions.pin.invalid", {}, "Failed to pin message"),
         );
       return false;
     }
@@ -1498,7 +1519,7 @@ const ChatActions = {
               res.status,
               data?.message || data?.Message || "",
               "chat.actions.pin.failed",
-              "Failed to pin message.",
+              "Failed to pin message",
             ),
           );
         return false;
@@ -1507,7 +1528,7 @@ const ChatActions = {
       this.setMessagePinnedState(normalizedMessageId, true);
       window.toastSuccess &&
         window.toastSuccess(
-          this.t("chat.actions.pin.success", {}, "Message pinned."),
+          this.t("chat.actions.pin.success", {}, "Message pinned"),
         );
       this.refreshPinnedModalIfOpen(normalizedConversationId);
       return true;
@@ -1515,7 +1536,7 @@ const ChatActions = {
       console.error("Error pinning message:", error);
       window.toastError &&
         window.toastError(
-          this.t("chat.actions.pin.failed", {}, "Failed to pin message."),
+          this.t("chat.actions.pin.failed", {}, "Failed to pin message"),
         );
       return false;
     }
@@ -1532,7 +1553,7 @@ const ChatActions = {
           this.t(
             "chat.actions.pin.unpinInvalid",
             {},
-            "Failed to unpin message.",
+            "Failed to unpin message",
           ),
         );
       return false;
@@ -1553,7 +1574,7 @@ const ChatActions = {
               res.status,
               data?.message || data?.Message || "",
               "chat.actions.pin.unpinFailed",
-              "Failed to unpin message.",
+              "Failed to unpin message",
             ),
           );
         return false;
@@ -1563,7 +1584,7 @@ const ChatActions = {
       this.removePinnedModalItem(normalizedMessageId);
       window.toastSuccess &&
         window.toastSuccess(
-          this.t("chat.actions.pin.unpinSuccess", {}, "Message unpinned."),
+          this.t("chat.actions.pin.unpinSuccess", {}, "Message unpinned"),
         );
       this.refreshPinnedModalIfOpen(normalizedConversationId);
       return true;
@@ -1571,11 +1592,7 @@ const ChatActions = {
       console.error("Error unpinning message:", error);
       window.toastError &&
         window.toastError(
-          this.t(
-            "chat.actions.pin.unpinFailed",
-            {},
-            "Failed to unpin message.",
-          ),
+          this.t("chat.actions.pin.unpinFailed", {}, "Failed to unpin message"),
         );
       return false;
     }
@@ -1638,11 +1655,7 @@ const ChatActions = {
   },
 
   getPinnedFileIconName(fileName = "") {
-    const ext = (fileName || "")
-      .toString()
-      .split(".")
-      .pop()
-      .toLowerCase();
+    const ext = (fileName || "").toString().split(".").pop().toLowerCase();
     const iconMap = {
       pdf: "file-text",
       doc: "file-text",
@@ -1715,12 +1728,15 @@ const ChatActions = {
     const pageSizeRaw = Number(payload?.pageSize ?? payload?.PageSize);
     const hasNextRaw = payload?.hasNextPage ?? payload?.HasNextPage;
 
-    const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : requestedPage;
+    const page =
+      Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : requestedPage;
     const pageSize =
       Number.isFinite(pageSizeRaw) && pageSizeRaw > 0
         ? pageSizeRaw
         : requestedPageSize;
-    const totalItems = Number.isFinite(totalItemsRaw) ? totalItemsRaw : items.length;
+    const totalItems = Number.isFinite(totalItemsRaw)
+      ? totalItemsRaw
+      : items.length;
     const hasNextPage =
       typeof hasNextRaw === "boolean"
         ? hasNextRaw
@@ -1817,23 +1833,21 @@ const ChatActions = {
     }
 
     if (state.isLoading && options.append) {
-      footer.innerHTML =
-        `<div class="chat-pinned-loading"><span class="spinner spinner-small" aria-hidden="true"></span><span>${this.escapeHtml(
-          this.t("chat.actions.pin.loadingMore", {}, "Loading more..."),
-        )}</span></div>`;
+      footer.innerHTML = `<div class="chat-pinned-loading"><span class="spinner spinner-small" aria-hidden="true"></span><span>${this.escapeHtml(
+        this.t("chat.actions.pin.loadingMore", {}, "Loading more..."),
+      )}</span></div>`;
       listEl.appendChild(footer);
       return;
     }
 
     if (!state.hasNextPage) {
-      footer.innerHTML =
-        `<div class="chat-pinned-loading done">${this.escapeHtml(
-          this.t(
-            "chat.actions.pin.reachedEnd",
-            {},
-            "You reached the end of pinned messages.",
-          ),
-        )}</div>`;
+      footer.innerHTML = `<div class="chat-pinned-loading done">${this.escapeHtml(
+        this.t(
+          "chat.actions.pin.reachedEnd",
+          {},
+          "You reached the end of pinned messages.",
+        ),
+      )}</div>`;
       listEl.appendChild(footer);
     }
   },
@@ -1873,7 +1887,11 @@ const ChatActions = {
     )
       .toString()
       .toLowerCase();
-    const isOwnReplyAuthor = !!(replySenderId && myId && replySenderId === myId);
+    const isOwnReplyAuthor = !!(
+      replySenderId &&
+      myId &&
+      replySenderId === myId
+    );
     const senderName = isOwnReplyAuthor
       ? this.t("chat.actions.preview.yourself", {}, "You")
       : replyTo?.sender?.displayName ||
@@ -1895,7 +1913,9 @@ const ChatActions = {
       if (trimmed.length > 0) {
         const maxLen = 80;
         const shortText =
-          trimmed.length > maxLen ? `${trimmed.substring(0, maxLen)}...` : trimmed;
+          trimmed.length > maxLen
+            ? `${trimmed.substring(0, maxLen)}...`
+            : trimmed;
         previewHtml = this.escapeHtml(shortText);
       } else {
         const replyMessageType =
@@ -1965,7 +1985,9 @@ const ChatActions = {
     if (contentType === 2 && textContent) {
       const maxLen = 50;
       const shortText =
-        textContent.length > maxLen ? `${textContent.substring(0, maxLen)}...` : textContent;
+        textContent.length > maxLen
+          ? `${textContent.substring(0, maxLen)}...`
+          : textContent;
       thumbHtml = `<div class="msg-story-reply-thumb msg-story-reply-text-thumb"><span>${this.escapeHtml(shortText)}</span></div>`;
     } else if (mediaUrl) {
       if (contentType === 1) {
@@ -2030,7 +2052,8 @@ const ChatActions = {
     const hasContent = contentText.length > 0;
     const messageType =
       Number(message?.messageType ?? message?.MessageType ?? "") || 0;
-    const needsTruncate = hasContent && contentText.length > this._truncateLength;
+    const needsTruncate =
+      hasContent && contentText.length > this._truncateLength;
     const truncateClass = needsTruncate ? " truncated" : "";
     const truncateBtn = needsTruncate
       ? `<button class="chat-pinned-toggle-btn" onclick="event.stopPropagation(); window.ChatActions.togglePinnedTruncate(this)">${this.t("chat.actions.pin.more", {}, "more")}</button>`
@@ -2151,7 +2174,10 @@ const ChatActions = {
         if (!append) {
           listEl.innerHTML = `<div class="chat-pinned-empty">${this.escapeHtml(errText)}</div>`;
         } else {
-          this.renderPinnedLoadMoreState(listEl, state, { append, error: errText });
+          this.renderPinnedLoadMoreState(listEl, state, {
+            append,
+            error: errText,
+          });
         }
         return;
       }
@@ -2166,7 +2192,9 @@ const ChatActions = {
       state.page = normalized.page + 1;
       state.pageSize = normalized.pageSize || state.pageSize;
 
-      const incomingItems = Array.isArray(normalized.items) ? normalized.items : [];
+      const incomingItems = Array.isArray(normalized.items)
+        ? normalized.items
+        : [];
       const freshItems = incomingItems.filter((item) => {
         const messageId = (item?.messageId || item?.MessageId || "")
           .toString()
@@ -2179,14 +2207,13 @@ const ChatActions = {
 
       if (!append) {
         if (!incomingItems.length) {
-          listEl.innerHTML =
-            `<div class="chat-pinned-empty">${this.escapeHtml(
-              this.t(
-                "chat.actions.pin.noPinnedMessages",
-                {},
-                "No pinned messages in this conversation.",
-              ),
-            )}</div>`;
+          listEl.innerHTML = `<div class="chat-pinned-empty">${this.escapeHtml(
+            this.t(
+              "chat.actions.pin.noPinnedMessages",
+              {},
+              "No pinned messages in this conversation",
+            ),
+          )}</div>`;
           return;
         }
         listEl.innerHTML = freshItems
@@ -2206,21 +2233,20 @@ const ChatActions = {
     } catch (error) {
       console.error("Error loading pinned messages:", error);
       if (!append) {
-        listEl.innerHTML =
-          `<div class="chat-pinned-empty">${this.escapeHtml(
-            this.t(
-              "chat.actions.pin.loadFailed",
-              {},
-              "Failed to load pinned messages.",
-            ),
-          )}</div>`;
+        listEl.innerHTML = `<div class="chat-pinned-empty">${this.escapeHtml(
+          this.t(
+            "chat.actions.pin.loadFailed",
+            {},
+            "Failed to load pinned messages.",
+          ),
+        )}</div>`;
       } else {
         this.renderPinnedLoadMoreState(listEl, state, {
           append,
           error: this.t(
             "chat.actions.pin.retryLoad",
             {},
-            "Failed to load. Tap to retry.",
+            "Couldn't load, tap to retry",
           ),
         });
       }
@@ -2258,7 +2284,7 @@ const ChatActions = {
           this.t(
             "chat.actions.pin.unavailableUntilCreated",
             {},
-            "Pinned messages are available after the conversation is created.",
+            "Pinned messages are available after the conversation is created",
           ),
         );
       return;
@@ -2309,7 +2335,8 @@ const ChatActions = {
       if (!state || state.isLoading || !state.hasNextPage) return;
       const threshold = 120;
       const reachedBottom =
-        listEl.scrollTop + listEl.clientHeight >= listEl.scrollHeight - threshold;
+        listEl.scrollTop + listEl.clientHeight >=
+        listEl.scrollHeight - threshold;
       if (reachedBottom) {
         this.renderPinnedModalContent(normalizedConversationId, listEl, {
           append: true,
@@ -2318,7 +2345,8 @@ const ChatActions = {
     };
     listEl.addEventListener("scroll", onScroll);
     if (state) {
-      state.cleanupScroll = () => listEl.removeEventListener("scroll", onScroll);
+      state.cleanupScroll = () =>
+        listEl.removeEventListener("scroll", onScroll);
     }
   },
 
@@ -2534,7 +2562,7 @@ const ChatActions = {
               this.t(
                 "chat.actions.locateMessageFailed",
                 {},
-                "Could not locate message in current chat.",
+                "Couldn't find that message in this chat",
               ),
             );
         });
@@ -2574,7 +2602,7 @@ const ChatActions = {
         this.t(
           "chat.actions.locateMessageFailed",
           {},
-          "Could not locate message in current chat.",
+          "Couldn't find that message in this chat",
         ),
       );
     return false;
@@ -2650,7 +2678,7 @@ const ChatActions = {
 
     if (canForward) {
       itemsHtml += `
-            <div class="msg-more-item" onclick="window.ChatActions && ChatActions.closeAllMenus(); if(window.openForwardMessageModal){ window.openForwardMessageModal('${resolvedMessageId}'); } else if(window.toastInfo){ window.toastInfo('${this.t("chat.actions.menu.forwardUnavailable", {}, "Forward is unavailable.").replace(/'/g, "\\'")}'); }">
+            <div class="msg-more-item" onclick="window.ChatActions && ChatActions.closeAllMenus(); if(window.openForwardMessageModal){ window.openForwardMessageModal('${resolvedMessageId}'); } else if(window.toastInfo){ window.toastInfo('${this.t("chat.actions.menu.forwardUnavailable", {}, "Forward isn't available right now").replace(/'/g, "\\'")}'); }">
                 <i data-lucide="forward"></i>
                 <span>${this.t("chat.actions.menu.forward", {}, "Forward")}</span>
             </div>
@@ -2685,7 +2713,7 @@ const ChatActions = {
 
     if (!isOwn) {
       itemsHtml += `
-                <div class="msg-more-item danger" onclick="window.toastInfo('${this.t("chat.actions.menu.reportSuccess", {}, "Reported successfully.").replace(/'/g, "\\'")}')">
+                <div class="msg-more-item danger" onclick="window.toastInfo('${this.t("chat.actions.menu.reportSuccess", {}, "Report sent").replace(/'/g, "\\'")}')">
                     <i data-lucide="alert-triangle"></i>
                     <span>${this.t("chat.actions.menu.report", {}, "Report")}</span>
                 </div>
@@ -2783,7 +2811,7 @@ const ChatActions = {
     if (!normId) {
       window.toastError &&
         window.toastError(
-          this.t("chat.actions.hide.failed", {}, "Failed to hide message."),
+          this.t("chat.actions.hide.failed", {}, "Couldn't hide this message"),
         );
       return;
     }
@@ -2804,7 +2832,11 @@ const ChatActions = {
           } else {
             window.toastError &&
               window.toastError(
-                this.t("chat.actions.hide.failed", {}, "Failed to hide message."),
+                this.t(
+                  "chat.actions.hide.failed",
+                  {},
+                  "Couldn't hide this message",
+                ),
               );
           }
         } catch (error) {
@@ -2814,7 +2846,7 @@ const ChatActions = {
               this.t(
                 "chat.actions.hide.genericError",
                 {},
-                "An error occurred.",
+                "Something went wrong, please try again",
               ),
             );
         }
@@ -2878,14 +2910,14 @@ const ChatActions = {
       const copied = await this.writeTextToClipboard(contentText);
       if (copied && window.toastSuccess) {
         window.toastSuccess(
-          this.t("chat.actions.copy.success", {}, "Message copied."),
+          this.t("chat.actions.copy.success", {}, "Message copied"),
         );
       }
     } catch (error) {
       console.error("Failed to copy message content:", error);
       window.toastError &&
         window.toastError(
-          this.t("chat.actions.copy.failed", {}, "Failed to copy message."),
+          this.t("chat.actions.copy.failed", {}, "Failed to copy message"),
         );
     }
   },
@@ -3289,7 +3321,7 @@ const ChatActions = {
         this.t(
           "chat.actions.preview.mediaUnavailable",
           {},
-          "This media is no longer available because the message was recalled.",
+          "This media is no longer available because the message was recalled",
         ),
       );
     }
@@ -3396,7 +3428,11 @@ const ChatActions = {
     if (!normId) {
       window.toastError &&
         window.toastError(
-          this.t("chat.actions.recall.failed", {}, "Failed to recall message."),
+          this.t(
+            "chat.actions.recall.failed",
+            {},
+            "Could not recall this message",
+          ),
         );
       return;
     }
@@ -3406,7 +3442,7 @@ const ChatActions = {
       this.t(
         "chat.actions.recall.description",
         {},
-        'This message will be replaced with "Message was recalled" for everyone in this conversation.',
+        'This message will be replaced with "Message was recalled" for everyone in this conversation',
       ),
       async () => {
         try {
@@ -3417,7 +3453,7 @@ const ChatActions = {
                 this.t(
                   "chat.actions.recall.failed",
                   {},
-                  "Failed to recall message.",
+                  "Could not recall this message",
                 ),
               );
             return;

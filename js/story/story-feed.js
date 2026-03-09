@@ -71,7 +71,13 @@
       accountId: normalizeAuthorId(raw?.accountId || raw?.AccountId || ""),
       avatarUrl: raw?.avatarUrl || raw?.AvatarUrl || defaultAvatar,
       username:
-        raw?.username || raw?.Username || raw?.fullName || raw?.FullName || "User",
+        raw?.username ||
+        raw?.Username ||
+        raw?.fullName ||
+        raw?.FullName ||
+        (window.I18n?.t
+          ? window.I18n.t("common.labels.user", {}, "User")
+          : "User"),
       fullName: raw?.fullName || raw?.FullName || "",
       isCurrentUser: !!(raw?.isCurrentUser || raw?.IsCurrentUser),
       storyRingState: raw?.storyRingState ?? raw?.StoryRingState ?? 0,

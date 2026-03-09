@@ -1224,10 +1224,10 @@
       : window.I18n?.t?.("errors.account.restricted") ||
         "Your account is currently restricted. Please reactivate to continue.";
     const reactivateLabel =
-      window.I18n?.t?.("common.buttons.confirm", {}, "Reactivate Now") ||
-      "Reactivate Now";
+      window.I18n?.t?.("auth.reactivateNow", {}, "Reactivate now") ||
+      "Reactivate now";
     const laterLabel =
-      window.I18n?.t?.("common.buttons.cancel", {}, "Later") || "Later";
+      window.I18n?.t?.("auth.later", {}, "Later") || "Later";
 
     showToast(
       `<div>

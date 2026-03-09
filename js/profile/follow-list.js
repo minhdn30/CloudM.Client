@@ -26,7 +26,7 @@ const FollowListModule = (function () {
     return flT(
       "follow.list.search.placeholder",
       {},
-      "Search by name or username...",
+      "Search by full name or username...",
     );
   }
 
@@ -79,16 +79,16 @@ const FollowListModule = (function () {
   function getEmptyMessage(type) {
     switch (normalizeListType(type)) {
       case "following":
-        return flT("follow.list.empty.following", {}, "No following found.");
+        return flT("follow.list.empty.following", {}, "Not following anyone yet");
       case "sent-requests":
         return flT(
           "follow.list.empty.sentRequests",
           {},
-          "No pending requests found",
+          "No pending requests",
         );
       case "followers":
       default:
-        return flT("follow.list.empty.followers", {}, "No followers found.");
+        return flT("follow.list.empty.followers", {}, "No followers yet");
     }
   }
 
@@ -97,13 +97,13 @@ const FollowListModule = (function () {
       return flT(
         "follow.list.errors.pendingPermission",
         {},
-        "You do not have permission to view pending requests right now.",
+        "You do not have permission to view pending requests right now",
       );
     }
     return flT(
       "follow.list.errors.privateCurrentList",
       {},
-      "This account is private or you don't have permission to view this list.",
+      "This account is private or you don't have permission to view this list",
     );
   }
 
@@ -112,25 +112,25 @@ const FollowListModule = (function () {
       return flT(
         "follow.list.errors.pendingLoad",
         {},
-        "Could not load pending requests.",
+        "Couldn't load pending requests",
       );
     }
-    return flT("follow.list.errors.loadItems", {}, "Failed to load items.");
+    return flT("follow.list.errors.loadItems", {}, "Couldn't load items");
   }
 
   function getLoadListFailedMessage() {
-    return flT("follow.list.errors.loadList", {}, "Could not load list.");
+    return flT("follow.list.errors.loadList", {}, "Couldn't load list");
   }
 
   function getAccountNotFoundMessage() {
-    return flT("follow.list.errors.accountNotFound", {}, "Account not found.");
+    return flT("follow.list.errors.accountNotFound", {}, "Account not found");
   }
 
   function getRemoveFollowerFailedMessage() {
     return flT(
       "follow.list.errors.removeFollowerNow",
       {},
-      "Could not remove this follower right now.",
+      "Can't remove this follower right now",
     );
   }
 
@@ -457,7 +457,7 @@ const FollowListModule = (function () {
           actionBtnHtml = `
                         <button class="follow-btn requested" onclick="${requestActionHandler}('${item.accountId}', this)">
                             <i data-lucide="clock-3"></i>
-                            <span>${flT("common.buttons.requestSent", {}, "Request Sent")}</span>
+                            <span>${flT("common.buttons.requestSent", {}, "Request sent")}</span>
                         </button>`;
         } else {
           actionBtnHtml = `
@@ -574,7 +574,7 @@ const FollowListModule = (function () {
       await removeFollowerRow(accountId);
       if (window.toastSuccess) {
         toastSuccess(
-          flT("profile.follow.followerRemoved", {}, "Follower removed."),
+          flT("profile.follow.followerRemoved", {}, "Follower removed"),
         );
       }
       return { removed: true, silent: false };
@@ -685,7 +685,7 @@ const FollowListModule = (function () {
             flT(
               "common.auth.sessionExpired",
               {},
-              "Your session has expired. Please sign in again.",
+              "Your session has expired, please sign in again",
             ),
           );
         }

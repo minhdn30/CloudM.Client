@@ -84,7 +84,7 @@ const InteractionModule = (function () {
             interactionT(
               "post.reactions.empty",
               {},
-              "No one has reacted yet",
+              "No reactions yet",
             ),
           );
         }
@@ -117,7 +117,7 @@ const InteractionModule = (function () {
           interactionT(
             "post.reactions.loadFailed",
             {},
-            "Could not load reaction list",
+            "Could not load reactions",
           ),
         );
       }
@@ -225,7 +225,7 @@ const InteractionModule = (function () {
           actionBtnHtml = `
                         <button class="follow-btn requested" onclick="InteractionModule.handleFollow('${item.accountId}', this)">
                             <i data-lucide="clock-3"></i>
-                            <span>${interactionT("post.reactions.requestSent", {}, "Request Sent")}</span>
+                            <span>${interactionT("post.reactions.requestSent", {}, "Request sent")}</span>
                         </button>`;
         } else {
           actionBtnHtml = `
@@ -346,7 +346,7 @@ const InteractionModule = (function () {
           interactionT(
             "post.reactions.followModuleUnavailable",
             {},
-            "Follow module not loaded.",
+            "Follow is temporarily unavailable",
           ),
         );
       }

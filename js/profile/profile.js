@@ -1514,7 +1514,10 @@
     }
 
     // Use Username in the prominent header position
-    if (usernameHeader) usernameHeader.textContent = info.username || "user";
+    if (usernameHeader) {
+      usernameHeader.textContent =
+        info.username || profileT("common.labels.user", {}, "User");
+    }
 
     // FullName label: Bold line above bio
     if (fullNameLabel) fullNameLabel.textContent = info.fullName || "";
@@ -2880,7 +2883,7 @@
         : window.APP_CONFIG?.DEFAULT_POST_IMAGE || "";
     const safePrimaryMedia = escapeAttr(primaryMedia);
 
-    const postImageAlt = escapeAttr(profileT("common.labels.post", {}, "post"));
+    const postImageAlt = escapeAttr(profileT("common.labels.post", {}, "Post"));
     item.innerHTML = `
             <img class="img-loaded" src="${safePrimaryMedia}" alt="${postImageAlt}">
             ${isMulti ? '<div class="profile-multi-media-icon"><i data-lucide="layers"></i></div>' : ""}
@@ -3613,9 +3616,9 @@
                 <h3>${escapeHtml(discardTitle)}</h3>
                 <p>${escapeHtml(discardDescription)}</p>
             </div>
-            <div class="unfollow-actions">
-                <button class="unfollow-btn unfollow-confirm" data-action="discard">${escapeHtml(discardText)}</button>
+            <div class="unfollow-actions unfollow-actions-inline">
                 <button class="unfollow-btn unfollow-cancel" data-action="keep">${escapeHtml(keepText)}</button>
+                <button class="unfollow-btn unfollow-confirm" data-action="discard">${escapeHtml(discardText)}</button>
             </div>
         `;
 

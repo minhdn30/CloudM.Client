@@ -690,7 +690,7 @@ const CommentModule = (function () {
       }
 
       if (window.toastSuccess) {
-        toastSuccess(cmtT("post.comments.replyPosted", {}, "Reply posted!"));
+        toastSuccess(cmtT("post.comments.replyPosted", {}, "Reply sent"));
       }
 
       const result = await response.json();
@@ -995,7 +995,7 @@ const CommentModule = (function () {
           cmtT(
             "post.comments.commentPosted",
             {},
-            "Comment posted successfully!",
+            "Comment posted",
           ),
         );
       }
@@ -1073,7 +1073,10 @@ const CommentModule = (function () {
     const el = document.querySelector(selector);
     if (!el) return;
 
-    const textEl = el.querySelector(".comment-text");
+    const bodyEl = el.querySelector(
+      ":scope > .comment-content-wrapper > .comment-body",
+    );
+    const textEl = bodyEl?.querySelector(":scope > .comment-text");
     if (textEl && window.PostUtils) {
       PostUtils.setupCommentContent(
         textEl,
@@ -1082,7 +1085,9 @@ const CommentModule = (function () {
         forceExpand,
       );
 
-      const timeEl = el.querySelector(".comment-time");
+      const timeEl = el.querySelector(
+        ":scope > .comment-content-wrapper > .comment-header .comment-time",
+      );
       if (timeEl) {
         timeEl.title = PostUtils.formatFullDateTime(
           comment.updatedAt || comment.createdAt,
@@ -1090,7 +1095,9 @@ const CommentModule = (function () {
       }
 
       // Update Edited label
-      const footer = el.querySelector(".comment-footer");
+      const footer = el.querySelector(
+        ":scope > .comment-content-wrapper > .comment-footer",
+      );
       if (footer) {
         let editedEl = footer.querySelector(".comment-edited");
         if (comment.updatedAt && comment.updatedAt !== comment.createdAt) {
@@ -1241,7 +1248,7 @@ const CommentModule = (function () {
         // Success feedback
         if (window.toastSuccess) {
           toastSuccess(
-            cmtT("post.comments.deleteSuccess", {}, "Comment deleted!"),
+            cmtT("post.comments.deleteSuccess", {}, "Comment deleted"),
           );
         }
 
@@ -1437,13 +1444,23 @@ const CommentModule = (function () {
         }
 
         const updatedComment = await res.json();
+        const normalizedUpdatedComment = {
+          ...updatedComment,
+          parentCommentId: isReply
+            ? updatedComment?.parentCommentId ||
+              commentEl
+                ?.closest(".replies-list")
+                ?.getAttribute("data-parent-id") ||
+              null
+            : null,
+        };
 
         // Restore UI first
         body.classList.remove("editing-body");
         body.innerHTML = originalDisplay;
 
         // Then update with new content (uses inject logic for consistency)
-        injectUpdatedComment(updatedComment, true);
+        injectUpdatedComment(normalizedUpdatedComment, true);
 
         if (window.toastSuccess) {
           toastSuccess(

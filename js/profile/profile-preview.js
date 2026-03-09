@@ -277,7 +277,7 @@ function renderProfilePreview(data) {
         ? `
         <button class="profile-preview-btn profile-preview-btn-requested" id="followBtn" onclick="toggleFollowMenu(event, '${currentUserId}')">
           <i data-lucide="clock-3"></i>
-          <span>${ppT("common.buttons.requestSent", {}, "Request Sent")}</span>
+          <span>${ppT("common.buttons.requestSent", {}, "Request sent")}</span>
         </button>
       `
       : `
@@ -347,7 +347,7 @@ function renderProfilePreview(data) {
                   .map(
                     (p) => `
                     <div class="profile-preview-media-item" onclick="if(window.InteractionModule) window.InteractionModule.closeReactList(); if(window.openPostDetail) window.openPostDetail('${p.postId || p.PostId}', '${p.postCode || p.PostCode || ""}'); hidePreview();">
-                      <img src="${p.mediaUrl || p.MediaUrl}" alt="${escapeAttr(ppT("common.labels.post", {}, "post"))}">
+                      <img src="${p.mediaUrl || p.MediaUrl}" alt="${escapeAttr(ppT("common.labels.post", {}, "Post"))}">
                     </div>
                   `,
                   )

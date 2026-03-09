@@ -39,34 +39,34 @@
       return followT(
         "common.auth.sessionExpired",
         {},
-        "Your session has expired. Please sign in again.",
+        "Your session has expired, please sign in again",
       );
     }
     if (status === 403) {
       return action === "follow"
         ? followT(
-            "profile.follow.errors.permissionFollow",
-            {},
-            "You do not have permission to follow this account.",
-          )
+          "profile.follow.errors.permissionFollow",
+          {},
+          "You don't have permission to follow this account",
+        )
         : followT(
             "profile.follow.errors.permissionUpdate",
             {},
-            "You do not have permission to update this follow state.",
+            "You don't have permission to update this follow state",
           );
     }
     if (status === 404 || status === 410) {
       return followT(
         "notification.fallback.unavailable",
         {},
-        "This account is no longer available.",
+        "This account is no longer available",
       );
     }
     if (status === 409) {
       return followT(
         "notification.requests.stateChanged",
         {},
-        "Follow state changed. Please refresh and try again.",
+        "Follow state changed, please refresh and try again",
       );
     }
     if (status === 400) {
@@ -74,36 +74,36 @@
         ? followT(
             "profile.follow.errors.followUnavailable",
             {},
-            "Could not follow this account right now.",
+            "Can't follow this account right now",
           )
         : isRequested
           ? followT(
               "notification.requests.removeUnavailable",
               {},
-              "Could not discard this follow request right now.",
+              "Can't discard this follow request right now",
             )
           : followT(
               "profile.follow.errors.unfollowUnavailable",
               {},
-              "Could not unfollow this account right now.",
+              "Can't unfollow this account right now",
             );
     }
     return action === "follow"
       ? followT(
           "profile.follow.errors.followFailed",
           {},
-          "Could not follow this account. Please try again.",
+          "Couldn't follow this account, please try again",
         )
       : isRequested
         ? followT(
             "notification.requests.removeFailed",
             {},
-            "Could not discard this follow request. Please try again.",
+            "Couldn't discard this follow request, please try again",
           )
         : followT(
             "profile.follow.errors.unfollowFailed",
             {},
-            "Could not unfollow this account. Please try again.",
+            "Couldn't unfollow this account, please try again",
           );
   }
 
@@ -439,7 +439,7 @@
       btn.innerHTML = `<i data-lucide="clock-3"></i> <span>${followT(
         "common.buttons.requestSent",
         {},
-        "Request Sent",
+        "Request sent",
       )}</span>`;
       const label = btn.querySelector("span");
       if (label) label.setAttribute("data-i18n", "common.buttons.requestSent");
@@ -491,7 +491,7 @@
       btn.innerHTML = `<i data-lucide="clock-3"></i><span>${followT(
         "common.buttons.requestSent",
         {},
-        "Request Sent",
+        "Request sent",
       )}</span>`;
       const label = btn.querySelector("span");
       if (label) label.setAttribute("data-i18n", "common.buttons.requestSent");
@@ -532,7 +532,7 @@
       btn.innerHTML = `<i data-lucide="clock-3"></i><span>${followT(
         "common.buttons.requestSent",
         {},
-        "Request Sent",
+        "Request sent",
       )}</span>`;
       const label = btn.querySelector("span");
       if (label) label.setAttribute("data-i18n", "common.buttons.requestSent");
@@ -692,7 +692,7 @@
         }
       } else if (global.toastSuccess) {
         global.toastSuccess(
-          followT("common.buttons.following", {}, "Following"),
+          followT("follow.toast.following", {}, "Following"),
         );
       }
 
@@ -766,7 +766,7 @@
           );
         }
       } else if (global.toastInfo) {
-        global.toastInfo(followT("post.options.unfollowed", {}, "Unfollowed"));
+        global.toastInfo(followT("follow.toast.unfollowed", {}, "Unfollowed"));
       }
 
       const relation = normalizeFollowPayload(data, false);
@@ -848,11 +848,17 @@
     const isPrivateTarget =
       status?.targetFollowPrivacy === FOLLOW_PRIVACY.PRIVATE;
 
-    const title = followT(
-      "profile.follow.unfollowTitle",
-      {},
-      "Stop following this account?",
-    );
+    const title = isRequested
+      ? followT(
+          "profile.follow.discardRequestTitle",
+          {},
+          "Cancel follow request?",
+        )
+      : followT(
+          "profile.follow.unfollowTitle",
+          {},
+          "Stop following this account?",
+        );
     const description = isRequested
       ? followT(
           "profile.follow.unfollowDescriptionRequested",

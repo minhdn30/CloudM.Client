@@ -357,7 +357,7 @@
   function renderResultsEmpty(message) {
     const { resultList } = getModalElements();
     if (!resultList) return;
-    resultList.innerHTML = `<div class="post-share-chat-empty-state">${escapeHtml(message || psT("common.empty.noResults", {}, "No results."))}</div>`;
+    resultList.innerHTML = `<div class="post-share-chat-empty-state">${escapeHtml(message || psT("common.empty.noResults", {}, "No results"))}</div>`;
   }
 
   function renderLoadingSkeleton() {
@@ -621,8 +621,8 @@
     const verbPast = action === "forward" ? "Forwarded" : "Shared";
     const fallbackError =
       action === "forward"
-        ? psT("errors.post.shareForward", {}, "Could not forward this message right now.")
-        : psT("errors.post.shareChat", {}, "Could not share this post right now.");
+        ? psT("errors.post.shareForward", {}, "Could not forward this message right now")
+        : psT("errors.post.shareChat", {}, "Could not share this post right now");
 
     if (successResults.length > 0 && failedResults.length === 0) {
       if (global.toastSuccess) {
@@ -682,7 +682,7 @@
     if (!global.API?.Messages?.sharePost) {
       if (global.toastError) {
         global.toastError(
-          psT("post.share.shareUnavailable", {}, "Share API is unavailable."),
+          psT("post.share.shareUnavailable", {}, "Share API is unavailable"),
         );
       }
       return;
@@ -726,7 +726,7 @@
     } catch (error) {
       console.error("Failed to share post:", error);
       if (global.toastError) {
-        global.toastError(psT("errors.post.shareChat", {}, "Could not share this post right now."));
+        global.toastError(psT("errors.post.shareChat", {}, "Could not share this post right now"));
       }
     } finally {
       state.isSending = false;
@@ -745,7 +745,7 @@
     if (!global.API?.Messages?.forward) {
       if (global.toastError) {
         global.toastError(
-          psT("post.share.forwardUnavailable", {}, "Forward API is unavailable."),
+          psT("post.share.forwardUnavailable", {}, "Forward API is unavailable"),
         );
       }
       return;
@@ -785,7 +785,7 @@
     } catch (error) {
       console.error("Failed to forward message:", error);
       if (global.toastError) {
-        global.toastError(psT("errors.post.shareForward", {}, "Could not forward this message right now."));
+        global.toastError(psT("errors.post.shareForward", {}, "Could not forward this message right now"));
       }
     } finally {
       state.isSending = false;
@@ -820,7 +820,7 @@
     }
 
     if (!global.API?.Messages?.searchPostShareTargets) {
-      renderResultsEmpty(psT("post.share.searchUnavailable", {}, "Search is unavailable right now."));
+      renderResultsEmpty(psT("post.share.searchUnavailable", {}, "Search is unavailable right now"));
       return;
     }
 
@@ -860,7 +860,9 @@
     } catch (error) {
       if (requestSequence !== state.searchRequestSequence) return;
       console.error("Failed to search post share recipients:", error);
-      renderResultsEmpty(psT("post.share.serverUnavailable", {}, "Could not connect to server."));
+      renderResultsEmpty(
+        psT("post.share.serverUnavailable", {}, "Can't connect to the server"),
+      );
     }
   }
 
@@ -1180,7 +1182,7 @@
     if (!normalizedPostId) {
       if (global.toastError) {
         global.toastError(
-          psT("post.share.postUnavailable", {}, "Post is unavailable."),
+          psT("post.share.postUnavailable", {}, "Post is unavailable"),
         );
       }
       return;
@@ -1220,7 +1222,7 @@
     if (!normalizedMessageId) {
       if (global.toastError) {
         global.toastError(
-          psT("post.share.messageUnavailable", {}, "Message is unavailable."),
+          psT("post.share.messageUnavailable", {}, "Message is unavailable"),
         );
       }
       return;

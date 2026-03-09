@@ -127,11 +127,11 @@ async function togglePostSave(postId, triggerEl = null, options = {}) {
 
     if (confirmedSavedState) {
       if (window.toastSuccess) {
-        toastSuccess(poT("post.options.saved", {}, "Post saved."));
+        toastSuccess(poT("post.options.saved", {}, "Post saved"));
       }
     } else if (window.toastInfo) {
       toastInfo(
-        poT("post.options.removedFromSaved", {}, "Removed from saved."),
+        poT("post.options.removedFromSaved", {}, "Removed from saved"),
       );
     }
 
@@ -141,7 +141,7 @@ async function togglePostSave(postId, triggerEl = null, options = {}) {
     syncPostSaveState(postId, currentSavedState);
     if (window.toastError) {
       toastError(
-        poT("post.options.saveFailed", {}, "Could not update saved state."),
+        poT("post.options.saveFailed", {}, "Could not update saved state"),
       );
     }
     return currentSavedState;
@@ -476,7 +476,7 @@ async function confirmUntagMeFromPost(postId) {
       );
     }
     if (window.toastSuccess) {
-      toastSuccess(poT("post.options.untag.success", {}, "Tag removed."));
+      toastSuccess(poT("post.options.untag.success", {}, "Tag removed"));
     }
   } catch (err) {
     console.error(err);
@@ -546,7 +546,7 @@ async function confirmDeletePost(postId) {
         
         if (window.toastSuccess) {
           toastSuccess(
-            poT("post.options.deleteConfirm.success", {}, "Post deleted."),
+            poT("post.options.deleteConfirm.success", {}, "Post deleted"),
           );
         }
 
@@ -557,7 +557,7 @@ async function confirmDeletePost(postId) {
             poT(
               "post.options.deleteConfirm.failed",
               {},
-              "Could not delete the post.",
+              "Could not delete the post",
             ),
           );
         }
@@ -575,7 +575,7 @@ function editPost(postId) {
       window.PostEdit.startEditPost(postId);
   } else {
       toastInfo(
-        poT("post.options.editUnavailable", {}, "Edit post module is not loaded."),
+        poT("post.options.editUnavailable", {}, "Edit post module is not loaded"),
       );
   }
 }
@@ -583,13 +583,13 @@ function editPost(postId) {
 function hidePostLikes(postId) {
   closePostOptions();
   console.log("Hide likes:", postId);
-  toastInfo(poT("post.options.likeCountHidden", {}, "Like count hidden."));
+  toastInfo(poT("post.options.likeCountHidden", {}, "Like count hidden"));
 }
 
 function turnOffCommenting(postId) {
   closePostOptions();
   console.log("Turn off commenting:", postId);
-  toastInfo(poT("post.options.commentingOff", {}, "Commenting turned off."));
+  toastInfo(poT("post.options.commentingOff", {}, "Commenting turned off"));
 }
 
 /* ===== Other post actions ===== */
@@ -677,7 +677,7 @@ function unfollowFromPost(accountId) {
 function hidePost(postId) {
   closePostOptions();
   console.log("Hide post:", postId);
-  toastInfo(poT("post.options.hidden", {}, "Post hidden."));
+  toastInfo(poT("post.options.hidden", {}, "Post hidden"));
 }
 
 function addToFavorites(postId) {
@@ -709,7 +709,7 @@ function copyPostLink(postCode = "") {
   const path = buildPostDetailPathForCopy(postCode);
   if (!path) {
     toastError(
-      poT("post.options.copyUnavailable", {}, "Unable to copy post link."),
+      poT("post.options.copyUnavailable", {}, "Unable to copy post link"),
     );
     return;
   }
@@ -717,15 +717,15 @@ function copyPostLink(postCode = "") {
 
   navigator.clipboard
     .writeText(link)
-    .then(() => toastSuccess(poT("post.options.copySuccess", {}, "Link copied.")))
-    .catch(() => toastError(poT("post.options.copyFailed", {}, "Failed to copy link.")));
+    .then(() => toastSuccess(poT("post.options.copySuccess", {}, "Link copied")))
+    .catch(() => toastError(poT("post.options.copyFailed", {}, "Failed to copy link")));
 }
 
 function shareToStory(postId) {
   closePostOptions();
   console.log("Share to story:", postId);
   toastInfo(
-    poT("post.options.shareToStorySoon", {}, "Share to story is coming soon."),
+    poT("post.options.shareToStorySoon", {}, "Share to story is coming soon"),
   );
 }
 
@@ -733,7 +733,7 @@ function aboutThisAccount(accountId) {
   closePostOptions();
   console.log("About account:", accountId);
   toastInfo(
-    poT("post.options.aboutAccountSoon", {}, "About this account is coming soon."),
+    poT("post.options.aboutAccountSoon", {}, "About this account is coming soon"),
   );
 }
 

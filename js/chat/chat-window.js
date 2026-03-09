@@ -445,7 +445,7 @@ const ChatWindow = {
     msgContainer.querySelectorAll(".msg-status-failed").forEach((statusEl) => {
       statusEl.textContent = this.t(
         "chat.message.status.failed_retry",
-        "Failed to send. Click to retry.",
+        "Send failed, tap to retry",
       );
     });
 
@@ -5391,7 +5391,7 @@ const ChatWindow = {
               window.toastInfo(
                 this.t(
                   "chat.header.profileUnavailable",
-                  "Profile is unavailable.",
+                  "Profile isn't available right now",
                 ),
               );
             }
@@ -6807,7 +6807,7 @@ const ChatWindow = {
         window.toastInfo(
           this.t(
             "errors.chat.message_action_unavailable",
-            "Message action is unavailable right now.",
+            "Can't message right now",
           ),
         );
       }
@@ -6839,7 +6839,7 @@ const ChatWindow = {
           window.toastInfo(
             this.t(
               "errors.chat.confirm_unavailable",
-              "Confirmation popup is unavailable.",
+              "Confirmation popup isn't available",
             ),
           );
         return;
@@ -6931,7 +6931,7 @@ const ChatWindow = {
           window.toastInfo(
             this.t(
               "errors.chat.confirm_unavailable",
-              "Confirmation popup is unavailable.",
+              "Confirmation popup isn't available",
             ),
           );
         return;
@@ -7033,7 +7033,7 @@ const ChatWindow = {
           window.toastInfo(
             this.t(
               "errors.chat.confirm_unavailable",
-              "Confirmation popup is unavailable.",
+              "Confirmation popup isn't available",
             ),
           );
         return;
@@ -7136,7 +7136,7 @@ const ChatWindow = {
           window.toastInfo(
             this.t(
               "errors.chat.confirm_unavailable",
-              "Confirmation popup is unavailable.",
+              "Confirmation popup isn't available",
             ),
           );
         return;
@@ -7719,7 +7719,7 @@ const ChatWindow = {
         <button type="button" class="chat-window-members-filter-btn">
           <i data-lucide="shield"></i>
           <span>${escapeHtml(
-            this.t("chat.members.admin_only", "Admins only"),
+            this.t("chat.members.role.admin", "Admin"),
           )}</span>
         </button>
         <button type="button" class="chat-window-members-add-btn">
@@ -8019,7 +8019,7 @@ const ChatWindow = {
         window.toastInfo(
           this.t(
             "errors.chat.confirm_unavailable",
-            "Confirmation popup is unavailable.",
+            "Confirmation popup isn't available",
           ),
         );
       return;
@@ -8544,7 +8544,7 @@ const ChatWindow = {
     } catch (error) {
       console.error("Failed to load chat window messages:", error);
       msgContainer.innerHTML =
-        `<div style="padding:10px; font-size:11px; text-align:center;">${escapeHtml(this.t("errors.chat.load_messages_failed", "Failed to load messages."))}</div>`;
+        `<div style="padding:10px; font-size:11px; text-align:center;">${escapeHtml(this.t("errors.chat.load_messages_failed", "Couldn't load messages"))}</div>`;
     }
   },
 
@@ -9156,7 +9156,7 @@ const ChatWindow = {
       statusEl.className += " msg-status-failed";
       statusEl.textContent = this.t(
         "chat.message.status.failed_retry",
-        "Failed to send. Click to retry.",
+        "Send failed, tap to retry",
       );
       statusEl.onclick = () => this.retryMessage(chatId, tempId, content);
     }
