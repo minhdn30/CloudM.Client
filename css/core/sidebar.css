@@ -583,6 +583,26 @@ body.light-mode .settings-dropdown .dropdown-item {
   font-size: 14px;
 }
 
+#languageDropdown {
+  position: relative;
+  left: 0;
+  bottom: auto;
+  width: calc(100% - 16px);
+  margin: 0 8px 8px;
+  display: none;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+#languageDropdown.show {
+  display: block;
+  animation: slideInMore 0.2s ease forwards;
+}
+
+#languageDropdown .dropdown-item {
+  padding-left: 20px;
+}
+
 /* ================= TOGGLE SWITCH ================= */
 .toggle-switch {
   margin-left: auto;

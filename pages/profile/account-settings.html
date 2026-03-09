@@ -1,224 +1,161 @@
 <div class="acc-settings-container">
   <div class="acc-settings-content">
-    <!-- Header -->
     <div class="acc-settings-header">
-      <h1>Account Settings</h1>
-      <p class="acc-settings-subtitle">
+      <h1 data-i18n="profile.settings.title">Account Settings</h1>
+      <p class="acc-settings-subtitle" data-i18n="profile.settings.subtitle">
         Manage your privacy and account preferences
       </p>
     </div>
 
-    <!-- Settings List -->
     <div class="acc-settings-list">
-      <!-- Phone Privacy -->
       <div class="acc-setting-item">
         <div class="acc-setting-top-row">
-          <div class="acc-setting-title">Phone Number Privacy</div>
-          <span class="acc-privacy-label" id="label-phone-privacy"
-            >Private</span
-          >
-          <button
-            class="acc-privacy-toggle-btn"
-            id="btn-phone-privacy"
-            data-setting="phone"
-          >
+          <div class="acc-setting-title" data-i18n="profile.settings.phonePrivacyTitle">Phone Number Privacy</div>
+          <span class="acc-privacy-label" id="label-phone-privacy">Private</span>
+          <button class="acc-privacy-toggle-btn" id="btn-phone-privacy" data-setting="phone">
             <i data-lucide="lock"></i>
           </button>
         </div>
-        <div class="acc-setting-description">
+        <div class="acc-setting-description" data-i18n="profile.settings.phonePrivacyDescription">
           Control who can see your phone number on your profile
         </div>
       </div>
 
-      <!-- Address Privacy -->
       <div class="acc-setting-item">
         <div class="acc-setting-top-row">
-          <div class="acc-setting-title">Address Privacy</div>
-          <span class="acc-privacy-label" id="label-address-privacy"
-            >Private</span
-          >
-          <button
-            class="acc-privacy-toggle-btn"
-            id="btn-address-privacy"
-            data-setting="address"
-          >
+          <div class="acc-setting-title" data-i18n="profile.settings.addressPrivacyTitle">Address Privacy</div>
+          <span class="acc-privacy-label" id="label-address-privacy">Private</span>
+          <button class="acc-privacy-toggle-btn" id="btn-address-privacy" data-setting="address">
             <i data-lucide="lock"></i>
           </button>
         </div>
-        <div class="acc-setting-description">
+        <div class="acc-setting-description" data-i18n="profile.settings.addressPrivacyDescription">
           Choose who can view your address information
         </div>
       </div>
 
-      <!-- Default Post Privacy -->
       <div class="acc-setting-item">
         <div class="acc-setting-top-row">
-          <div class="acc-setting-title">Default Post Privacy</div>
+          <div class="acc-setting-title" data-i18n="profile.settings.defaultPostPrivacyTitle">Default Post Privacy</div>
           <span class="acc-privacy-label" id="label-post-privacy">Public</span>
-          <button
-            class="acc-privacy-toggle-btn"
-            id="btn-post-privacy"
-            data-setting="post"
-          >
+          <button class="acc-privacy-toggle-btn" id="btn-post-privacy" data-setting="post">
             <i data-lucide="globe"></i>
           </button>
         </div>
-        <div class="acc-setting-description">
-          Set the default visibility for your new posts. You can change this for
-          each post individually
+        <div class="acc-setting-description" data-i18n="profile.settings.defaultPostPrivacyDescription">
+          Set the default visibility for your new posts. You can change this for each post individually
         </div>
       </div>
 
-      <!-- Followers List Privacy -->
       <div class="acc-setting-item">
         <div class="acc-setting-top-row">
-          <div class="acc-setting-title">Who Can Follow Me</div>
+          <div class="acc-setting-title" data-i18n="profile.settings.followPrivacyTitle">Who Can Follow Me</div>
           <span class="acc-privacy-label" id="label-follow-privacy">Anyone</span>
-          <button
-            class="acc-privacy-toggle-btn"
-            id="btn-follow-privacy"
-            data-setting="follow"
-          >
+          <button class="acc-privacy-toggle-btn" id="btn-follow-privacy" data-setting="follow">
             <i data-lucide="globe"></i>
           </button>
         </div>
-        <div class="acc-setting-description">
-          Set whether following your account requires approval. Switching from
-          Private to Anyone will automatically approve any pending follow
-          requests.
+        <div class="acc-setting-description" data-i18n="profile.settings.followPrivacyDescription">
+          Set whether following your account requires approval. Switching from Private to Anyone will automatically approve any pending follow requests.
         </div>
       </div>
 
-      <!-- Followers List Privacy -->
       <div class="acc-setting-item">
         <div class="acc-setting-top-row">
-          <div class="acc-setting-title">Followers List Visibility</div>
-          <span class="acc-privacy-label" id="label-followers-privacy"
-            >Public</span
-          >
-          <button
-            class="acc-privacy-toggle-btn"
-            id="btn-followers-privacy"
-            data-setting="followers"
-          >
+          <div class="acc-setting-title" data-i18n="profile.settings.followerPrivacyTitle">Followers List Visibility</div>
+          <span class="acc-privacy-label" id="label-followers-privacy">Public</span>
+          <button class="acc-privacy-toggle-btn" id="btn-followers-privacy" data-setting="followers">
             <i data-lucide="globe"></i>
           </button>
         </div>
-        <div class="acc-setting-description">
+        <div class="acc-setting-description" data-i18n="profile.settings.followerPrivacyDescription">
           Decide who can see the list of people following you
         </div>
       </div>
 
-      <!-- Following List Privacy -->
       <div class="acc-setting-item">
         <div class="acc-setting-top-row">
-          <div class="acc-setting-title">Following List Visibility</div>
-          <span class="acc-privacy-label" id="label-following-privacy"
-            >Public</span
-          >
-          <button
-            class="acc-privacy-toggle-btn"
-            id="btn-following-privacy"
-            data-setting="following"
-          >
+          <div class="acc-setting-title" data-i18n="profile.settings.followingPrivacyTitle">Following List Visibility</div>
+          <span class="acc-privacy-label" id="label-following-privacy">Public</span>
+          <button class="acc-privacy-toggle-btn" id="btn-following-privacy" data-setting="following">
             <i data-lucide="globe"></i>
           </button>
         </div>
-        <div class="acc-setting-description">
+        <div class="acc-setting-description" data-i18n="profile.settings.followingPrivacyDescription">
           Control who can see the list of people you follow
         </div>
       </div>
 
-      <!-- Story Highlight Privacy -->
       <div class="acc-setting-item">
         <div class="acc-setting-top-row">
-          <div class="acc-setting-title">Who Can View My Story Highlights</div>
-          <span class="acc-privacy-label" id="label-story-highlight-privacy"
-            >Public</span
-          >
-          <button
-            class="acc-privacy-toggle-btn"
-            id="btn-story-highlight-privacy"
-            data-setting="story-highlight"
-          >
+          <div class="acc-setting-title" data-i18n="profile.settings.storyHighlightPrivacyTitle">Who Can View My Story Highlights</div>
+          <span class="acc-privacy-label" id="label-story-highlight-privacy">Public</span>
+          <button class="acc-privacy-toggle-btn" id="btn-story-highlight-privacy" data-setting="story-highlight">
             <i data-lucide="globe"></i>
           </button>
         </div>
-        <div class="acc-setting-description">
+        <div class="acc-setting-description" data-i18n="profile.settings.storyHighlightPrivacyDescription">
           Choose who can view your highlighted stories on your profile
         </div>
       </div>
 
-      <!-- Online Status Visibility -->
       <div class="acc-setting-item">
         <div class="acc-setting-top-row">
-          <div class="acc-setting-title">Online Status Visibility</div>
-          <span class="acc-privacy-label" id="label-online-status-privacy"
-            >Contacts Only</span
-          >
-          <button
-            class="acc-privacy-toggle-btn follow"
-            id="btn-online-status-privacy"
-            data-setting="online-status"
-          >
+          <div class="acc-setting-title" data-i18n="profile.settings.onlineStatusVisibilityTitle">Online Status Visibility</div>
+          <span class="acc-privacy-label" id="label-online-status-privacy">Contacts Only</span>
+          <button class="acc-privacy-toggle-btn follow" id="btn-online-status-privacy" data-setting="online-status">
             <i data-lucide="users"></i>
           </button>
         </div>
-        <div class="acc-setting-description">
+        <div class="acc-setting-description" data-i18n="profile.settings.onlineStatusVisibilityDescription">
           Choose who can see your online status and recent activity
         </div>
       </div>
 
-      <!-- Group Chat Invite Permission -->
       <div class="acc-setting-item">
         <div class="acc-setting-top-row">
-          <div class="acc-setting-title">Who Can Add Me to Group Chats</div>
-          <span class="acc-privacy-label" id="label-group-chat-invite-privacy"
-            >Anyone</span
-          >
-          <button
-            class="acc-privacy-toggle-btn"
-            id="btn-group-chat-invite-privacy"
-            data-setting="group-chat-invite"
-          >
+          <div class="acc-setting-title" data-i18n="profile.settings.groupChatInvitePermissionTitle">Who Can Add Me to Group Chats</div>
+          <span class="acc-privacy-label" id="label-group-chat-invite-privacy">Anyone</span>
+          <button class="acc-privacy-toggle-btn" id="btn-group-chat-invite-privacy" data-setting="group-chat-invite">
             <i data-lucide="globe"></i>
           </button>
         </div>
-        <div class="acc-setting-description">
+        <div class="acc-setting-description" data-i18n="profile.settings.groupChatInvitePermissionDescription">
           Choose who can add you into group chats
         </div>
       </div>
 
-      <!-- Tag Permission -->
       <div class="acc-setting-item">
         <div class="acc-setting-top-row">
-          <div class="acc-setting-title">Who Can Tag Me</div>
-          <span class="acc-privacy-label" id="label-tag-permission-privacy"
-            >Anyone</span
-          >
-          <button
-            class="acc-privacy-toggle-btn public"
-            id="btn-tag-permission-privacy"
-            data-setting="tag-permission"
-          >
+          <div class="acc-setting-title" data-i18n="profile.settings.tagPermissionTitle">Who Can Tag Me</div>
+          <span class="acc-privacy-label" id="label-tag-permission-privacy">Anyone</span>
+          <button class="acc-privacy-toggle-btn public" id="btn-tag-permission-privacy" data-setting="tag-permission">
             <i data-lucide="globe"></i>
           </button>
         </div>
-        <div class="acc-setting-description">
+        <div class="acc-setting-description" data-i18n="profile.settings.tagPermissionDescription">
           Choose who can tag you
+        </div>
+      </div>
+
+      <div class="acc-setting-item">
+        <div class="acc-setting-top-row">
+          <div class="acc-setting-title" data-i18n="profile.settings.languageTitle">Language</div>
+          <span class="acc-privacy-label" id="label-language-preference">English</span>
+          <button class="acc-privacy-toggle-btn public" id="btn-language-preference">
+            <i data-lucide="languages"></i>
+          </button>
+        </div>
+        <div class="acc-setting-description" data-i18n="profile.settings.languageDescription">
+          Choose the language used across the app on this device and your account.
         </div>
       </div>
     </div>
 
-    <!-- Save Button Section -->
     <div class="acc-settings-footer">
-      <button
-        class="acc-settings-save-btn"
-        id="save-settings-btn"
-        onclick="saveAccountSettings()"
-      >
+      <button class="acc-settings-save-btn" id="save-settings-btn" onclick="saveAccountSettings()">
         <i data-lucide="check"></i>
-        <span>Save</span>
+        <span data-i18n="common.buttons.save">Save</span>
       </button>
     </div>
   </div>

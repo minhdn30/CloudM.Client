@@ -105,6 +105,7 @@ window.updateSidebarInfo = function (url, name) {
       name ||
       localStorage.getItem("username") ||
       localStorage.getItem("fullname") ||
+      window.I18n?.t?.("common.labels.user", {}, "User") ||
       "User";
   }
 
@@ -115,6 +116,10 @@ async function loadSidebar() {
   const res = await fetch("pages/core/sidebar.html");
   document.getElementById("sidebar").innerHTML = await res.text();
   applySidebarProfileRoutes();
+  if (window.I18n?.translateDom) {
+    window.I18n.translateDom(document.getElementById("sidebar"));
+  }
+  updateSidebarLanguageValue();
   lucide.createIcons();
 
   const avatarUrl = localStorage.getItem("avatarUrl");
@@ -127,7 +132,11 @@ async function loadSidebar() {
   window.updateSidebarInfo(avatarUrl);
 
   // Display Username as primary identifier
-  nameElement.textContent = username || fullname || "User";
+  nameElement.textContent =
+    username ||
+    fullname ||
+    window.I18n?.t?.("common.labels.user", {}, "User") ||
+    "User";
 
   // Load theme preference
   loadThemePreference();
@@ -179,6 +188,15 @@ async function loadSidebar() {
     typeof window.NotificationsPanel.init === "function"
   ) {
     window.NotificationsPanel.init();
+  }
+
+  if (window.I18n?.onChange && !window.__sidebarLanguageSyncUnsubscribe) {
+    window.__sidebarLanguageSyncUnsubscribe = window.I18n.onChange(() => {
+      updateSidebarLanguageValue();
+      if (window.I18n?.translateDom) {
+        window.I18n.translateDom(document.getElementById("sidebar"));
+      }
+    });
   }
 }
 
@@ -291,12 +309,14 @@ function setupAutoClose() {
     const moreDropdown = document.getElementById("moreDropdown");
     const settingsDropdown = document.getElementById("settingsDropdown");
     const createDropdown = document.getElementById("createDropdown");
+    const languageDropdown = document.getElementById("languageDropdown");
 
     // Kiểm tra có popup nào đang mở không
     const hasOpenPopup =
       moreDropdown?.classList.contains("show") ||
       settingsDropdown?.classList.contains("show") ||
-      createDropdown?.classList.contains("show");
+      createDropdown?.classList.contains("show") ||
+      languageDropdown?.classList.contains("show");
 
     // Nếu có popup mở, giữ sidebar expanded
     // Nếu không, cho phép sidebar tự thu gọn (CSS hover sẽ xử lý)
@@ -314,10 +334,12 @@ function closeAllDropdowns() {
   const moreDropdown = document.getElementById("moreDropdown");
   const settingsDropdown = document.getElementById("settingsDropdown");
   const createDropdown = document.getElementById("createDropdown");
+  const languageDropdown = document.getElementById("languageDropdown");
 
   moreDropdown?.classList.remove("show");
   settingsDropdown?.classList.remove("show");
   createDropdown?.classList.remove("show");
+  languageDropdown?.classList.remove("show");
   sidebar?.classList.remove("expanded");
   sidebarContainer?.classList.remove("expanded");
 }
@@ -328,10 +350,12 @@ function toggleMoreMenu(e) {
   const moreDropdown = document.getElementById("moreDropdown");
   const settingsDropdown = document.getElementById("settingsDropdown");
   const createDropdown = document.getElementById("createDropdown");
+  const languageDropdown = document.getElementById("languageDropdown");
 
   // Close settings and create if open
   settingsDropdown.classList.remove("show");
   createDropdown?.classList.remove("show");
+  languageDropdown?.classList.remove("show");
 
   // Toggle more menu
   const isOpening = !moreDropdown.classList.contains("show");
@@ -355,9 +379,11 @@ function toggleSettingsMenu(e) {
   const sidebar = document.querySelector(".sidebar");
   const moreDropdown = document.getElementById("moreDropdown");
   const settingsDropdown = document.getElementById("settingsDropdown");
+  const languageDropdown = document.getElementById("languageDropdown");
 
   // Hide more menu and show settings
   moreDropdown.classList.remove("show");
+  languageDropdown?.classList.remove("show");
 
   // Reset animation by removing and re-adding the class
   settingsDropdown.classList.remove("show");
@@ -377,9 +403,11 @@ function backToMoreMenu(e) {
   const sidebar = document.querySelector(".sidebar");
   const moreDropdown = document.getElementById("moreDropdown");
   const settingsDropdown = document.getElementById("settingsDropdown");
+  const languageDropdown = document.getElementById("languageDropdown");
 
   // Hide settings and show more menu
   settingsDropdown.classList.remove("show");
+  languageDropdown?.classList.remove("show");
 
   // Reset animation by removing and re-adding the class
   moreDropdown.classList.remove("show");
@@ -397,10 +425,12 @@ function toggleCreateMenu(e) {
   const createDropdown = document.getElementById("createDropdown");
   const moreDropdown = document.getElementById("moreDropdown");
   const settingsDropdown = document.getElementById("settingsDropdown");
+  const languageDropdown = document.getElementById("languageDropdown");
 
   // Close other menus
   moreDropdown?.classList.remove("show");
   settingsDropdown?.classList.remove("show");
+  languageDropdown?.classList.remove("show");
 
   // Toggle create menu
   const isOpening = !createDropdown.classList.contains("show");
@@ -428,7 +458,11 @@ async function loadCreatePostModal() {
   // Append modal vào body
   const tempDiv = document.createElement("div");
   tempDiv.innerHTML = modalHTML;
-  document.body.appendChild(tempDiv.firstElementChild);
+  const modalElement = tempDiv.firstElementChild;
+  document.body.appendChild(modalElement);
+  if (window.I18n?.translateDom && modalElement) {
+    window.I18n.translateDom(modalElement);
+  }
 
   // Recreate icons cho modal
   lucide.createIcons();
@@ -442,7 +476,11 @@ async function loadCreateStoryModal() {
 
   const tempDiv = document.createElement("div");
   tempDiv.innerHTML = modalHTML;
-  document.body.appendChild(tempDiv.firstElementChild);
+  const modalElement = tempDiv.firstElementChild;
+  document.body.appendChild(modalElement);
+  if (window.I18n?.translateDom && modalElement) {
+    window.I18n.translateDom(modalElement);
+  }
 
   lucide.createIcons();
 }
@@ -452,13 +490,15 @@ document.addEventListener("click", (e) => {
   const moreDropdown = document.getElementById("moreDropdown");
   const settingsDropdown = document.getElementById("settingsDropdown");
   const createDropdown = document.getElementById("createDropdown");
+  const languageDropdown = document.getElementById("languageDropdown");
 
   // Kiểm tra click có nằm trong sidebar hoặc popup không
   const clickedInside =
     sidebar?.contains(e.target) ||
     moreDropdown?.contains(e.target) ||
     settingsDropdown?.contains(e.target) ||
-    createDropdown?.contains(e.target);
+    createDropdown?.contains(e.target) ||
+    languageDropdown?.contains(e.target);
 
   // Nếu click bên ngoài, đóng tất cả popup và collapse sidebar
   if (!clickedInside) {
@@ -794,32 +834,78 @@ function loadThemePreference() {
 // Settings menu functions (placeholder)
 function openLanguageMenu(e) {
   e.stopPropagation();
-  console.log("Open language menu");
-  // TODO: Implement language selection
+  const dropdown = document.getElementById("languageDropdown");
+  if (!dropdown) return;
+  dropdown.classList.toggle("show");
+  lucide.createIcons();
+}
+
+function updateSidebarLanguageValue() {
+  const valueElement = document.getElementById("sidebar-language-value");
+  if (!valueElement || !window.I18n) return;
+  valueElement.textContent = window.I18n.formatLanguageLabel(
+    window.I18n.getLanguage(),
+  );
+}
+
+async function selectLanguageOption(e, language) {
+  e.stopPropagation();
+  const nextLanguage = window.I18n?.setLanguage
+    ? window.I18n.setLanguage(language)
+    : language;
+  updateSidebarLanguageValue();
+  document.getElementById("languageDropdown")?.classList.remove("show");
+  lucide.createIcons();
+
+  try {
+    window.I18n?.markPendingLanguageSync?.(nextLanguage);
+
+    if (window.API?.Accounts?.updateLanguagePreference) {
+      const res = await window.API.Accounts.updateLanguagePreference(
+        nextLanguage,
+      );
+      if (!res?.ok) {
+        throw new Error("language-sync-failed");
+      }
+    } else {
+      throw new Error("language-sync-unavailable");
+    }
+
+    window.I18n?.clearPendingLanguageSync?.(nextLanguage);
+    window.AccountSettingsPage?.syncLanguageSelection?.(nextLanguage);
+    window.toastSuccess?.(
+      window.I18n?.t
+        ? window.I18n.t("sidebar.languageUpdated")
+        : "Language updated.",
+    );
+  } catch (error) {
+    console.error("Failed to sync language preference:", error);
+    window.toastInfo?.(
+      window.I18n?.t
+        ? window.I18n.t("sidebar.languageUpdatedLocalOnly")
+        : "Language updated on this device. We couldn't sync it yet.",
+    );
+  }
 }
 
 function openNotificationSettings(e) {
   e.stopPropagation();
-  console.log("Open notification settings");
-  // TODO: Implement notification settings
+  window.toastInfo?.(window.I18n?.t("sidebar.featureComingSoon") || "");
 }
 
 function openPrivacySettings(e) {
   e.stopPropagation();
-  console.log("Open privacy settings");
-  // TODO: Implement privacy settings
+  window.toastInfo?.(window.I18n?.t("sidebar.featureComingSoon") || "");
 }
 
 function openHelp(e) {
   e.stopPropagation();
-  console.log("Open help");
-  // TODO: Implement help & support
+  window.toastInfo?.(window.I18n?.t("sidebar.featureComingSoon") || "");
 }
 
 function openAbout(e) {
   e.stopPropagation();
-  console.log("Open about");
-  // TODO: Implement about page
+  window.toastInfo?.(window.I18n?.t("sidebar.featureComingSoon") || "");
 }
 async function loadCreateChatGroupModal() {
   const res = await fetch("pages/chat/create-chat-group-modal.html");
@@ -828,7 +914,11 @@ async function loadCreateChatGroupModal() {
   // Append modal to body
   const tempDiv = document.createElement("div");
   tempDiv.innerHTML = modalHTML;
-  document.body.appendChild(tempDiv.firstElementChild);
+  const modalElement = tempDiv.firstElementChild;
+  document.body.appendChild(modalElement);
+  if (window.I18n?.translateDom && modalElement) {
+    window.I18n.translateDom(modalElement);
+  }
 
   // Recreate icons
   lucide.createIcons();
