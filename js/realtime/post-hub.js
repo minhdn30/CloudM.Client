@@ -13,6 +13,30 @@ let currentPostGroup = null;
 let joinInFlightPromise = null;
 let joinInFlightPostId = null;
 
+function postHubT(key, params = {}, fallback = '') {
+    return window.I18n?.t ? window.I18n.t(key, params, fallback || key) : (fallback || key);
+}
+
+function postHubEscapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function getPostHubBase() {
+  if (window.API?.getCurrentHubBase) {
+    const currentHubBase = window.API.getCurrentHubBase();
+    if (currentHubBase) {
+      return currentHubBase;
+    }
+  }
+
+  return window.APP_CONFIG?.HUB_BASE || "http://localhost:5000";
+}
+
 /* =========================
    CONNECTION MANAGEMENT
 ========================= */
@@ -29,7 +53,7 @@ async function initPostHub() {
     }
 
     postHubConnection = new signalR.HubConnectionBuilder()
-      .withUrl(`${window.APP_CONFIG.HUB_BASE}/postHub`, {
+      .withUrl(`${getPostHubBase()}/postHub`, {
         accessTokenFactory: () => window.AuthStore?.getAccessToken?.() || "",
       })
       .withAutomaticReconnect([0, 2000, 5000, 10000])
@@ -229,11 +253,17 @@ function handlePostUpdate(updatedPost) {
          const createdAt = timeEl.dataset.createdAt;
          
          if (createdAt) {
-             let timeHTML = `${PostUtils.timeAgo(createdAt)} <span>â€¢</span> ${PostUtils.renderPrivacyBadge(updatedPost.privacy)}`;
+             let timeHTML = `${PostUtils.timeAgo(createdAt)} <span>&middot;</span> ${PostUtils.renderPrivacyBadge(updatedPost.privacy)}`;
              
              if (updatedPost.updatedAt) {
                  const editedTime = PostUtils.formatFullDateTime(updatedPost.updatedAt);
-                 timeHTML += ` <span>â€¢</span> <span class="post-edited-indicator" title="Edited: ${editedTime}">edited</span>`;
+                 const editedTitle = postHubEscapeHtml(
+                     postHubT("post.comments.editedAt", { time: editedTime }, "Edited at {time}"),
+                 );
+                 const editedLabel = postHubEscapeHtml(
+                     postHubT("post.comments.editedLabel", {}, "edited"),
+                 );
+                 timeHTML += ` <span>&middot;</span> <span class="post-edited-indicator" title="${editedTitle}">${editedLabel}</span>`;
              }
              
              timeEl.innerHTML = timeHTML;
