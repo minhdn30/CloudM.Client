@@ -155,8 +155,8 @@
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    background: var(--bg-primary);
-    color: var(--text-tertiary);
+    background: var(--danger, #ed4956);
+    color: #fff;
     border: 2px solid var(--border-primary);
     display: flex;
     align-items: center;
@@ -171,6 +171,11 @@
     background: var(--danger, #ed4956);
     color: #fff;
     border-color: var(--danger, #ed4956);
+}
+
+.cg-avatar-remove i,
+.cg-avatar-remove svg {
+    color: #fff !important;
 }
 
 .cg-avatar-remove.hidden {

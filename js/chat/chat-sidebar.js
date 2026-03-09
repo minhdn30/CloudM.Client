@@ -19,19 +19,41 @@ const ChatSidebar = {
   _dragScrollBlocker: null,
   _draggingConversationId: "",
   settingsPopupCleanup: null,
+  _languageCleanup: null,
   settingsLevelMap: {
     onlineStatusVisibility: {
-      0: { name: "No One", icon: "lock", className: "neutral" },
-      1: { name: "Contacts Only", icon: "users", className: "neutral" },
+      0: {
+        nameKey: "chat.sidebar.settings.no_one",
+        name: "No One",
+        icon: "lock",
+        className: "neutral",
+      },
+      1: {
+        nameKey: "chat.sidebar.settings.contacts_only",
+        name: "Contacts Only",
+        icon: "users",
+        className: "neutral",
+      },
     },
     groupChatInvitePermission: {
-      0: { name: "No One", icon: "lock", className: "neutral" },
+      0: {
+        nameKey: "chat.sidebar.settings.no_one",
+        name: "No One",
+        icon: "lock",
+        className: "neutral",
+      },
       1: {
+        nameKey: "chat.sidebar.settings.followers_or_following",
         name: "Followers or Following",
         icon: "users",
         className: "neutral",
       },
-      2: { name: "Anyone", icon: "globe", className: "neutral" },
+      2: {
+        nameKey: "chat.sidebar.settings.anyone",
+        name: "Anyone",
+        icon: "globe",
+        className: "neutral",
+      },
     },
   },
 
@@ -43,6 +65,98 @@ const ChatSidebar = {
       return window.PresenceUI.normalizeAccountId(value);
     }
     return (value || "").toString().toLowerCase();
+  },
+
+  t(key, fallback, params = {}) {
+    if (window.ChatCommon && typeof window.ChatCommon.t === "function") {
+      return window.ChatCommon.t(key, fallback, params);
+    }
+
+    if (typeof fallback !== "string") return key || "";
+    return fallback.replace(/\{(\w+)\}/g, (_match, token) => {
+      const value = params?.[token];
+      return value === null || value === undefined ? "" : String(value);
+    });
+  },
+
+  formatRelativeTime(value, short = false) {
+    if (
+      window.ChatCommon &&
+      typeof window.ChatCommon.formatRelativeTime === "function"
+    ) {
+      return window.ChatCommon.formatRelativeTime(value, short);
+    }
+
+    return window.PostUtils?.timeAgo ? window.PostUtils.timeAgo(value, short) : "";
+  },
+
+  async readFriendlyApiError(res, options = {}) {
+    const fallbackMessage =
+      typeof options?.fallbackMessage === "string" &&
+      options.fallbackMessage.trim().length > 0
+        ? options.fallbackMessage
+        : this.t("errors.chat.generic", "Something went wrong. Please try again.");
+
+    if (
+      window.ChatCommon &&
+      typeof window.ChatCommon.readFriendlyApiError === "function"
+    ) {
+      return window.ChatCommon.readFriendlyApiError(res, {
+        feature: "chat",
+        ...options,
+        fallbackMessage,
+      });
+    }
+
+    return fallbackMessage;
+  },
+
+  createUiError(message) {
+    const error = new Error(message);
+    error.chatUiMessage = message;
+    return error;
+  },
+
+  getFriendlyErrorMessage(error, fallbackKey, fallbackMessage, params = {}) {
+    const uiMessage =
+      typeof error?.chatUiMessage === "string" ? error.chatUiMessage.trim() : "";
+    if (uiMessage) return uiMessage;
+    return this.t(fallbackKey, fallbackMessage, params);
+  },
+
+  handleLanguageChange() {
+    const panel = document.getElementById("chat-panel");
+    if (!panel) return;
+
+    const searchValue =
+      this.searchTerm ||
+      document.getElementById("chat-search-input")?.value?.trim() ||
+      "";
+    const hadSettingsPopup = !!document.getElementById(
+      "chat-sidebar-settings-popup",
+    );
+    const hadMoreMenu = !!document.getElementById("chat-tabs-more-menu");
+
+    this.renderLayout();
+
+    const searchInput = document.getElementById("chat-search-input");
+    if (searchInput) searchInput.value = searchValue;
+
+    this.renderConversations(this.conversations, false);
+
+    if (hadSettingsPopup) {
+      const settingsBtn = document.getElementById("chat-sidebar-settings-btn");
+      if (settingsBtn) {
+        this.openSettingsPopup(settingsBtn);
+      }
+    }
+
+    if (hadMoreMenu) {
+      const moreBtn = document.getElementById("chat-tabs-more-btn");
+      if (moreBtn) {
+        this.toggleMoreMenu(moreBtn);
+      }
+    }
   },
 
   getCurrentPathFromHash() {
@@ -157,7 +271,9 @@ const ChatSidebar = {
       canShowStatus: legacyIsOnline,
       isOnline: legacyIsOnline,
       showDot: legacyIsOnline,
-      text: legacyIsOnline ? "Online" : "",
+      text: legacyIsOnline
+        ? this.t("common.labels.online", "Online")
+        : "",
     };
   },
 
@@ -315,7 +431,7 @@ const ChatSidebar = {
     button.className = `chat-settings-toggle-btn ${config.className}`;
     button.dataset.value = String(value);
     button.innerHTML = `<i data-lucide="${config.icon}" size="16"></i>`;
-    label.textContent = config.name;
+    label.textContent = this.t(config.nameKey, config.name);
   },
 
   getGroupSenderName(sender = {}, conv = null) {
@@ -326,7 +442,7 @@ const ChatSidebar = {
       const resolved = ChatCommon.getPreferredSenderName(sender, {
         conversation: conv,
         conversationId: conv?.conversationId || conv?.ConversationId || "",
-        fallback: "User",
+        fallback: this.t("common.labels.user", "User"),
       });
       if (resolved) return resolved;
     }
@@ -346,7 +462,7 @@ const ChatSidebar = {
       return username.trim();
     }
 
-    return "User";
+    return this.t("common.labels.user", "User");
   },
 
   buildLastMessagePreviewDisplay(conv = {}, message = null) {
@@ -391,7 +507,7 @@ const ChatSidebar = {
     let prefix = "";
     if (senderId && !isSystemLastMessage) {
       if (senderId === myId) {
-        prefix = "You: ";
+        prefix = `${this.t("common.labels.you", "You")}: `;
       } else if (isGroup) {
         const senderPayload = resolvedMessage?.sender || resolvedMessage?.Sender || {};
         const senderName = this.getGroupSenderName(senderPayload, conv);
@@ -451,7 +567,7 @@ const ChatSidebar = {
       return fullName.trim();
     }
 
-    return "User";
+    return this.t("common.labels.user", "User");
   },
 
   getOpenChatData(conversationId) {
@@ -529,7 +645,8 @@ const ChatSidebar = {
 
       let score = 0;
       if (avatarUrl && avatarUrl !== APP_CONFIG.DEFAULT_AVATAR) score += 2;
-      if (displayName && displayName !== "User") score += 1;
+      if (displayName && displayName !== this.t("common.labels.user", "User"))
+        score += 1;
       if (candidate === conv.otherMember) score += 1;
 
       if (score > bestScore) {
@@ -537,7 +654,7 @@ const ChatSidebar = {
         best = {
           accountId: targetAccId,
           avatarUrl: avatarUrl || APP_CONFIG.DEFAULT_AVATAR,
-          displayName: displayName || "User",
+          displayName: displayName || this.t("common.labels.user", "User"),
         };
       }
     });
@@ -604,7 +721,9 @@ const ChatSidebar = {
 
     // Better Drag Image (Ghost Card)
     const item = e.target.closest(".chat-item");
-    const name = item?.querySelector(".chat-name")?.textContent?.trim() || "Chat";
+    const name =
+      item?.querySelector(".chat-name")?.textContent?.trim() ||
+      this.t("chat.page.chatFallback", "Chat");
     const avatarSrc =
       item?.querySelector(".chat-avatar")?.src ||
       window.APP_CONFIG?.DEFAULT_AVATAR;
@@ -614,9 +733,9 @@ const ChatSidebar = {
     ghost.style.top = "-1000px";
     ghost.innerHTML = `
             <img src="${avatarSrc}" class="chat-drag-ghost-avatar">
-            <div class="chat-drag-ghost-meta">
-              <div class="chat-drag-ghost-name">${escapeHtml(name)}</div>
-              <div class="chat-drag-ghost-sub">Drop to open chat</div>
+              <div class="chat-drag-ghost-meta">
+                <div class="chat-drag-ghost-name">${escapeHtml(name)}</div>
+              <div class="chat-drag-ghost-sub">${escapeHtml(this.t("chat.sidebar.drag.open", "Drop to open chat"))}</div>
             </div>
         `;
     document.body.appendChild(ghost);
@@ -701,23 +820,35 @@ const ChatSidebar = {
       };
       window.addEventListener("resize", this._onResize);
     }
+
+    if (
+      !this._languageCleanup &&
+      window.ChatCommon &&
+      typeof window.ChatCommon.onLanguageChange === "function"
+    ) {
+      this._languageCleanup = window.ChatCommon.onLanguageChange(() => {
+        this.handleLanguageChange();
+      });
+    }
   },
 
   renderLayout() {
     const panel = document.getElementById("chat-panel");
-    const username = localStorage.getItem("username") || "User";
+    const username =
+      localStorage.getItem("username") ||
+      this.t("common.labels.user", "User");
     this.closeSettingsPopup();
 
     panel.innerHTML = `
             <div class="chat-sidebar-header">
                 <div class="chat-header-title-area">
                     <h2>${username}</h2>
-                    <button class="chat-icon-btn chat-sidebar-settings-btn" id="chat-sidebar-settings-btn" title="Chat settings" aria-label="Chat settings">
+                    <button class="chat-icon-btn chat-sidebar-settings-btn" id="chat-sidebar-settings-btn" title="${this.t("chat.sidebar.settings.title", "Chat settings")}" aria-label="${this.t("chat.sidebar.settings.title", "Chat settings")}">
                         <i data-lucide="settings" size="18"></i>
                     </button>
                 </div>
                 <div class="chat-header-actions">
-                    <button class="chat-icon-btn chat-sidebar-close-btn" onclick="window.closeChatSidebar()" title="Close Sidebar">
+                    <button class="chat-icon-btn chat-sidebar-close-btn" onclick="window.closeChatSidebar()" title="${this.t("common.buttons.close", "Close")}">
                         <i data-lucide="x" size="22"></i>
                     </button>
                 </div>
@@ -726,18 +857,18 @@ const ChatSidebar = {
             <div class="chat-search-container">
                 <div class="chat-search-wrapper">
                     <i data-lucide="search"></i>
-                    <input type="text" placeholder="Search" id="chat-search-input">
+                    <input type="text" placeholder="${this.t("chat.sidebar.searchPlaceholder", "Search")}" id="chat-search-input">
                 </div>
             </div>
 
             <div class="chat-tabs">
                 <div class="chat-tabs-list">
-                    <div class="chat-tab ${this.currentFilter === null ? "active" : ""}" data-filter="null">All</div>
-                    <div class="chat-tab ${this.currentFilter === true ? "active" : ""}" data-filter="true">Private</div>
-                    <div class="chat-tab ${this.currentFilter === false ? "active" : ""}" data-filter="false">Group</div>
+                    <div class="chat-tab ${this.currentFilter === null ? "active" : ""}" data-filter="null">${this.t("chat.sidebar.tabs.all", "All")}</div>
+                    <div class="chat-tab ${this.currentFilter === true ? "active" : ""}" data-filter="true">${this.t("chat.sidebar.tabs.private", "Private")}</div>
+                    <div class="chat-tab ${this.currentFilter === false ? "active" : ""}" data-filter="false">${this.t("chat.sidebar.tabs.group", "Group")}</div>
                     <div class="chat-tabs-indicator" id="chat-tabs-indicator" aria-hidden="true"></div>
                 </div>
-                <button class="chat-tabs-more-btn" id="chat-tabs-more-btn" title="More options">
+                <button class="chat-tabs-more-btn" id="chat-tabs-more-btn" title="${this.t("chat.sidebar.moreOptionsTitle", "More options")}">
                     <i data-lucide="ellipsis" size="18"></i>
                 </button>
             </div>
@@ -745,7 +876,7 @@ const ChatSidebar = {
             <div class="chat-list" id="chat-conversation-list">
                 <div class="loading-conversations">
                     <div class="spinner spinner-medium" aria-hidden="true"></div>
-                    <span>Loading...</span>
+                    <span>${this.t("chat.sidebar.loadingChats", "Loading chats...")}</span>
                 </div>
             </div>
         `;
@@ -812,19 +943,22 @@ const ChatSidebar = {
 
   async fetchSidebarSettings() {
     if (!window.API?.Accounts?.getSettings) {
-      throw new Error("Settings API is unavailable.");
+      throw new Error(
+        this.t(
+          "chat.sidebar.settings.apiUnavailable",
+          "Chat settings API is unavailable.",
+        ),
+      );
     }
 
     const res = await window.API.Accounts.getSettings();
     if (!res.ok) {
-      let message = "Failed to load settings.";
-      try {
-        const data = await res.json();
-        message = data?.title || data?.message || message;
-      } catch (_) {
-        // no-op
-      }
-      throw new Error(message);
+      const message = await this.readFriendlyApiError(res, {
+        action: "load-sidebar-settings",
+        fallbackKey: "errors.chat.settings_load_failed",
+        fallbackMessage: "Failed to load settings.",
+      });
+      throw this.createUiError(message);
     }
 
     const data = await res.json();
@@ -841,15 +975,15 @@ const ChatSidebar = {
     popup.className = "chat-settings-popup";
     popup.innerHTML = `
             <div class="chat-settings-popup-header">
-                <h3>Chat Settings</h3>
-                <button type="button" class="chat-settings-close-btn" aria-label="Close">
+                <h3>${this.t("chat.sidebar.settings.title", "Chat settings")}</h3>
+                <button type="button" class="chat-settings-close-btn" aria-label="${this.t("common.buttons.close", "Close")}">
                     <i data-lucide="x" size="16"></i>
                 </button>
             </div>
             <div class="chat-settings-popup-body">
                 <div class="chat-settings-loading">
                     <div class="spinner spinner-small" aria-hidden="true"></div>
-                    <span>Loading settings...</span>
+                    <span>${this.t("chat.sidebar.settings.loading", "Loading settings...")}</span>
                 </div>
             </div>
         `;
@@ -897,19 +1031,24 @@ const ChatSidebar = {
       this.renderSettingsPopupBody(popup, initialSettings);
       this.positionSettingsPopup(popup, anchor);
     } catch (error) {
+      const message = this.getFriendlyErrorMessage(
+        error,
+        "errors.chat.settings_load_failed",
+        "Failed to load settings.",
+      );
       const body = popup.querySelector(".chat-settings-popup-body");
       if (body) {
         body.innerHTML = `
                     <div class="chat-settings-error">
                         <i data-lucide="alert-triangle" size="16"></i>
-                        <span>${escapeHtml(error?.message || "Failed to load settings.")}</span>
+                        <span>${escapeHtml(message)}</span>
                     </div>
                 `;
         lucide.createIcons({ container: body });
         this.positionSettingsPopup(popup, anchor);
       }
       if (window.toastError) {
-        toastError(error?.message || "Failed to load settings.");
+        toastError(message);
       }
     }
   },
@@ -925,22 +1064,22 @@ const ChatSidebar = {
 
     body.innerHTML = `
             <div class="chat-settings-item">
-                <div class="chat-settings-item-labels">
-                    <div class="chat-settings-item-title">Online Status Visibility</div>
+                    <div class="chat-settings-item-labels">
+                    <div class="chat-settings-item-title">${this.t("chat.sidebar.settings.onlineStatusTitle", "Online Status Visibility")}</div>
                     <div class="chat-settings-item-value" id="chat-setting-online-status-value"></div>
                 </div>
-                <button type="button" class="chat-settings-toggle-btn" id="chat-setting-online-status-btn" aria-label="Toggle online status visibility"></button>
+                <button type="button" class="chat-settings-toggle-btn" id="chat-setting-online-status-btn" aria-label="${this.t("chat.sidebar.settings.onlineStatusToggleAria", "Toggle online status visibility")}"></button>
             </div>
             <div class="chat-settings-item">
                 <div class="chat-settings-item-labels">
-                    <div class="chat-settings-item-title">Who Can Add Me to Group Chats</div>
+                    <div class="chat-settings-item-title">${this.t("chat.sidebar.settings.groupInviteTitle", "Who Can Add Me to Group Chats")}</div>
                     <div class="chat-settings-item-value" id="chat-setting-group-invite-value"></div>
                 </div>
-                <button type="button" class="chat-settings-toggle-btn" id="chat-setting-group-invite-btn" aria-label="Toggle who can add you to group chats"></button>
+                <button type="button" class="chat-settings-toggle-btn" id="chat-setting-group-invite-btn" aria-label="${this.t("chat.sidebar.settings.groupInviteToggleAria", "Toggle who can add you to group chats")}"></button>
             </div>
             <div class="chat-settings-actions">
                 <button type="button" class="chat-settings-action-btn primary" id="chat-settings-save-btn">
-                    <span>Save</span>
+                    <span>${this.t("common.buttons.save", "Save")}</span>
                 </button>
             </div>
         `;
@@ -1007,7 +1146,7 @@ const ChatSidebar = {
     saveBtn.disabled = true;
     saveBtn.classList.add("is-loading");
     saveBtn.innerHTML = `
-            <span>Saving...</span>
+            <span>${this.t("chat.sidebar.settings.saving", "Saving...")}</span>
         `;
 
     try {
@@ -1018,23 +1157,31 @@ const ChatSidebar = {
 
       const res = await window.API.Accounts.updateSettings(payload);
       if (!res.ok) {
-        let message = "Failed to update settings.";
-        try {
-          const data = await res.json();
-          message = data?.title || data?.message || message;
-        } catch (_) {
-          // no-op
-        }
-        throw new Error(message);
+        const message = await this.readFriendlyApiError(res, {
+          action: "update-sidebar-settings",
+          fallbackKey: "errors.chat.settings_update_failed",
+          fallbackMessage: "Failed to update settings.",
+        });
+        throw this.createUiError(message);
       }
 
       if (window.toastSuccess) {
-        toastSuccess("Chat settings updated.");
+        toastSuccess(
+          this.t(
+            "chat.sidebar.settings.updated",
+            "Chat settings updated.",
+          ),
+        );
       }
       this.closeSettingsPopup();
     } catch (error) {
+      const message = this.getFriendlyErrorMessage(
+        error,
+        "errors.chat.settings_update_failed",
+        "Failed to update settings.",
+      );
       if (window.toastError) {
-        toastError(error?.message || "Failed to update settings.");
+        toastError(message);
       }
 
       if (document.getElementById("chat-sidebar-settings-popup")) {
@@ -1069,11 +1216,11 @@ const ChatSidebar = {
     menu.innerHTML = `
             <div class="chat-popup-item" id="chat-menu-create-group">
                 <i data-lucide="users" size="16"></i>
-                <span>Create Group</span>
+                <span>${this.t("chat.sidebar.more.createGroup", "Create Group")}</span>
             </div>
             <div class="chat-popup-item" id="chat-menu-blocked-users">
                 <i data-lucide="user-x" size="16"></i>
-                <span>Blocked Users</span>
+                <span>${this.t("chat.sidebar.more.blockedUsers", "Blocked Users")}</span>
             </div>
         `;
 
@@ -1107,7 +1254,12 @@ const ChatSidebar = {
         } else {
           console.error("openCreateChatGroupModal not found");
           if (window.toastInfo)
-            window.toastInfo("Create Group feature coming soon!");
+            window.toastInfo(
+              this.t(
+                "chat.sidebar.more.createGroupComingSoon",
+                "Create Group feature coming soon!",
+              ),
+            );
         }
         menu.remove();
       };
@@ -1116,9 +1268,13 @@ const ChatSidebar = {
     const blockedUsersBtn = menu.querySelector("#chat-menu-blocked-users");
     if (blockedUsersBtn) {
       blockedUsersBtn.onclick = () => {
-        console.log("Blocked Users clicked");
         if (window.toastInfo)
-          window.toastInfo("Blocked Users list coming soon!");
+          window.toastInfo(
+            this.t(
+              "chat.sidebar.more.blockedUsersComingSoon",
+              "Blocked Users list coming soon!",
+            ),
+          );
         menu.remove();
       };
     }
@@ -1272,7 +1428,7 @@ const ChatSidebar = {
       listContainer.innerHTML = `
                 <div class="chat-sidebar-loader">
                     <div class="spinner spinner-medium"></div>
-                    <p>Loading chats...</p>
+                    <p>${this.t("chat.sidebar.loadingChats", "Loading chats...")}</p>
                 </div>
             `;
     } else {
@@ -1365,14 +1521,27 @@ const ChatSidebar = {
             },
           }),
         );
+      } else {
+        throw this.createUiError(
+          await this.readFriendlyApiError(res, {
+            action: "load-conversations",
+            fallbackKey: "errors.chat.load_conversations_failed",
+            fallbackMessage: "Error loading chats",
+          }),
+        );
       }
     } catch (error) {
       console.error("Failed to load conversations:", error);
       if (!isLoadMore) {
+        const message = this.getFriendlyErrorMessage(
+          error,
+          "errors.chat.load_conversations_failed",
+          "Error loading chats",
+        );
         listContainer.innerHTML = `
                     <div class="chat-sidebar-loader">
                         <i data-lucide="alert-circle" style="width:24px; height:24px; color:var(--text-tertiary);"></i>
-                        <p>Error loading chats</p>
+                        <p>${escapeHtml(message)}</p>
                     </div>
                 `;
         if (window.lucide) lucide.createIcons({ container: listContainer });
@@ -1387,7 +1556,7 @@ const ChatSidebar = {
 
     if (!isAppend && items.length === 0) {
       listContainer.innerHTML =
-        '<div style="padding:20px; text-align:center; color:var(--text-tertiary);">No messages yet</div>';
+        `<div style="padding:20px; text-align:center; color:var(--text-tertiary);">${this.t("chat.sidebar.noMessagesYet", "No messages yet")}</div>`;
       this.updateActiveItemIndicator();
       return;
     }
@@ -1409,7 +1578,7 @@ const ChatSidebar = {
         ).toLowerCase();
 
         const time = conv.lastMessageSentAt
-          ? PostUtils.timeAgo(conv.lastMessageSentAt, true)
+          ? this.formatRelativeTime(conv.lastMessageSentAt, true)
           : "";
         const unread = conv.unreadCount > 0;
         const presenceStatus = this.getPresenceStatusForConversation(conv);
@@ -1445,7 +1614,7 @@ const ChatSidebar = {
                           .map(
                             (m) => `
                             <img src="${m.avatarUrl || APP_CONFIG.DEFAULT_AVATAR}" 
-                                 title="Seen by ${escapeHtml(m.displayName)}" 
+                                 title="${this.t("chat.message.seen_by", "Seen by {name}", { name: m.displayName })}" 
                                  class="chat-mini-seen-avatar">
                         `,
                           )
@@ -1739,10 +1908,10 @@ const ChatSidebar = {
             conv.otherMember.Username ||
             conv.otherMember.fullName ||
             conv.otherMember.FullName ||
-            "User"
+            this.t("common.labels.user", "User")
           );
         }
-        return "User";
+        return this.t("common.labels.user", "User");
       };
 
       if (
@@ -1805,7 +1974,7 @@ const ChatSidebar = {
       dot.textContent = "·";
       const time = document.createElement("span");
       time.className = "chat-meta";
-      time.textContent = PostUtils.timeAgo(sentAt, true);
+      time.textContent = this.formatRelativeTime(sentAt, true);
       msgRow.appendChild(dot);
       msgRow.appendChild(time);
     }
@@ -1851,8 +2020,11 @@ const ChatSidebar = {
       conv.lastMessage = null;
       conv.lastMessageSentAt = null;
       conv.lastMessagePreview = conv.isGroup
-        ? "Group created"
-        : "Started a conversation";
+        ? this.t("chat.sidebar.preview.groupCreated", "Group created")
+        : this.t(
+            "chat.sidebar.preview.startedConversation",
+            "Started a conversation",
+          );
     }
 
     conv.lastMessageSeenBy = [];
@@ -1882,7 +2054,10 @@ const ChatSidebar = {
     conv.lastMessage.IsRecalled = true;
     conv.lastMessage.content = null;
     conv.lastMessage.Content = null;
-    conv.lastMessagePreview = "Message recalled";
+    conv.lastMessagePreview = this.t(
+      "chat.sidebar.preview.recalledMessage",
+      "Message recalled",
+    );
     return this.renderConversationLastMessage(conv);
   },
 
@@ -1974,7 +2149,7 @@ const ChatSidebar = {
         // Update time
         const timeMeta = item.querySelector(".chat-meta");
         if (timeMeta) {
-          timeMeta.textContent = "now";
+          timeMeta.textContent = this.t("common.time.now", "now");
         } else {
           const msgRow = item.querySelector(".chat-msg-row");
           if (msgRow) {
@@ -1983,7 +2158,7 @@ const ChatSidebar = {
             dot.textContent = "·";
             const time = document.createElement("span");
             time.className = "chat-meta";
-            time.textContent = "now";
+            time.textContent = this.t("common.time.now", "now");
             msgRow.appendChild(dot);
             msgRow.appendChild(time);
           }
@@ -2089,7 +2264,7 @@ const ChatSidebar = {
       const memberInfo = resolvedMemberInfo || {
         accountId: accIdNorm || accountId,
         avatarUrl: APP_CONFIG.DEFAULT_AVATAR,
-        displayName: "User",
+        displayName: this.t("common.labels.user", "User"),
       };
       conv.lastMessageSeenBy.push(memberInfo);
 
@@ -2129,7 +2304,7 @@ const ChatSidebar = {
                   .map(
                     (m) => `
                     <img src="${m.avatarUrl || APP_CONFIG.DEFAULT_AVATAR}" 
-                         title="Seen by ${escapeHtml(m.displayName)}" 
+                         title="${this.t("chat.message.seen_by", "Seen by {name}", { name: m.displayName })}" 
                          class="chat-mini-seen-avatar">
                 `,
                   )
