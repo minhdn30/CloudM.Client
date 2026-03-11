@@ -57,6 +57,7 @@
 
   const ACCOUNT_SETTINGS_SUBPAGES = Object.freeze({
     PASSWORD: "password",
+    BLOCKED_USERS: "blocked-users",
   });
 
   const RESERVED_PROFILE_ROOTS = Object.freeze(
@@ -463,6 +464,9 @@
     if (!normalized) return "";
     if (normalized === ACCOUNT_SETTINGS_SUBPAGES.PASSWORD) {
       return ACCOUNT_SETTINGS_SUBPAGES.PASSWORD;
+    }
+    if (normalized === ACCOUNT_SETTINGS_SUBPAGES.BLOCKED_USERS) {
+      return ACCOUNT_SETTINGS_SUBPAGES.BLOCKED_USERS;
     }
     return "";
   }

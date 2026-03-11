@@ -1,0 +1,58 @@
+<div class="blocked-users-page" data-i18n-auto>
+  <div class="blocked-users-shell">
+    <div class="blocked-users-header">
+      <button
+        type="button"
+        class="blocked-users-back-btn"
+        id="blocked-users-back-btn"
+        aria-label="Back to account settings"
+        data-i18n-aria-label="profile.blockedUsersSettings.backAria"
+      >
+        <i data-lucide="chevron-left"></i>
+        <span data-i18n="common.navigation.accountSettings">Account Settings</span>
+      </button>
+
+      <div class="blocked-users-hero">
+        <div class="blocked-users-badge">
+          <i data-lucide="user-x"></i>
+          <span data-i18n="profile.blockedUsersSettings.badge">Blocked users</span>
+        </div>
+        <h1 data-i18n="profile.blockedUsersSettings.title">Blocked users</h1>
+        <p
+          class="blocked-users-subtitle"
+          data-i18n="profile.blockedUsersSettings.subtitle"
+        >
+          Review the accounts you've blocked and remove blocks when needed
+        </p>
+      </div>
+    </div>
+
+    <section class="blocked-users-card">
+      <div class="blocked-users-toolbar">
+        <label class="blocked-users-search" for="blocked-users-search-input">
+          <i data-lucide="search"></i>
+          <input
+            id="blocked-users-search-input"
+            type="search"
+            placeholder="Search blocked users"
+            data-i18n-placeholder="profile.blockedUsersSettings.searchPlaceholder"
+            autocomplete="off"
+          />
+        </label>
+      </div>
+
+      <div class="blocked-users-list" id="blocked-users-list"></div>
+
+      <div class="blocked-users-footer">
+        <button
+          type="button"
+          class="blocked-users-load-more-btn"
+          id="blocked-users-load-more-btn"
+          hidden
+        >
+          <span data-i18n="common.buttons.loadMore">Load more</span>
+        </button>
+      </div>
+    </section>
+  </div>
+</div>

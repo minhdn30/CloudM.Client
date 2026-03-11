@@ -1027,6 +1027,21 @@
       },
     },
 
+    Blocks: {
+      list: (
+        keyword = "",
+        page = 1,
+        pageSize = window.APP_CONFIG?.BLOCKED_USERS_PAGE_SIZE || 20,
+      ) =>
+        apiFetch(
+          `/Blocks?keyword=${encodeURIComponent(keyword ?? "")}&page=${encodeURIComponent(page)}&pageSize=${encodeURIComponent(pageSize)}`,
+        ),
+      status: (targetId) => apiFetch(`/Blocks/status/${encodeURIComponent(targetId)}`),
+      block: (targetId) => apiFetch(`/Blocks/${encodeURIComponent(targetId)}`, { method: "POST" }),
+      unblock: (targetId) =>
+        apiFetch(`/Blocks/${encodeURIComponent(targetId)}`, { method: "DELETE" }),
+    },
+
     Conversations: {
       getConversations: (
         isPrivate,

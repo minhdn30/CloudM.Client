@@ -23,6 +23,7 @@ const APP_ROUTE_PATHS = AppRouteHelper?.PATHS || {
   SETTINGS_SEGMENT: "settings",
 };
 const APP_PASSWORD_SETTINGS_SEGMENT = "password";
+const APP_BLOCKED_USERS_SETTINGS_SEGMENT = "blocked-users";
 
 function appT(key, params = {}, fallback = "") {
   if (window.I18n?.t) {
@@ -150,6 +151,18 @@ function appResolveSelfPasswordSettingsPath() {
 
   const basePath = appResolveSelfSettingsPath();
   return `${basePath}/${APP_PASSWORD_SETTINGS_SEGMENT}`;
+}
+
+function appResolveSelfBlockedUsersSettingsPath() {
+  if (AppRouteHelper?.buildAccountSettingsSubPath) {
+    return AppRouteHelper.buildAccountSettingsSubPath(
+      "",
+      APP_BLOCKED_USERS_SETTINGS_SEGMENT,
+    );
+  }
+
+  const basePath = appResolveSelfSettingsPath();
+  return `${basePath}/${APP_BLOCKED_USERS_SETTINGS_SEGMENT}`;
 }
 
 function appGoToNotFound(options = {}) {
@@ -1244,6 +1257,8 @@ async function router() {
       const settingsSubpage = appExtractAccountSettingsSubpage(path);
       if (settingsSubpage === APP_PASSWORD_SETTINGS_SEGMENT) {
         loadPasswordSettings();
+      } else if (settingsSubpage === APP_BLOCKED_USERS_SETTINGS_SEGMENT) {
+        loadBlockedUsersSettings();
       } else {
         loadAccountSettings();
       }
@@ -1375,6 +1390,14 @@ async function loadPasswordSettings() {
     await loadPage("profile/password-settings");
     if (window.initPasswordSettings) {
         window.initPasswordSettings();
+    }
+}
+
+async function loadBlockedUsersSettings() {
+    PageCache.clear("#/account-settings/blocked-users");
+    await loadPage("profile/blocked-users-settings");
+    if (window.initBlockedUsersSettings) {
+        window.initBlockedUsersSettings();
     }
 }
 

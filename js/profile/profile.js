@@ -67,6 +67,7 @@
   let archivedStoryIdSet = new Set();
 
   let currentProfileData = null;
+  let currentBlockStatus = null;
   let profilePresenceUnsubscribe = null;
   let profileTabStateCache = {
     profileKey: "",
@@ -601,6 +602,81 @@
       (myAccountId && profileKey === myAccountId) ||
       (myUsername && profileKey === myUsername),
     );
+  }
+
+  function getCurrentProfileTargetName(data = currentProfileData) {
+    const info =
+      data?.accountInfo || data?.AccountInfo || data?.account || data?.Account || {};
+    return (
+      info.username ||
+      info.Username ||
+      info.fullName ||
+      info.FullName ||
+      profileT("common.labels.user", {}, "User")
+    );
+  }
+
+  function syncCurrentProfileBlockStatus(data) {
+    const info =
+      data?.accountInfo || data?.AccountInfo || data?.account || data?.Account || {};
+    const profileAccountId =
+      info.accountId || info.AccountId || info.id || info.Id || currentProfileId;
+    const isOwner = !!(data?.isCurrentUser ?? data?.IsCurrentUser);
+
+    if (isOwner || !profileAccountId) {
+      currentBlockStatus = null;
+      return null;
+    }
+
+    const normalizedTargetId = normalizeProfileCacheKey(profileAccountId);
+    const currentTargetId = normalizeProfileCacheKey(
+      currentBlockStatus?.targetId || currentBlockStatus?.TargetId || "",
+    );
+
+    if (!normalizedTargetId || currentTargetId !== normalizedTargetId) {
+      currentBlockStatus = null;
+    }
+
+    return currentBlockStatus;
+  }
+
+  async function ensureCurrentProfileBlockStatus() {
+    const targetId = getProfileDataAccountId() || currentProfileId;
+    if (
+      !targetId ||
+      isCurrentUserProfile() ||
+      !window.BlockUtils?.requestStatus
+    ) {
+      currentBlockStatus = null;
+      return null;
+    }
+
+    const normalizedTargetId = normalizeProfileCacheKey(targetId);
+    const currentTargetId = normalizeProfileCacheKey(
+      currentBlockStatus?.targetId || currentBlockStatus?.TargetId || "",
+    );
+
+    if (normalizedTargetId && currentTargetId === normalizedTargetId) {
+      return currentBlockStatus;
+    }
+
+    currentBlockStatus = await window.BlockUtils.requestStatus(targetId);
+    return currentBlockStatus;
+  }
+
+  function applyProfileBlockMenuState(status = currentBlockStatus) {
+    const blockButton = document.getElementById("profile-block-menu-btn");
+    const blockLabel = document.getElementById("profile-block-menu-label");
+    if (!blockButton || !blockLabel) return;
+
+    const isBlockedByCurrentUser = !!(
+      status?.isBlockedByCurrentUser ?? status?.IsBlockedByCurrentUser
+    );
+
+    blockButton.classList.toggle("danger", !isBlockedByCurrentUser);
+    blockLabel.textContent = isBlockedByCurrentUser
+      ? profileT("profile.blockedUsersSettings.actions.unblock", {}, "Unblock")
+      : profileT("profile.more.block");
   }
 
   function clearProfileTabStateCache() {
@@ -1213,6 +1289,8 @@
         }
       }
 
+      syncCurrentProfileBlockStatus(data);
+
       if (isSilent) {
         // Background update: Only update stats and internal data
         currentProfileData = data;
@@ -1644,6 +1722,19 @@
           : followRelation.isRequested
             ? profileT("common.buttons.requestSent")
             : profileT("common.buttons.follow");
+        const isBlockedByCurrentUser =
+          !!(
+            currentBlockStatus?.isBlockedByCurrentUser ??
+            currentBlockStatus?.IsBlockedByCurrentUser
+          );
+        const blockActionText = isBlockedByCurrentUser
+          ? profileT(
+              "profile.blockedUsersSettings.actions.unblock",
+              {},
+              "Unblock",
+            )
+          : profileT("profile.more.block");
+        const blockActionClass = isBlockedByCurrentUser ? "" : "danger";
 
         actionBtn.innerHTML = `
                     <button class="profile-btn ${followBtnClass}" onclick="toggleFollowProfile('${profileAccountId}')">
@@ -1664,9 +1755,9 @@
                                 <i data-lucide="flag"></i>
                                 <span>${profileT("profile.more.report")}</span>
                             </button>
-                            <button type="button" class="danger" onclick="blockProfileFromMoreMenu(event)">
+                            <button type="button" class="${blockActionClass}" id="profile-block-menu-btn" onclick="blockProfileFromMoreMenu(event)">
                                 <i data-lucide="ban"></i>
-                                <span>${profileT("profile.more.block")}</span>
+                                <span id="profile-block-menu-label">${blockActionText}</span>
                             </button>
                         </div>
                     </div>
@@ -4028,7 +4119,7 @@
     });
   }
 
-  global.openProfileMoreMenu = function (event) {
+  global.openProfileMoreMenu = async function (event) {
     event?.preventDefault?.();
     event?.stopPropagation?.();
 
@@ -4039,6 +4130,15 @@
     const shouldShow = menu.hidden;
     closeProfileMoreMenu();
     if (!shouldShow) return;
+
+    if (!isCurrentUserProfile()) {
+      try {
+        const status = await ensureCurrentProfileBlockStatus();
+        applyProfileBlockMenuState(status);
+      } catch (error) {
+        console.error("Failed to load profile block status:", error);
+      }
+    }
 
     menu.hidden = false;
     menu.classList.add("show");
@@ -4073,12 +4173,8 @@
     event?.stopPropagation?.();
     closeProfileMoreMenu();
 
-    if (window.toastInfo) {
-      toastInfo(
-        profileT(
-          "profile.more.blockedUsersComingSoon",
-        ),
-      );
+    if (window.BlockUtils?.openBlockedUsersPage) {
+      window.BlockUtils.openBlockedUsersPage();
     }
   };
 
@@ -4096,18 +4192,55 @@
     }
   };
 
-  global.blockProfileFromMoreMenu = function (event) {
+  global.blockProfileFromMoreMenu = async function (event) {
     event?.preventDefault?.();
     event?.stopPropagation?.();
     closeProfileMoreMenu();
 
-    if (window.toastInfo) {
-      toastInfo(
-        profileT(
-          "profile.more.blockComingSoon",
-        ),
-      );
-    }
+    const targetId = getProfileDataAccountId() || currentProfileId;
+    if (!targetId || isCurrentUserProfile() || !window.BlockUtils?.toggleBlock) return;
+
+    const status = await ensureCurrentProfileBlockStatus().catch(() => currentBlockStatus);
+
+    window.BlockUtils.toggleBlock({
+      targetId,
+      targetName: getCurrentProfileTargetName(),
+      targetUsername:
+        currentProfileData?.accountInfo?.username ||
+        currentProfileData?.accountInfo?.Username ||
+        currentProfileData?.account?.username ||
+        currentProfileData?.account?.Username ||
+        "",
+      targetFullName:
+        currentProfileData?.accountInfo?.fullName ||
+        currentProfileData?.accountInfo?.FullName ||
+        currentProfileData?.account?.fullName ||
+        currentProfileData?.account?.FullName ||
+        "",
+      isBlockedByCurrentUser: !!(
+        status?.isBlockedByCurrentUser ?? status?.IsBlockedByCurrentUser
+      ),
+      onSuccess: async (status) => {
+        currentBlockStatus = status;
+        applyProfileBlockMenuState(status);
+
+        if (status?.isBlockedByCurrentUser) {
+          if (window.PageCache?.clear) {
+            const currentKey =
+              typeof window.location.hash === "string" ? window.location.hash : "";
+            if (currentKey) {
+              window.PageCache.clear(currentKey);
+            }
+          }
+          window.location.hash = "#/";
+          return;
+        }
+
+        if (currentProfileData) {
+          renderProfileHeader(currentProfileData);
+        }
+      },
+    });
   };
 
   global.updateFollowStatus = function (
