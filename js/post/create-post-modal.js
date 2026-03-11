@@ -6,6 +6,10 @@ let currentStep = 1;
 // Store multiple media files
 let mediaFiles = []; // Array to store multiple media with crop data
 let currentMediaIndex = 0; // Current active media
+let renderedMediaIndex = -1; // Media currently rendered in step 1 preview
+let step1MediaIndexBeforeStep2 = 0;
+let mediaPreviewLoadToken = 0;
+let isMediaPreviewLoading = false;
 
 // Image state
 let currentImage = null;
@@ -32,6 +36,7 @@ let cropFrameSize = { width: 400, height: 400 }; // Fixed crop frame size in pix
 let zoomLevel = 1;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3;
+const STEP2_PREVIEW_MAX_SIZE = 1600;
 
 // Global crop ratio for all images
 let globalCropRatio = "1:1";
@@ -211,6 +216,10 @@ function openCreatePostModal() {
   imageOffsetY = 0;
   isDragging = false;
   isProcessingCrop = false;
+  renderedMediaIndex = -1;
+  step1MediaIndexBeforeStep2 = 0;
+  isMediaPreviewLoading = false;
+  mediaPreviewLoadToken++;
 
   modal.classList.add("show");
   if (window.lockScroll) lockScroll();
@@ -331,9 +340,26 @@ function closeCreatePostModal() {
 
 // Handle back button
 function handleBackButton() {
+  if (isProcessingCrop) {
+    return;
+  }
+
   if (currentStep === 2) {
     currentStep = 1;
     showStep(1);
+    currentMediaIndex = Math.max(
+      0,
+      Math.min(step1MediaIndexBeforeStep2, mediaFiles.length - 1),
+    );
+
+    requestAnimationFrame(() => {
+      if (currentStep !== 1 || mediaFiles.length === 0) {
+        return;
+      }
+
+      updateThumbnails();
+      showMediaAtIndex(currentMediaIndex);
+    });
   } else {
     closeCreatePostModal();
   }
@@ -364,7 +390,7 @@ function setLoadingState(loading) {
 
 // Handle next step / share
 async function handleNextStep() {
-  if (isProcessingCrop) {
+  if (isProcessingCrop || isMediaPreviewLoading) {
     return; // Prevent action if still processing
   }
 
@@ -385,6 +411,8 @@ async function handleNextStep() {
 
     // Save crop data for current media if exists
     saveCropData();
+    step1MediaIndexBeforeStep2 =
+      renderedMediaIndex >= 0 ? renderedMediaIndex : currentMediaIndex;
 
     // Show loading
     setLoadingState(true);
@@ -506,6 +534,137 @@ function calculateDisplayScale() {
   const scaleY = containerRect.height / imageNaturalHeight;
 
   return Math.min(scaleX, scaleY);
+}
+
+function normalizeCropRect(
+  rawCropX,
+  rawCropY,
+  rawCropWidth,
+  rawCropHeight,
+  naturalWidth,
+  naturalHeight,
+) {
+  if (!naturalWidth || !naturalHeight) {
+    return null;
+  }
+
+  const safeNaturalWidth = Math.max(1, Math.round(naturalWidth));
+  const safeNaturalHeight = Math.max(1, Math.round(naturalHeight));
+
+  let cropX_px = Number.isFinite(rawCropX) ? rawCropX : 0;
+  let cropY_px = Number.isFinite(rawCropY) ? rawCropY : 0;
+  let cropWidth_px = Number.isFinite(rawCropWidth)
+    ? rawCropWidth
+    : safeNaturalWidth;
+  let cropHeight_px = Number.isFinite(rawCropHeight)
+    ? rawCropHeight
+    : safeNaturalHeight;
+
+  cropX_px = Math.max(0, Math.min(cropX_px, safeNaturalWidth - 1));
+  cropY_px = Math.max(0, Math.min(cropY_px, safeNaturalHeight - 1));
+  cropWidth_px = Math.max(
+    1,
+    Math.min(cropWidth_px, safeNaturalWidth - cropX_px),
+  );
+  cropHeight_px = Math.max(
+    1,
+    Math.min(cropHeight_px, safeNaturalHeight - cropY_px),
+  );
+
+  return {
+    cropX_px,
+    cropY_px,
+    cropWidth_px,
+    cropHeight_px,
+    cropX: cropX_px / safeNaturalWidth,
+    cropY: cropY_px / safeNaturalHeight,
+    cropWidth: cropWidth_px / safeNaturalWidth,
+    cropHeight: cropHeight_px / safeNaturalHeight,
+    imageNaturalWidth: safeNaturalWidth,
+    imageNaturalHeight: safeNaturalHeight,
+  };
+}
+
+function getNormalizedCropRect(cropData, naturalWidth, naturalHeight) {
+  if (!cropData || !naturalWidth || !naturalHeight) {
+    return null;
+  }
+
+  const rawCropX = Number.isFinite(cropData.cropX_px)
+    ? cropData.cropX_px
+    : Number.isFinite(cropData.cropX)
+      ? cropData.cropX * naturalWidth
+      : 0;
+  const rawCropY = Number.isFinite(cropData.cropY_px)
+    ? cropData.cropY_px
+    : Number.isFinite(cropData.cropY)
+      ? cropData.cropY * naturalHeight
+      : 0;
+  const rawCropWidth = Number.isFinite(cropData.cropWidth_px)
+    ? cropData.cropWidth_px
+    : Number.isFinite(cropData.cropWidth)
+      ? cropData.cropWidth * naturalWidth
+      : naturalWidth;
+  const rawCropHeight = Number.isFinite(cropData.cropHeight_px)
+    ? cropData.cropHeight_px
+    : Number.isFinite(cropData.cropHeight)
+      ? cropData.cropHeight * naturalHeight
+      : naturalHeight;
+
+  return normalizeCropRect(
+    rawCropX,
+    rawCropY,
+    rawCropWidth,
+    rawCropHeight,
+    naturalWidth,
+    naturalHeight,
+  );
+}
+
+function hasUsableCropData(media, expectedRatio) {
+  if (!media?.cropData || media.cropData.ratio !== expectedRatio) {
+    return false;
+  }
+
+  const naturalWidth =
+    media.cropData.imageNaturalWidth || media.cropData.originalWidth;
+  const naturalHeight =
+    media.cropData.imageNaturalHeight || media.cropData.originalHeight;
+  const normalizedCrop = getNormalizedCropRect(
+    media.cropData,
+    naturalWidth,
+    naturalHeight,
+  );
+
+  if (!normalizedCrop) {
+    return false;
+  }
+
+  media.cropData = {
+    ...media.cropData,
+    ...normalizedCrop,
+  };
+
+  return true;
+}
+
+function getStep2PreviewCanvasDimensions() {
+  const sliderWrapper = document.getElementById("mediaSliderWrapper");
+  const readonlyContainer = document.getElementById("mediaReadonlyContainer");
+  const target = sliderWrapper || readonlyContainer;
+  const targetRect = target?.getBoundingClientRect();
+  const deviceScale = Math.min(window.devicePixelRatio || 1, 2);
+  let width = Math.max(1, Math.round((targetRect?.width || 1) * deviceScale));
+  let height = Math.max(1, Math.round((targetRect?.height || 1) * deviceScale));
+  const longestSide = Math.max(width, height);
+
+  if (longestSide > STEP2_PREVIEW_MAX_SIZE) {
+    const resizeRatio = STEP2_PREVIEW_MAX_SIZE / longestSide;
+    width = Math.max(1, Math.round(width * resizeRatio));
+    height = Math.max(1, Math.round(height * resizeRatio));
+  }
+
+  return { width, height };
 }
 
 // Calculate optimal zoom and position for Instagram-style crop
@@ -639,6 +798,7 @@ function showMediaPreview() {
   zoomLevel = 1;
   imageOffsetX = 0;
   imageOffsetY = 0;
+  renderedMediaIndex = -1;
 
   showMediaAtIndex(currentMediaIndex);
   updateThumbnails();
@@ -651,14 +811,26 @@ function showMediaAtIndex(index) {
   const media = mediaFiles[index];
   const imagePreview = document.getElementById("postImagePreview");
   const videoPreview = document.getElementById("postVideoPreview");
+  const loadToken = ++mediaPreviewLoadToken;
 
   // Only handle images now
   if (imagePreview) {
+    isMediaPreviewLoading = true;
     imagePreview.src = media.data;
     imagePreview.style.display = "block";
 
     // Wait for image to load
     imagePreview.onload = function () {
+      if (
+        loadToken !== mediaPreviewLoadToken ||
+        currentStep !== 1 ||
+        mediaFiles[index] !== media
+      ) {
+        return;
+      }
+
+      renderedMediaIndex = index;
+      isMediaPreviewLoading = false;
       currentImage = imagePreview;
       imageNaturalWidth = imagePreview.naturalWidth;
       imageNaturalHeight = imagePreview.naturalHeight;
@@ -679,7 +851,7 @@ function showMediaAtIndex(index) {
       }
 
       // Restore crop data if exists
-      if (media.cropData && media.cropData.ratio === currentCropRatio) {
+      if (hasUsableCropData(media, currentCropRatio)) {
         zoomLevel = media.cropData.zoomLevel;
         imageOffsetX = media.cropData.offsetX;
         imageOffsetY = media.cropData.offsetY;
@@ -701,6 +873,15 @@ function showMediaAtIndex(index) {
       updateImagePosition();
       updateCropOverlay();
       updateZoomSlider();
+      updateThumbnails();
+    };
+
+    imagePreview.onerror = function () {
+      if (loadToken !== mediaPreviewLoadToken) {
+        return;
+      }
+
+      isMediaPreviewLoading = false;
     };
   }
 
@@ -713,8 +894,20 @@ function showMediaAtIndex(index) {
 
 // Save crop data for current media
 function saveCropData() {
-  if (currentMediaIndex >= 0 && currentMediaIndex < mediaFiles.length) {
-    const media = mediaFiles[currentMediaIndex];
+  if (
+    isMediaPreviewLoading &&
+    (renderedMediaIndex < 0 || renderedMediaIndex !== currentMediaIndex)
+  ) {
+    return;
+  }
+
+  const targetMediaIndex =
+    renderedMediaIndex >= 0 && renderedMediaIndex < mediaFiles.length
+      ? renderedMediaIndex
+      : currentMediaIndex;
+
+  if (targetMediaIndex >= 0 && targetMediaIndex < mediaFiles.length) {
+    const media = mediaFiles[targetMediaIndex];
 
     // Only save crop data for images
     // Calculate crop coordinates in original image
@@ -762,42 +955,26 @@ function saveCropData() {
     let cropWidth_px = cropFrameSize.width / finalScale;
     let cropHeight_px = cropFrameSize.height / finalScale;
 
-    // CLAMP: Ensure crop coordinates are within valid bounds
-    cropX_px = Math.max(0, Math.min(cropX_px, imageNaturalWidth));
-    cropY_px = Math.max(0, Math.min(cropY_px, imageNaturalHeight));
-    cropWidth_px = Math.max(
-      1,
-      Math.min(cropWidth_px, imageNaturalWidth - cropX_px),
-    );
-    cropHeight_px = Math.max(
-      1,
-      Math.min(cropHeight_px, imageNaturalHeight - cropY_px),
+    const normalizedCrop = normalizeCropRect(
+      cropX_px,
+      cropY_px,
+      cropWidth_px,
+      cropHeight_px,
+      imageNaturalWidth,
+      imageNaturalHeight,
     );
 
-    // Normalize to 0-1 range based on image dimensions
-    const cropX_norm = cropX_px / imageNaturalWidth;
-    const cropY_norm = cropY_px / imageNaturalHeight;
-    const cropWidth_norm = cropWidth_px / imageNaturalWidth;
-    const cropHeight_norm = cropHeight_px / imageNaturalHeight;
+    if (!normalizedCrop) {
+      return;
+    }
 
     media.cropData = {
       ratio: currentCropRatio,
       zoomLevel: zoomLevel,
       offsetX: imageOffsetX,
       offsetY: imageOffsetY,
-      // Store both pixel values (for display/editing) and normalized values (for API)
-      cropX_px: cropX_px,
-      cropY_px: cropY_px,
-      cropWidth_px: cropWidth_px,
-      cropHeight_px: cropHeight_px,
-      // Normalized values for backend (0-1)
-      cropX: cropX_norm,
-      cropY: cropY_norm,
-      cropWidth: cropWidth_norm,
-      cropHeight: cropHeight_norm,
+      ...normalizedCrop,
       displayScale: displayScale,
-      imageNaturalWidth: imageNaturalWidth,
-      imageNaturalHeight: imageNaturalHeight,
     };
   }
 }
@@ -850,10 +1027,11 @@ function updateThumbnails() {
 
 // Delete media at index
 function deleteMedia(index) {
+  if (isProcessingCrop) return;
   if (index < 0 || index >= mediaFiles.length) return;
 
   // Save current media crop data before deleting
-  if (index === currentMediaIndex) {
+  if (index === currentMediaIndex || index === renderedMediaIndex) {
     saveCropData();
   }
 
@@ -870,6 +1048,7 @@ function deleteMedia(index) {
   if (currentMediaIndex >= mediaFiles.length) {
     currentMediaIndex = mediaFiles.length - 1;
   }
+  renderedMediaIndex = -1;
 
   // Show current media
   showMediaAtIndex(currentMediaIndex);
@@ -878,17 +1057,17 @@ function deleteMedia(index) {
 
 // Switch to media at index
 function switchToMedia(index) {
+  if (isProcessingCrop) return;
+
   if (index >= 0 && index < mediaFiles.length) {
     // Save current media crop data
     saveCropData();
 
     currentMediaIndex = index;
+    renderedMediaIndex = -1;
+    updateThumbnails();
 
     showMediaAtIndex(index);
-
-    document.querySelectorAll(".thumbnail-item").forEach((thumb, i) => {
-      thumb.classList.toggle("active", i === index);
-    });
   }
 }
 
@@ -955,6 +1134,10 @@ function resetPostForm() {
   // Clear the array
   mediaFiles = [];
   currentMediaIndex = 0;
+  renderedMediaIndex = -1;
+  step1MediaIndexBeforeStep2 = 0;
+  isMediaPreviewLoading = false;
+  mediaPreviewLoadToken++;
 
   // 6. Reset all global state variables
   currentImage = null;
@@ -993,6 +1176,7 @@ function resetPostForm() {
 
 // Trigger media upload
 function triggerMediaUpload() {
+  if (isProcessingCrop) return;
   const mediaInput = document.getElementById("postMediaInput");
   if (mediaInput) {
     mediaInput.setAttribute("multiple", "multiple");
@@ -2106,24 +2290,26 @@ function calculateCropDataForImage(media, ratio, tempCropFrameSize) {
       const cropWidth = tempCropFrameSize.width / finalScale;
       const cropHeight = tempCropFrameSize.height / finalScale;
 
+      const normalizedCrop = normalizeCropRect(
+        cropX,
+        cropY,
+        cropWidth,
+        cropHeight,
+        tempNaturalWidth,
+        tempNaturalHeight,
+      );
+
+      if (!normalizedCrop) {
+        resolve();
+        return;
+      }
+
       media.cropData = {
         ratio: ratio,
         zoomLevel: tempZoomLevel,
         offsetX: 0,
         offsetY: 0,
-        // Pixel values (required by createCroppedImage in Step 2)
-        cropX_px: Math.max(0, cropX),
-        cropY_px: Math.max(0, cropY),
-        cropWidth_px: Math.min(cropWidth, tempNaturalWidth),
-        cropHeight_px: Math.min(cropHeight, tempNaturalHeight),
-        // Normalized values (0-1) for API submission
-        cropX: Math.max(0, cropX / tempNaturalWidth),
-        cropY: Math.max(0, cropY / tempNaturalHeight),
-        cropWidth: Math.min(cropWidth / tempNaturalWidth, 1),
-        cropHeight: Math.min(cropHeight / tempNaturalHeight, 1),
-        // Image dimensions (required by createCroppedImage)
-        imageNaturalWidth: tempNaturalWidth,
-        imageNaturalHeight: tempNaturalHeight,
+        ...normalizedCrop,
         displayScale: tempDisplayScale,
       };
 
@@ -2148,7 +2334,7 @@ async function recalculateAllCropDataInBackground(ratio) {
 async function ensureAllCropData() {
   const promises = mediaFiles.map((media, index) => {
     // All media are images now
-    if (!media.cropData || media.cropData.ratio !== globalCropRatio) {
+    if (!hasUsableCropData(media, globalCropRatio)) {
       return calculateCropDataForImage(media, globalCropRatio, cropFrameSize);
     }
     return Promise.resolve();
@@ -2159,7 +2345,7 @@ async function ensureAllCropData() {
 
 async function changeCropRatio(ratio) {
   // Prevent changing ratio while processing
-  if (isProcessingCrop) {
+  if (isProcessingCrop || isMediaPreviewLoading) {
     return;
   }
 
@@ -2237,6 +2423,7 @@ function updateZoomSlider() {
 }
 
 function zoomIn() {
+  if (isProcessingCrop || isMediaPreviewLoading) return;
   zoomLevel = Math.min(zoomLevel + 0.25, MAX_ZOOM);
   constrainDrag();
   updateImagePosition();
@@ -2244,6 +2431,7 @@ function zoomIn() {
 }
 
 function zoomOut() {
+  if (isProcessingCrop || isMediaPreviewLoading) return;
   zoomLevel = Math.max(zoomLevel - 0.25, MIN_ZOOM);
   constrainDrag();
   updateImagePosition();
@@ -2251,6 +2439,7 @@ function zoomOut() {
 }
 
 function setZoomLevel(level) {
+  if (isProcessingCrop || isMediaPreviewLoading) return;
   zoomLevel = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, level));
   constrainDrag();
   updateImagePosition();
@@ -2261,7 +2450,7 @@ function setZoomLevel(level) {
 
 // Mouse down
 document.addEventListener("mousedown", (e) => {
-  if (currentStep !== 1) return;
+  if (currentStep !== 1 || isProcessingCrop || isMediaPreviewLoading) return;
 
   // Check if clicking on zoom slider
   if (
@@ -2290,7 +2479,7 @@ document.addEventListener("mousedown", (e) => {
 
 // Mouse move
 document.addEventListener("mousemove", (e) => {
-  if (!isDragging) return;
+  if (!isDragging || isProcessingCrop || isMediaPreviewLoading) return;
 
   const deltaX = e.clientX - dragStartX;
   const deltaY = e.clientY - dragStartY;
@@ -2331,7 +2520,7 @@ document.addEventListener("mousedown", (e) => {
     e.target === track ||
     e.target.closest("#zoomSliderTrack")
   ) {
-    if (currentStep !== 1) return;
+    if (currentStep !== 1 || isProcessingCrop || isMediaPreviewLoading) return;
     isZoomSliding = true;
     updateZoomFromSlider(e);
     e.preventDefault();
@@ -2339,7 +2528,7 @@ document.addEventListener("mousedown", (e) => {
 });
 
 document.addEventListener("mousemove", (e) => {
-  if (isZoomSliding) {
+  if (isZoomSliding && !isProcessingCrop && !isMediaPreviewLoading) {
     updateZoomFromSlider(e);
   }
 });
@@ -2349,6 +2538,7 @@ document.addEventListener("mouseup", () => {
 });
 
 function updateZoomFromSlider(e) {
+  if (isProcessingCrop || isMediaPreviewLoading) return;
   const slider = document.getElementById("zoomSlider");
   if (!slider) return;
 
@@ -2366,7 +2556,7 @@ document.addEventListener(
   (e) => {
     const wrapper = document.getElementById("mediaPreviewWrapper");
     if (!wrapper || wrapper.style.display === "none") return;
-    if (currentStep !== 1) return;
+    if (currentStep !== 1 || isProcessingCrop || isMediaPreviewLoading) return;
 
     // Disable zoom for original ratio
     if (currentCropRatio === "original") return;
@@ -2432,12 +2622,11 @@ async function buildSlider() {
   track.className = "media-slider-track";
   track.id = "mediaSliderTrack";
 
-  // Process all images in parallel and wait for all to complete
-  const slidePromises = mediaFiles.map(async (media, i) => {
+  const previewCanvasDimensions = getStep2PreviewCanvasDimensions();
+
+  for (const media of mediaFiles) {
     const slide = document.createElement("div");
     slide.className = "media-slide";
-
-    // Apply dynamic gradient based on dominant color
     const dominantColor = media.dominantColor || "var(--accent-primary)";
     slide.style.background = `linear-gradient(
       135deg,
@@ -2446,7 +2635,7 @@ async function buildSlider() {
     )`;
 
     // All media are images now
-    const croppedSrc = await createCroppedImage(media);
+    const croppedSrc = await createCroppedImage(media, previewCanvasDimensions);
 
     // Wait for image to actually load before returning
     await new Promise((resolve) => {
@@ -2456,15 +2645,8 @@ async function buildSlider() {
       img.src = croppedSrc;
       slide.appendChild(img);
     });
-
-    return slide;
-  });
-
-  // Wait for all slides to be ready
-  const slides = await Promise.all(slidePromises);
-
-  // Add all slides to track
-  slides.forEach((slide) => track.appendChild(slide));
+    track.appendChild(slide);
+  }
 
   sliderWrapper.appendChild(track);
 
@@ -2493,7 +2675,6 @@ function createCleanCroppedImage(media) {
 
     const img = new Image();
     img.onload = function () {
-      const cropData = media.cropData;
       const naturalWidth = img.naturalWidth;
       const naturalHeight = img.naturalHeight;
 
@@ -2506,20 +2687,14 @@ function createCleanCroppedImage(media) {
         return;
       }
 
-      // CLAMP: Ensure crop coordinates are within valid bounds
-      let cropX = Math.max(0, Math.min(cropData.cropX_px, naturalWidth - 1));
-      let cropY = Math.max(0, Math.min(cropData.cropY_px, naturalHeight - 1));
-      let cropWidth = Math.max(
-        1,
-        Math.min(cropData.cropWidth_px, naturalWidth - cropX),
-      );
-      let cropHeight = Math.max(
-        1,
-        Math.min(cropData.cropHeight_px, naturalHeight - cropY),
+      const normalizedCrop = getNormalizedCropRect(
+        media.cropData,
+        naturalWidth,
+        naturalHeight,
       );
 
       // VALIDATION: Ensure canvas has valid size
-      if (cropWidth < 1 || cropHeight < 1) {
+      if (!normalizedCrop) {
         console.warn(
           "createCleanCroppedImage: Invalid crop dimensions, using original",
         );
@@ -2530,16 +2705,16 @@ function createCleanCroppedImage(media) {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
-      canvas.width = Math.round(cropWidth);
-      canvas.height = Math.round(cropHeight);
+      canvas.width = Math.round(normalizedCrop.cropWidth_px);
+      canvas.height = Math.round(normalizedCrop.cropHeight_px);
 
       // Draw image offset by crop position with validated coordinates
       ctx.drawImage(
         img,
-        cropX,
-        cropY,
-        cropWidth,
-        cropHeight,
+        normalizedCrop.cropX_px,
+        normalizedCrop.cropY_px,
+        normalizedCrop.cropWidth_px,
+        normalizedCrop.cropHeight_px,
         0,
         0,
         canvas.width,
@@ -2560,8 +2735,11 @@ function createCleanCroppedImage(media) {
   });
 }
 
-// Create cropped image canvas - FIXED FOR ORIGINAL RATIO
-function createCroppedImage(media) {
+// Create a display-sized preview to avoid huge in-memory canvases for step 2.
+function createCroppedImage(
+  media,
+  previewCanvasDimensions = getStep2PreviewCanvasDimensions(),
+) {
   return new Promise((resolve) => {
     if (!media.cropData) {
       resolve(media.data);
@@ -2570,42 +2748,25 @@ function createCroppedImage(media) {
 
     const img = new Image();
     img.onload = function () {
-      const cropData = media.cropData;
-      const ratio = cropData.ratio;
+      const normalizedCrop = getNormalizedCropRect(
+        media.cropData,
+        img.naturalWidth,
+        img.naturalHeight,
+      );
 
-      // Determine canvas size based on crop ratio
-      let canvasWidth, canvasHeight;
-
-      if (ratio === "original") {
-        // For original: canvas is square (1:1), but image maintains its aspect ratio
-        // Determine canvas size to be square based on the longer dimension of the cropped area
-        const maxDimension = Math.max(
-          cropData.cropWidth_px,
-          cropData.cropHeight_px,
-        );
-        canvasWidth = maxDimension;
-        canvasHeight = maxDimension;
-      } else if (ratio === "1:1") {
-        // For 1:1: canvas is square with crop dimensions
-        canvasWidth = cropData.cropWidth_px;
-        canvasHeight = cropData.cropHeight_px;
-      } else if (ratio === "4:5") {
-        // For 4:5: canvas is square, crop area is 4:5 in the middle
-        // Canvas height = crop height (which is the max dimension)
-        canvasHeight = cropData.cropHeight_px;
-        canvasWidth = canvasHeight; // Make it square
-
-        // Crop width is smaller (4/5 of height)
-        // We'll center the crop horizontally
-      } else if (ratio === "16:9") {
-        // For 16:9: canvas is square, crop area is 16:9 in the middle
-        // Canvas width = crop width (which is the max dimension)
-        canvasWidth = cropData.cropWidth_px;
-        canvasHeight = canvasWidth; // Make it square
-
-        // Crop height is smaller (9/16 of width)
-        // We'll center the crop vertically
+      if (!normalizedCrop) {
+        resolve(media.data);
+        return;
       }
+
+      const canvasWidth = Math.max(
+        1,
+        Math.round(previewCanvasDimensions?.width || 1),
+      );
+      const canvasHeight = Math.max(
+        1,
+        Math.round(previewCanvasDimensions?.height || 1),
+      );
 
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
@@ -2613,44 +2774,37 @@ function createCroppedImage(media) {
       canvas.width = canvasWidth;
       canvas.height = canvasHeight;
 
-      // Fill with black background
-      ctx.fillStyle = "rgba(0, 0, 0, 0)";
-      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Calculate position to center the cropped content
-      let drawX = 0;
-      let drawY = 0;
-      let drawWidth = cropData.cropWidth_px;
-      let drawHeight = cropData.cropHeight_px;
+      const cropAspectRatio =
+        normalizedCrop.cropWidth_px / normalizedCrop.cropHeight_px;
+      const canvasAspectRatio = canvas.width / canvas.height;
 
-      if (ratio === "original") {
-        // Center the image (keep aspect ratio)
-        drawX = (canvasWidth - cropData.cropWidth_px) / 2;
-        drawY = (canvasHeight - cropData.cropHeight_px) / 2;
-      } else if (ratio === "4:5") {
-        // Center horizontally
-        drawX = (canvasWidth - cropData.cropWidth_px) / 2;
-        drawY = 0;
-      } else if (ratio === "16:9") {
-        // Center vertically
-        drawX = 0;
-        drawY = (canvasHeight - cropData.cropHeight_px) / 2;
+      let drawWidth = canvas.width;
+      let drawHeight = canvas.height;
+
+      if (cropAspectRatio > canvasAspectRatio) {
+        drawHeight = canvas.width / cropAspectRatio;
+      } else {
+        drawWidth = canvas.height * cropAspectRatio;
       }
 
-      // Draw the cropped image
+      const drawX = (canvas.width - drawWidth) / 2;
+      const drawY = (canvas.height - drawHeight) / 2;
+
       ctx.drawImage(
         img,
-        cropData.cropX_px,
-        cropData.cropY_px,
-        cropData.cropWidth_px,
-        cropData.cropHeight_px,
+        normalizedCrop.cropX_px,
+        normalizedCrop.cropY_px,
+        normalizedCrop.cropWidth_px,
+        normalizedCrop.cropHeight_px,
         drawX,
         drawY,
         drawWidth,
         drawHeight,
       );
 
-      resolve(canvas.toDataURL());
+      resolve(canvas.toDataURL("image/png"));
     };
     img.src = media.data;
   });
@@ -2686,6 +2840,8 @@ function updateThumbnailsStep2() {
 }
 
 function navigateToMedia(index) {
+  if (isProcessingCrop) return;
+
   if (index >= 0 && index < mediaFiles.length) {
     currentMediaIndex = index;
     updateSliderPosition();
