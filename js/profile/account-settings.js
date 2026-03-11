@@ -179,6 +179,16 @@
     return "#/account-settings/password";
   }
 
+  function getBlockedUsersSettingsHash() {
+    if (window.RouteHelper?.buildAccountSettingsSubHash) {
+      return window.RouteHelper.buildAccountSettingsSubHash("", "blocked-users");
+    }
+
+    const me = (localStorage.getItem("username") || "").toString().trim();
+    if (me) return `#/${encodeURIComponent(me)}/settings/blocked-users`;
+    return "#/account-settings/blocked-users";
+  }
+
   function navigateToProfileAfterLanguageChange() {
     const targetHash = getMyProfileHash();
     hasUnsavedChanges = false;
@@ -432,6 +442,38 @@
         }
 
         navigateToPasswordSettings();
+      });
+    }
+
+    const openBlockedUsersSettingsButton = document.getElementById(
+      "open-blocked-users-settings-btn",
+    );
+    if (openBlockedUsersSettingsButton) {
+      const nextButton = openBlockedUsersSettingsButton.cloneNode(true);
+      openBlockedUsersSettingsButton.parentNode.replaceChild(
+        nextButton,
+        openBlockedUsersSettingsButton,
+      );
+      nextButton.addEventListener("click", () => {
+        const navigateToBlockedUsersSettings = () => {
+          hasUnsavedChanges = false;
+          window.onbeforeunload = null;
+          window.location.hash = getBlockedUsersSettingsHash();
+        };
+
+        if (!hasAccountSettingsChanges()) {
+          navigateToBlockedUsersSettings();
+          return;
+        }
+
+        if (window.showDiscardAccountSettingsConfirmation) {
+          window.showDiscardAccountSettingsConfirmation(
+            navigateToBlockedUsersSettings,
+          );
+          return;
+        }
+
+        navigateToBlockedUsersSettings();
       });
     }
 

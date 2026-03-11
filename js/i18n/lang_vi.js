@@ -585,6 +585,46 @@
             "Bạn đang có thay đổi mật khẩu chưa lưu. Bạn có chắc muốn bỏ chúng không?",
         },
       },
+      blockedUsersSettings: {
+        entryTitle: "Danh sách chặn",
+        entryDescription:
+          "Xem lại các tài khoản bạn đã chặn và bỏ chặn khi cần",
+        openPage: "Mở",
+        openPageAria: "Mở cài đặt danh sách chặn",
+        backAria: "Quay lại cài đặt tài khoản",
+        badge: "Danh sách chặn",
+        title: "Danh sách chặn",
+        subtitle:
+          "Xem lại các tài khoản bạn đã chặn và bỏ chặn khi cần",
+        searchPlaceholder: "Tìm trong danh sách chặn",
+        loading: "Đang tải danh sách chặn...",
+        emptyTitle: "Bạn chưa chặn tài khoản nào",
+        emptyDescription: "Các tài khoản bạn chặn sẽ xuất hiện ở đây",
+        emptySearchTitle: "Không tìm thấy tài khoản phù hợp",
+        emptySearchDescription: "Hãy thử một tên hoặc username khác",
+        blockedAt: "Đã chặn vào {date}",
+        actions: {
+          block: "Chặn",
+          unblock: "Bỏ chặn",
+        },
+        confirm: {
+          blockTitle: "Chặn {name}?",
+          blockMessage:
+            "Bạn và tài khoản này sẽ không còn thấy nội dung hay thông tin của nhau. Lịch sử chat cũ vẫn được giữ lại",
+          unblockTitle: "Bỏ chặn {name}?",
+          unblockMessage:
+            "Sau khi bỏ chặn, hai bên có thể tìm thấy nhau lại nếu đủ quyền riêng tư. Các quan hệ cũ sẽ không tự khôi phục",
+        },
+        toast: {
+          blocked: "Đã chặn tài khoản",
+          unblocked: "Đã bỏ chặn tài khoản",
+        },
+        errors: {
+          generic: "Không thể cập nhật danh sách chặn lúc này",
+          loadFailed: "Không thể tải danh sách chặn lúc này",
+          targetUnavailable: "Tài khoản này hiện không khả dụng",
+        },
+      },
       highlights: {
         save: "Lưu",
         closeAria: "Đóng",
@@ -1384,6 +1424,7 @@
       },
       reactions: {
         empty: "Chưa có cảm xúc nào",
+        emptyVisible: "Không có cảm xúc nào bạn có thể xem trong danh sách này",
         follow: "Theo dõi",
         followModuleUnavailable: "Tính năng theo dõi tạm thời chưa dùng được",
         following: "Đang theo dõi",
@@ -1695,6 +1736,12 @@
         fileDownloadStartFailed: "Không thể bắt đầu tải tệp xuống",
         openMediaTitle: "Mở phương tiện",
         unknownFile: "Tệp không xác định",
+      },
+      blocked: {
+        privateConversationDisabled:
+          "Bạn không thể gửi tin nhắn mới trong cuộc trò chuyện này",
+        directMessageUnavailable:
+          "Bạn không thể bắt đầu cuộc trò chuyện riêng với tài khoản này",
       },
       members: {
         add_title: "Thêm thành viên",

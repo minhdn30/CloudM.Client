@@ -652,6 +652,46 @@
             "You have unsaved password changes. Are you sure you want to discard them?",
         },
       },
+      blockedUsersSettings: {
+        entryTitle: "Blocked users",
+        entryDescription:
+          "Review the accounts you've blocked and remove blocks when needed",
+        openPage: "Open",
+        openPageAria: "Open blocked users settings",
+        backAria: "Back to account settings",
+        badge: "Blocked users",
+        title: "Blocked users",
+        subtitle:
+          "Review the accounts you've blocked and remove blocks when needed",
+        searchPlaceholder: "Search blocked users",
+        loading: "Loading blocked users...",
+        emptyTitle: "You haven't blocked anyone",
+        emptyDescription: "Accounts you block will appear here",
+        emptySearchTitle: "No matching blocked users",
+        emptySearchDescription: "Try a different name or username",
+        blockedAt: "Blocked on {date}",
+        actions: {
+          block: "Block",
+          unblock: "Unblock",
+        },
+        confirm: {
+          blockTitle: "Block {name}?",
+          blockMessage:
+            "You and this account will no longer see each other's content or information. Existing chat history will stay available",
+          unblockTitle: "Unblock {name}?",
+          unblockMessage:
+            "After unblocking, both accounts may find each other again if privacy rules allow it. Previous relationships won't be restored automatically",
+        },
+        toast: {
+          blocked: "Account blocked",
+          unblocked: "Account unblocked",
+        },
+        errors: {
+          generic: "Couldn't update blocked users right now",
+          loadFailed: "Couldn't load blocked users right now",
+          targetUnavailable: "This user is unavailable right now",
+        },
+      },
       highlights: {
         apiUnavailable: "Highlights aren't available right now",
         loadFailed: "Failed to load highlights",
@@ -1397,6 +1437,7 @@
       },
       reactions: {
         empty: "No reactions yet",
+        emptyVisible: "No visible reactions in this list",
         follow: "Follow",
         followModuleUnavailable: "Follow module not loaded",
         following: "Following",
@@ -1710,6 +1751,12 @@
           nicknameRemoved: "{actor} removed nickname for {target}",
           fallback: "System message",
         },
+      },
+      blocked: {
+        privateConversationDisabled:
+          "You can't send new messages in this conversation",
+        directMessageUnavailable:
+          "You can't start a direct conversation with this account",
       },
       members: {
         add_title: "Add members",
