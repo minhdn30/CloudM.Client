@@ -60,6 +60,15 @@
     return Number.isFinite(parsed) ? parsed : fallback;
   }
 
+  function readStringArray(source, keys = []) {
+    const value = pickValue(source, keys);
+    if (!Array.isArray(value)) return [];
+
+    return value
+      .map((item) => (item === undefined || item === null ? "" : `${item}`.trim()))
+      .filter(Boolean);
+  }
+
   function normalizePositiveInt(value, fallback = 1) {
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
@@ -172,6 +181,16 @@
         "isFollowRequested",
         "IsFollowRequested",
       ]),
+      isFollower: readBoolean(rawItem, ["isFollower", "IsFollower"]),
+      isContact: readBoolean(rawItem, ["isContact", "IsContact"]),
+      mutualFollowCount: Math.max(
+        0,
+        readNumber(rawItem, ["mutualFollowCount", "MutualFollowCount"]),
+      ),
+      mutualFollowPreviewUsernames: readStringArray(rawItem, [
+        "mutualFollowPreviewUsernames",
+        "MutualFollowPreviewUsernames",
+      ]),
     };
   }
 
@@ -237,21 +256,109 @@
     };
   }
 
-  function renderCard(item) {
+  function buildReasonText(item) {
+    if (item.isFollower) {
+      return sugT(
+        "follow.suggestions.labels.followsYou",
+        {},
+        "Follows you",
+      );
+    }
+
+    const mutualFollowCount = Math.max(0, item.mutualFollowCount || 0);
+    const previewUsernames = Array.isArray(item.mutualFollowPreviewUsernames)
+      ? item.mutualFollowPreviewUsernames.filter(Boolean).slice(0, 2)
+      : [];
+
+    if (mutualFollowCount > 0) {
+      if (previewUsernames.length >= 2) {
+        const otherCount = mutualFollowCount - 2;
+        if (otherCount > 0) {
+          return sugT(
+            "follow.suggestions.labels.followedByTwoAndOthers",
+            {
+              first: previewUsernames[0],
+              second: previewUsernames[1],
+              count: otherCount,
+            },
+            `Followed by ${previewUsernames[0]}, ${previewUsernames[1]} and ${otherCount} others`,
+          );
+        }
+
+        return sugT(
+          "follow.suggestions.labels.followedByTwo",
+          {
+            first: previewUsernames[0],
+            second: previewUsernames[1],
+          },
+          `Followed by ${previewUsernames[0]} and ${previewUsernames[1]}`,
+        );
+      }
+
+      if (previewUsernames.length === 1) {
+        const otherCount = mutualFollowCount - 1;
+        if (otherCount > 0) {
+          return sugT(
+            "follow.suggestions.labels.followedByOneAndOthers",
+            {
+              name: previewUsernames[0],
+              count: otherCount,
+            },
+            `Followed by ${previewUsernames[0]} and ${otherCount} others`,
+          );
+        }
+
+        return sugT(
+          "follow.suggestions.labels.followedByOne",
+          { name: previewUsernames[0] },
+          `Followed by ${previewUsernames[0]}`,
+        );
+      }
+
+      return sugT(
+        "follow.suggestions.labels.mutualFollows",
+        { count: mutualFollowCount },
+        `${mutualFollowCount} mutual follows`,
+      );
+    }
+
+    if (item.isContact) {
+      return sugT(
+        "follow.suggestions.labels.chattedBefore",
+        {},
+        "You chatted before",
+      );
+    }
+
+    return sugT(
+      "follow.suggestions.labels.suggestedForYou",
+      {},
+      "Suggested for you",
+    );
+  }
+
+  function renderCard(item, options = {}) {
+    const showReason = options.showReason === true;
     const profileTarget = item.username || item.accountId;
     const profileHash = buildProfileHash(profileTarget);
     const primaryName = getPrimaryName(item);
     const secondaryName = getSecondaryName(item);
+    const reasonText = showReason ? buildReasonText(item) : "";
 
     return `
       <article class="follow-suggestion-row" data-follow-suggestion-account-id="${escapeAttr(item.accountId)}" data-account-id="${escapeAttr(item.accountId)}">
-        <a class="follow-suggestion-user user-info" href="${escapeAttr(profileHash)}" data-account-id="${escapeAttr(item.accountId)}">
+        <a class="follow-suggestion-user user-info" href="${escapeAttr(profileHash)}" data-account-id="${escapeAttr(item.accountId)}" data-profile-preview-id="${escapeAttr(item.accountId)}">
           <img src="${escapeAttr(getAvatarUrl(item))}" class="avatar" alt="${escapeAttr(primaryName)}">
           <div class="name-box">
             <span class="fullname">${escapeHtml(primaryName)}</span>
             ${
               secondaryName
                 ? `<span class="username-subtext">${escapeHtml(secondaryName)}</span>`
+                : ""
+            }
+            ${
+              reasonText
+                ? `<span class="follow-suggestion-reason">${escapeHtml(reasonText)}</span>`
                 : ""
             }
           </div>
@@ -263,8 +370,8 @@
     `;
   }
 
-  function renderCards(items) {
-    return items.map(renderCard).join("");
+  function renderCards(items, options = {}) {
+    return items.map((item) => renderCard(item, options)).join("");
   }
 
   function renderSkeletonList(count) {
@@ -458,7 +565,7 @@
     return `
       <div class="follow-suggestions-page-body">
         <div class="follow-suggestions-list follow-suggestions-list-page">
-          ${renderCards(pageState.items)}
+          ${renderCards(pageState.items, { showReason: true })}
         </div>
         ${renderPageFooter()}
       </div>

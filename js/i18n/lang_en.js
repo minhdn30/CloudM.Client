@@ -2817,6 +2817,17 @@
         actions: {
           viewMore: "View More",
         },
+        labels: {
+          chattedBefore: "You chatted before",
+          followedByOne: "Followed by {name}",
+          followedByOneAndOthers: "Followed by {name} and {count} others",
+          followedByTwo: "Followed by {first} and {second}",
+          followedByTwoAndOthers:
+            "Followed by {first}, {second} and {count} others",
+          followsYou: "Follows you",
+          mutualFollows: "{count} mutual follows",
+          suggestedForYou: "Suggested for you",
+        },
         home: {
           title: "Suggested for you",
         },

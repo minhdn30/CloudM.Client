@@ -2831,6 +2831,18 @@
         actions: {
           viewMore: "Xem thêm",
         },
+        labels: {
+          chattedBefore: "Từng trò chuyện với nhau",
+          followedByOne: "Được {name} theo dõi",
+          followedByOneAndOthers:
+            "Được {name} và {count} người khác theo dõi",
+          followedByTwo: "Được {first} và {second} theo dõi",
+          followedByTwoAndOthers:
+            "Được {first}, {second} và {count} người khác theo dõi",
+          followsYou: "Đang theo dõi bạn",
+          mutualFollows: "{count} người theo dõi chung",
+          suggestedForYou: "Gợi ý cho bạn",
+        },
         home: {
           title: "Gợi ý cho bạn",
         },

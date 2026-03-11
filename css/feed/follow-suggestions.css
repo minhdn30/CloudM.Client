@@ -232,6 +232,17 @@
   text-overflow: ellipsis;
 }
 
+.follow-suggestion-row .follow-suggestion-reason {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .follow-suggestion-row .action-box {
   display: flex;
   align-items: center;
@@ -324,6 +335,10 @@
 
 .follow-suggestions-list-page .follow-suggestion-row .username-subtext {
   font-size: 14px;
+}
+
+.follow-suggestions-list-page .follow-suggestion-row .follow-suggestion-reason {
+  font-size: 13px;
 }
 
 .follow-suggestions-list-page .follow-suggestion-row .follow-btn {
