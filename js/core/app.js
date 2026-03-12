@@ -572,6 +572,46 @@ function appTryOpenNotificationsPanelRoute(hash, path) {
   return true;
 }
 
+function appTryOpenSearchPanelRoute(hash, path) {
+  const normalizedPath = (path || "").toString().trim();
+  if (normalizedPath !== APP_ROUTE_PATHS.SEARCH) {
+    return false;
+  }
+
+  const candidateHashes = [
+    window._lastAcceptedHashForRouter,
+    window._lastSafeHash,
+    appBuildHash(APP_ROUTE_PATHS.ROOT),
+  ];
+
+  let fallbackHash = appBuildHash(APP_ROUTE_PATHS.ROOT);
+  for (let i = 0; i < candidateHashes.length; i += 1) {
+    const candidate = (candidateHashes[i] || "").toString().trim();
+    if (!candidate) continue;
+    const parsedCandidate = appParseHash(candidate);
+    if (parsedCandidate.path === APP_ROUTE_PATHS.SEARCH) continue;
+    fallbackHash = appBuildHash(parsedCandidate.path, parsedCandidate.params);
+    break;
+  }
+
+  const openSearchPanel = () => {
+    if (window.SearchPanel && typeof window.SearchPanel.open === "function") {
+      Promise.resolve(window.SearchPanel.open()).catch(() => {});
+    }
+  };
+
+  if (AppRouteHelper?.replaceHash) {
+    const parsedFallback = appParseHash(fallbackHash);
+    AppRouteHelper.replaceHash(parsedFallback.path, parsedFallback.params);
+  } else {
+    const base = `${window.location.pathname || ""}${window.location.search || ""}`;
+    window.history.replaceState(window.history.state, "", `${base}${fallbackHash}`);
+  }
+
+  setTimeout(openSearchPanel, 0);
+  return true;
+}
+
 function appRestoreAcceptedHashAfterChatDenied(currentHash) {
   const current = (currentHash || "").toString().trim();
   const accepted =
@@ -802,6 +842,7 @@ function closeAllOverlayModals(options = {}) {
   const keepNotificationsPanel =
     options.keepNotificationsPanel === true ||
     !!window.__keepNotificationsPanelOnNextRoute;
+  const keepSearchPanel = options.keepSearchPanel === true;
   const currentPath = appParseHash(window.location.hash || "").path;
   const shouldKeepStoryViewer = appIsStoryViewerRoute(currentPath);
 
@@ -888,6 +929,10 @@ function closeAllOverlayModals(options = {}) {
 
   if (!keepNotificationsPanel && window.closeNotificationsPanel) {
       window.closeNotificationsPanel();
+  }
+
+  if (!keepSearchPanel && window.closeSearchPanel) {
+      window.closeSearchPanel();
   }
 
   // Chat Windows (Floating) logic is now handled in router() via CSS hiding
@@ -1014,6 +1059,10 @@ async function router() {
   }
 
   if (appTryOpenNotificationsPanelRoute(hash, path)) {
+    return;
+  }
+
+  if (appTryOpenSearchPanelRoute(hash, path)) {
     return;
   }
 
@@ -1152,6 +1201,10 @@ async function router() {
   closeAllOverlayModals({
     keepChatSidebar: !!window.ChatSidebar?.isOpen,
     keepNotificationsPanel: !!window.NotificationsPanel?.isOpen,
+    keepSearchPanel:
+      !!window.SearchPanel?.isOpen &&
+      !appIsChatPath(path) &&
+      path !== APP_ROUTE_PATHS.NOTIFICATIONS,
   });
 
   // Keep profile surface stable when switching sub-routes in the same profile

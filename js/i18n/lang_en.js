@@ -575,8 +575,7 @@
           genericSubtitle:
             "Use the same password rules as registration to keep sign-in consistent",
           changeTitle: "Change password",
-          changeSubtitle:
-            "Enter your current password, then choose a new one",
+          changeSubtitle: "Enter your current password, then choose a new one",
           setTitle: "Set password",
           setSubtitle:
             "Create a password so you can sign in without relying on an external provider",
@@ -592,8 +591,7 @@
           confirm: "Confirm your new password",
         },
         hints: {
-          currentRequired:
-            "Enter your current password to confirm this change",
+          currentRequired: "Enter your current password to confirm this change",
           currentOptional:
             "If you already have a password, enter it here before saving",
         },
@@ -619,8 +617,7 @@
           providersTitle: "Connected providers",
           loadingProviders: "Loading sign-in methods...",
           noProviders: "No external sign-in methods connected",
-          note:
-            "Your new password will follow the same rules as registration",
+          note: "Your new password will follow the same rules as registration",
           enabled: "Enabled",
           notSet: "Not set",
           checking: "Checking",
@@ -640,8 +637,7 @@
           loadError:
             "Something went wrong while loading your password settings",
           saveFailed: "Couldn't save your password right now",
-          saveError:
-            "Something went wrong while saving your password",
+          saveError: "Something went wrong while saving your password",
           currentRequired: "Enter your current password",
           currentIncorrect: "Your current password is incorrect",
           confirmRequired: "Confirm your new password",
@@ -864,7 +860,8 @@
         descriptions: {
           phone: {
             anyone: "Anyone can see my phone number on my profile",
-            followersOnly: "Only my followers can see my phone number on my profile",
+            followersOnly:
+              "Only my followers can see my phone number on my profile",
             onlyMe: "Only I can see my phone number on my profile",
           },
           address: {
@@ -874,7 +871,8 @@
           },
           post: {
             anyone: "Default privacy when I create a new post - Public",
-            followersOnly: "Default privacy when I create a new post - Followers Only",
+            followersOnly:
+              "Default privacy when I create a new post - Followers Only",
             onlyMe: "Default privacy when I create a new post - Private",
           },
           follow: {
@@ -973,8 +971,7 @@
           pending: "Saving...",
         },
         storyHighlights: {
-          description:
-            "Choose who can view my highlights on my profile",
+          description: "Choose who can view my highlights on my profile",
           title: "Who Can View My Story Highlights",
         },
         subtitle: "Manage my privacy and account preferences",
@@ -1209,6 +1206,27 @@
         storyOpenFailed: "Failed to open this story",
         followRequestAction: "wants to follow you",
       },
+    },
+    searchPanel: {
+      title: "Search",
+      closeTitle: "Close search",
+      searchPlaceholder: "Search...",
+      clearSearch: "Clear search",
+      loadingHistory: "Loading recent searches...",
+      loadingResults: "Searching...",
+      recentTitle: "Recent",
+      resultsTitle: "Results",
+      emptyRecentTitle: "No recent searches",
+      emptyRecentDescription: "Recent searches will appear here",
+      shortKeywordTitle: "Search",
+      shortKeywordDescription: "Type to search",
+      emptyResultsTitle: "No results found",
+      emptyResultsDescription: "Try a different keyword",
+      loadFailedTitle: "Couldn't load search",
+      loadFailedDescription: "Please try again later",
+      removeRecentAria: "Remove recent search",
+      removeRecentFailed: "Couldn't remove this recent search",
+      avatarAlt: "Avatar of {{username}}",
     },
     post: {
       privacy: {
@@ -2836,8 +2854,7 @@
         },
         empty: {
           title: "No suggestions right now",
-          description:
-            "We will show more people here when your network grows",
+          description: "We will show more people here when your network grows",
         },
         error: {
           title: "Couldn't load suggestions",

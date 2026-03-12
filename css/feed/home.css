@@ -153,3 +153,16 @@ body.notifications-panel-open .home-main-layout {
 body.notifications-panel-open .home-primary-column {
   margin-left: 0;
 }
+
+body.search-panel-open .home-container {
+  padding-left: 20px;
+}
+
+body.search-panel-open .home-main-layout {
+  width: 100%;
+  margin-left: 0;
+}
+
+body.search-panel-open .home-primary-column {
+  margin-left: 0;
+}

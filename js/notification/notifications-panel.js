@@ -4427,6 +4427,10 @@
       global.closeChatSidebar(true);
     }
 
+    if (typeof global.closeSearchPanel === "function") {
+      global.closeSearchPanel();
+    }
+
     state.dom.panel?.classList.add("show");
     document.body.classList.add("notifications-panel-open");
     state.isOpen = true;
