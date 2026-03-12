@@ -1438,6 +1438,9 @@ const ChatSidebar = {
     if (window.closeNotificationsPanel) {
       window.closeNotificationsPanel();
     }
+    if (window.closeSearchPanel) {
+      window.closeSearchPanel();
+    }
     panel.classList.add("show");
     this.isOpen = true;
     document.body.classList.add("chat-sidebar-open");

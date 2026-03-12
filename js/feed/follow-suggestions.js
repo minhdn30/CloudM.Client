@@ -182,7 +182,14 @@
         "IsFollowRequested",
       ]),
       isFollower: readBoolean(rawItem, ["isFollower", "IsFollower"]),
+      hasDirectConversation: readBoolean(rawItem, [
+        "hasDirectConversation",
+        "HasDirectConversation",
+      ]),
       isContact: readBoolean(rawItem, ["isContact", "IsContact"]),
+      lastContactedAt: (pickValue(rawItem, ["lastContactedAt", "LastContactedAt"]) || "")
+        .toString()
+        .trim(),
       mutualFollowCount: Math.max(
         0,
         readNumber(rawItem, ["mutualFollowCount", "MutualFollowCount"]),
@@ -258,11 +265,9 @@
 
   function buildReasonText(item) {
     if (item.isFollower) {
-      return sugT(
-        "follow.suggestions.labels.followsYou",
-        {},
-        "Follows you",
-      );
+      return global.AccountRelationshipText?.resolveLabel?.({
+        isFollower: true,
+      }) || sugT("common.relationships.followsYou", {}, "Follows you");
     }
 
     const mutualFollowCount = Math.max(0, item.mutualFollowCount || 0);
@@ -322,12 +327,11 @@
       );
     }
 
-    if (item.isContact) {
-      return sugT(
-        "follow.suggestions.labels.chattedBefore",
-        {},
-        "You chatted before",
-      );
+    if (item.hasDirectConversation) {
+      return global.AccountRelationshipText?.resolveLabel?.({
+        hasDirectConversation: item.hasDirectConversation,
+        lastContactedAt: item.lastContactedAt,
+      }) || sugT("common.relationships.messagedBefore", {}, "Messaged before");
     }
 
     return sugT(

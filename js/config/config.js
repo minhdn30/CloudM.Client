@@ -186,6 +186,11 @@
     DEFAULT_TOAST_DURATION_MS: 4000, // Default auto-close duration for non-persistent toasts
     NOTIFICATION_TOAST_RATE_LIMIT_WINDOW_MS: 5000, // Rate-limit window for stale notification toasts
     NOTIFICATION_TOAST_RATE_LIMIT_MAX: 2, // Max stale notification toasts shown per window
+    SEARCH_PANEL_WIDTH: 400, // Search panel width in px
+    SEARCH_PANEL_SEARCH_LIMIT: 10, // Max accounts returned per search panel request
+    SEARCH_PANEL_SEARCH_DEBOUNCE_MS: 300, // Debounce delay for search panel input
+    SEARCH_PANEL_HISTORY_LIMIT: 10, // Max recent search accounts shown in search panel
+    ACCOUNT_RELATIONSHIP_RECENT_MESSAGE_DAYS: 30, // Days to consider a direct conversation as recent for relationship labels
     MAX_CHAT_MESSAGE_LENGTH: 1000, // Số ký tự tối đa cho mỗi tin nhắn chat
     MAX_CHAT_NICKNAME_LENGTH: 50, // Số ký tự tối đa cho nickname trong chat
     MAX_CHAT_ATTACHMENT_SIZE_MB: 10, // Max size per chat attachment (image/video/file) in MB

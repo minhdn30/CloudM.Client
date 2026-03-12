@@ -108,6 +108,12 @@
         followers_or_following: "Người theo dõi hoặc đang theo dõi",
         current: "Đang dùng",
       },
+      relationships: {
+        following: "Đang theo dõi",
+        followsYou: "Đang theo dõi bạn",
+        messagedRecently: "Đã nhắn tin gần đây",
+        messagedBefore: "Từng trò chuyện",
+      },
       loading: {
         generic: "Đang tải...",
         followRequests: "Đang tải yêu cầu theo dõi...",
@@ -462,7 +468,8 @@
           "Chọn người có thể xem thông tin địa chỉ của bạn",
         storyHighlightPrivacyTitle: "Ai có thể xem tin nổi bật của tôi",
         followerPrivacyTitle: "Hiển thị danh sách người theo dõi",
-        onlineStatusVisibilityTitle: "Ai có thể nhìn thấy trạng thái trực tuyến của tôi?",
+        onlineStatusVisibilityTitle:
+          "Ai có thể nhìn thấy trạng thái trực tuyến của tôi?",
         followPrivacyDescription:
           "Thiết lập việc theo dõi tài khoản của bạn có cần phê duyệt hay không. Việc chuyển từ Riêng tư sang Mọi người sẽ tự động chấp nhận mọi yêu cầu theo dõi đang chờ",
         followingPrivacyDescription:
@@ -475,8 +482,7 @@
           "Quyết định ai có thể xem danh sách những người đang theo dõi bạn",
         savePending: "Đang lưu...",
         saveSuccess: "Đã lưu cài đặt",
-        groupChatInvitePermissionTitle:
-          "Ai có thể thêm tôi vào nhóm chat?",
+        groupChatInvitePermissionTitle: "Ai có thể thêm tôi vào nhóm chat?",
         noChanges: "Không có thay đổi",
         saveFailed: "Không lưu được cài đặt",
         tagPermissionDescription: "Chọn người có thể gắn thẻ bạn",
@@ -508,8 +514,7 @@
           genericSubtitle:
             "Dùng đúng bộ quy tắc mật khẩu như lúc đăng ký để giữ trải nghiệm đăng nhập nhất quán",
           changeTitle: "Đổi mật khẩu",
-          changeSubtitle:
-            "Nhập mật khẩu hiện tại rồi chọn mật khẩu mới",
+          changeSubtitle: "Nhập mật khẩu hiện tại rồi chọn mật khẩu mới",
           setTitle: "Thiết lập mật khẩu",
           setSubtitle:
             "Tạo mật khẩu để bạn có thể đăng nhập mà không phụ thuộc vào nhà cung cấp bên ngoài",
@@ -525,8 +530,7 @@
           confirm: "Xác nhận mật khẩu mới",
         },
         hints: {
-          currentRequired:
-            "Nhập mật khẩu hiện tại để xác nhận thay đổi này",
+          currentRequired: "Nhập mật khẩu hiện tại để xác nhận thay đổi này",
           currentOptional:
             "Nếu tài khoản đã có mật khẩu, hãy nhập vào đây trước khi lưu",
         },
@@ -548,12 +552,13 @@
           localPasswordLabel: "Mật khẩu nội bộ",
           localPasswordHint: "Đăng nhập bằng mật khẩu cho tài khoản này",
           linkedProvidersLabel: "Phương thức đăng nhập liên kết",
-          linkedProvidersHint: "Các nhà cung cấp bên ngoài đã kết nối với tài khoản",
+          linkedProvidersHint:
+            "Các nhà cung cấp bên ngoài đã kết nối với tài khoản",
           providersTitle: "Nhà cung cấp đã kết nối",
           loadingProviders: "Đang tải phương thức đăng nhập...",
-          noProviders: "Chưa có phương thức đăng nhập bên ngoài nào được liên kết",
-          note:
-            "Mật khẩu mới của bạn sẽ dùng cùng bộ quy tắc như lúc đăng ký",
+          noProviders:
+            "Chưa có phương thức đăng nhập bên ngoài nào được liên kết",
+          note: "Mật khẩu mới của bạn sẽ dùng cùng bộ quy tắc như lúc đăng ký",
           enabled: "Đã bật",
           notSet: "Chưa đặt",
           checking: "Đang kiểm tra",
@@ -570,11 +575,9 @@
         },
         errors: {
           loadFailed: "Không thể tải cài đặt mật khẩu lúc này",
-          loadError:
-            "Đã xảy ra lỗi khi tải cài đặt mật khẩu",
+          loadError: "Đã xảy ra lỗi khi tải cài đặt mật khẩu",
           saveFailed: "Không thể lưu mật khẩu lúc này",
-          saveError:
-            "Đã xảy ra lỗi khi lưu mật khẩu",
+          saveError: "Đã xảy ra lỗi khi lưu mật khẩu",
           currentRequired: "Vui lòng nhập mật khẩu hiện tại",
           currentIncorrect: "Mật khẩu hiện tại chưa đúng",
           confirmRequired: "Vui lòng xác nhận mật khẩu mới",
@@ -594,8 +597,7 @@
         backAria: "Quay lại cài đặt tài khoản",
         badge: "Danh sách chặn",
         title: "Danh sách chặn",
-        subtitle:
-          "Xem lại các tài khoản bạn đã chặn và bỏ chặn khi cần",
+        subtitle: "Xem lại các tài khoản bạn đã chặn và bỏ chặn khi cần",
         searchPlaceholder: "Tìm trong danh sách chặn",
         loading: "Đang tải danh sách chặn...",
         emptyTitle: "Bạn chưa chặn tài khoản nào",
@@ -848,22 +850,28 @@
         },
         descriptions: {
           phone: {
-            anyone: "Mọi người đều có thể xem số điện thoại trên trang cá nhân của tôi",
+            anyone:
+              "Mọi người đều có thể xem số điện thoại trên trang cá nhân của tôi",
             followersOnly:
               "Chỉ người theo dõi mới có thể xem số điện thoại trên trang cá nhân của tôi",
-            onlyMe: "Chỉ mình tôi có thể xem số điện thoại trên trang cá nhân của tôi",
+            onlyMe:
+              "Chỉ mình tôi có thể xem số điện thoại trên trang cá nhân của tôi",
           },
           address: {
-            anyone: "Mọi người đều có thể xem địa chỉ trên trang cá nhân của tôi",
+            anyone:
+              "Mọi người đều có thể xem địa chỉ trên trang cá nhân của tôi",
             followersOnly:
               "Chỉ người theo dõi mới có thể xem địa chỉ trên trang cá nhân của tôi",
-            onlyMe: "Chỉ mình tôi có thể xem địa chỉ trên trang cá nhân của tôi",
+            onlyMe:
+              "Chỉ mình tôi có thể xem địa chỉ trên trang cá nhân của tôi",
           },
           post: {
-            anyone: "Quyền riêng tư mặc định khi tôi tạo bài viết mới - Công khai",
+            anyone:
+              "Quyền riêng tư mặc định khi tôi tạo bài viết mới - Công khai",
             followersOnly:
               "Quyền riêng tư mặc định khi tôi tạo bài viết mới - Chỉ người theo dõi",
-            onlyMe: "Quyền riêng tư mặc định khi tôi tạo bài viết mới - Riêng tư",
+            onlyMe:
+              "Quyền riêng tư mặc định khi tôi tạo bài viết mới - Riêng tư",
           },
           follow: {
             off: "Mọi người có thể theo dõi tôi ngay lập tức",
@@ -871,22 +879,26 @@
           },
           followers: {
             anyone: "Mọi người đều có thể xem danh sách người theo dõi của tôi",
-            followersOnly: "Chỉ người theo dõi mới có thể xem danh sách người theo dõi tôi",
+            followersOnly:
+              "Chỉ người theo dõi mới có thể xem danh sách người theo dõi tôi",
             onlyMe: "Chỉ mình tôi có thể xem danh sách người theo dõi của tôi",
           },
           following: {
             anyone: "Mọi người đều có thể xem danh sách tôi đang theo dõi",
-            followersOnly: "Chỉ người theo dõi mới có thể xem danh sách tôi đang theo dõi",
+            followersOnly:
+              "Chỉ người theo dõi mới có thể xem danh sách tôi đang theo dõi",
             onlyMe: "Chỉ mình tôi có thể xem danh sách tôi đang theo dõi",
           },
           storyHighlights: {
             anyone: "Mọi người đều có thể xem tin nổi bật của tôi",
-            followersOnly: "Chỉ người theo dõi mới có thể xem tin nổi bật của tôi",
+            followersOnly:
+              "Chỉ người theo dõi mới có thể xem tin nổi bật của tôi",
             onlyMe: "Chỉ mình tôi có thể xem tin nổi bật của tôi",
           },
           onlineStatus: {
             noOneAtAll: "Không ai có thể xem trạng thái trực tuyến của tôi",
-            contactsOnly: "Chỉ người liên hệ mới có thể xem trạng thái trực tuyến của tôi",
+            contactsOnly:
+              "Chỉ người liên hệ mới có thể xem trạng thái trực tuyến của tôi",
           },
           groupChatInvite: {
             noOneAtAll: "Không ai có thể thêm tôi vào nhóm chat",
@@ -899,8 +911,10 @@
             anyone: "Mọi người đều có thể gắn thẻ tôi",
           },
           language: {
-            english: "Dùng tiếng Anh trên thiết bị này và trên tài khoản của tôi",
-            vietnamese: "Dùng tiếng Việt trên thiết bị này và trên tài khoản của tôi",
+            english:
+              "Dùng tiếng Anh trên thiết bị này và trên tài khoản của tôi",
+            vietnamese:
+              "Dùng tiếng Việt trên thiết bị này và trên tài khoản của tôi",
           },
         },
         titles: {
@@ -908,10 +922,13 @@
           addressPrivacy: "Ai có thể nhìn thấy địa chỉ của tôi?",
           defaultPostPrivacy: "Ai có thể nhìn thấy những bài viết mới của tôi?",
           followPrivacy: "Bật/Tắt tính năng phê duyệt yêu cầu theo dõi",
-          followerPrivacy: "Ai có thể nhìn thấy danh sách người theo dõi của tôi?",
-          followingPrivacy: "Ai có thể nhìn thấy danh sách người tôi đang theo dõi?",
+          followerPrivacy:
+            "Ai có thể nhìn thấy danh sách người theo dõi của tôi?",
+          followingPrivacy:
+            "Ai có thể nhìn thấy danh sách người tôi đang theo dõi?",
           storyHighlightPrivacy: "Ai có thể nhìn thấy tin nổi bật của tôi?",
-          onlineStatusVisibility: "Ai có thể nhìn thấy trạng thái trực tuyến của tôi?",
+          onlineStatusVisibility:
+            "Ai có thể nhìn thấy trạng thái trực tuyến của tôi?",
           groupChatInvitePermission: "Ai có thể thêm tôi vào nhóm chat?",
           tagPermission: "Ai có thể gắn thẻ tôi?",
           language: "Ngôn ngữ",
@@ -1191,6 +1208,27 @@
         profileOpenFailed: "Không thể mở hồ sơ này",
         postOpenFailed: "Không thể mở bài viết này",
       },
+    },
+    searchPanel: {
+      title: "Tìm kiếm",
+      closeTitle: "Đóng tìm kiếm",
+      searchPlaceholder: "Tìm kiếm...",
+      clearSearch: "Xóa",
+      loadingHistory: "Đang tải tìm kiếm gần đây...",
+      loadingResults: "Đang tìm kiếm...",
+      recentTitle: "Gần đây",
+      resultsTitle: "Kết quả",
+      emptyRecentTitle: "Chưa có tìm kiếm gần đây",
+      emptyRecentDescription: "Những tìm kiếm gần đây sẽ xuất hiện ở đây",
+      shortKeywordTitle: "Tìm kiếm",
+      shortKeywordDescription: "Nhập để tìm kiếm",
+      emptyResultsTitle: "Không tìm thấy kết quả",
+      emptyResultsDescription: "Hãy thử với từ khóa khác",
+      loadFailedTitle: "Không thể tải tìm kiếm",
+      loadFailedDescription: "Vui lòng thử lại sau",
+      removeRecentAria: "Xóa tìm kiếm gần đây",
+      removeRecentFailed: "Không thể xóa tìm kiếm này",
+      avatarAlt: "Ảnh đại diện của {{username}}",
     },
     post: {
       options: {
@@ -1846,12 +1884,13 @@
             followersOrFollowing: "Người theo dõi hoặc đang theo dõi",
           },
           title: "Cài đặt trò chuyện",
-          onlineStatusTitle: "Ai có thể nhìn thấy trạng thái trực tuyến của tôi?",
-          online_status_visibility: "Ai có thể nhìn thấy trạng thái trực tuyến của tôi?",
+          onlineStatusTitle:
+            "Ai có thể nhìn thấy trạng thái trực tuyến của tôi?",
+          online_status_visibility:
+            "Ai có thể nhìn thấy trạng thái trực tuyến của tôi?",
           loadFailed: "Không tải được cài đặt",
           groupInviteTitle: "Ai có thể thêm tôi vào nhóm chat?",
-          group_invite_permission:
-            "Ai có thể thêm tôi vào nhóm chat?",
+          group_invite_permission: "Ai có thể thêm tôi vào nhóm chat?",
           onlineStatusToggleAria: "Bật/Tắt hiển thị trạng thái trực tuyến",
           toggle_online_status: "Bật/Tắt hiển thị trạng thái trực tuyến",
           updateFailed: "Không thể cập nhật cài đặt",
@@ -2832,10 +2871,8 @@
           viewMore: "Xem thêm",
         },
         labels: {
-          chattedBefore: "Từng trò chuyện với nhau",
           followedByOne: "Được {name} theo dõi",
-          followedByOneAndOthers:
-            "Được {name} và {count} người khác theo dõi",
+          followedByOneAndOthers: "Được {name} và {count} người khác theo dõi",
           followedByTwo: "Được {first} và {second} theo dõi",
           followedByTwoAndOthers:
             "Được {first}, {second} và {count} người khác theo dõi",
@@ -2851,8 +2888,7 @@
         },
         empty: {
           title: "Hiện chưa có gợi ý",
-          description:
-            "Khi mạng lưới của bạn mở rộng, gợi ý sẽ hiện ở đây",
+          description: "Khi mạng lưới của bạn mở rộng, gợi ý sẽ hiện ở đây",
         },
         error: {
           title: "Không thể tải gợi ý",

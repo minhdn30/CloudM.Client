@@ -197,6 +197,10 @@ async function loadSidebar() {
     window.NotificationsPanel.init();
   }
 
+  if (window.SearchPanel && typeof window.SearchPanel.init === "function") {
+    window.SearchPanel.init();
+  }
+
   if (window.I18n?.onChange && !window.__sidebarLanguageSyncUnsubscribe) {
     window.__sidebarLanguageSyncUnsubscribe = window.I18n.onChange(() => {
       updateSidebarLanguageValue();
@@ -743,6 +747,13 @@ function setActiveSidebar(route) {
     }
 
     if (
+      dataRoute === SIDEBAR_ROUTE_PATHS.SEARCH &&
+      window.SearchPanel?.isOpen
+    ) {
+      isActive = true;
+    }
+
+    if (
       dataRoute === SIDEBAR_ROUTE_PATHS.NOTIFICATIONS &&
       window.NotificationsPanel?.isOpen
     ) {
@@ -791,13 +802,34 @@ function navigate(e, route, clickedEl = null) {
     if (window.closeNotificationsPanel) {
       window.closeNotificationsPanel();
     }
+    if (window.closeSearchPanel) {
+      window.closeSearchPanel();
+    }
     if (window.toggleChatSidebar) window.toggleChatSidebar();
+    closeAllDropdowns();
+    return;
+  }
+
+  if (finalRoute === SIDEBAR_ROUTE_PATHS.SEARCH) {
+    e.preventDefault();
+    if (window.closeNotificationsPanel) {
+      window.closeNotificationsPanel();
+    }
+    if (window.closeChatSidebar) {
+      window.closeChatSidebar(true);
+    }
+    if (window.toggleSearchPanel) {
+      window.toggleSearchPanel();
+    }
     closeAllDropdowns();
     return;
   }
 
   if (finalRoute === SIDEBAR_ROUTE_PATHS.NOTIFICATIONS) {
     e.preventDefault();
+    if (window.closeSearchPanel) {
+      window.closeSearchPanel();
+    }
     if (window.toggleNotificationsPanel) {
       window.toggleNotificationsPanel();
     }

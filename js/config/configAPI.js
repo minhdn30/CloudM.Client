@@ -909,6 +909,39 @@
         ),
     },
 
+    Search: {
+      searchSidebarAccounts: (
+        keyword = "",
+        limit = window.APP_CONFIG?.SEARCH_PANEL_SEARCH_LIMIT || 20,
+        options = {},
+      ) => {
+        const safeKeyword =
+          keyword === null || keyword === undefined ? "" : String(keyword);
+        const safeLimit = Number.isFinite(limit) ? limit : 20;
+        return apiFetch(
+          `/Search/sidebar?keyword=${encodeURIComponent(safeKeyword)}&limit=${safeLimit}`,
+          { signal: options.signal },
+        );
+      },
+      getSearchHistory: (
+        limit = window.APP_CONFIG?.SEARCH_PANEL_HISTORY_LIMIT || 12,
+        options = {},
+      ) => {
+        const safeLimit = Number.isFinite(limit) ? limit : 12;
+        return apiFetch(`/Search/sidebar/history?limit=${safeLimit}`, {
+          signal: options.signal,
+        });
+      },
+      saveSearchHistory: (targetId) =>
+        apiFetch(`/Search/sidebar/history/${targetId}`, {
+          method: "POST",
+        }),
+      deleteSearchHistory: (targetId) =>
+        apiFetch(`/Search/sidebar/history/${targetId}`, {
+          method: "DELETE",
+        }),
+    },
+
     Accounts: {
       getProfilePreview: (accountId) =>
         apiFetch(`/Accounts/profile-preview/${accountId}`),
