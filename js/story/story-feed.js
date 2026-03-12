@@ -5,6 +5,7 @@
   const DEFAULT_FEED_INITIAL_LOAD_COUNT = 6;
   const DEFAULT_FEED_LOAD_MORE_PAGE_SIZE = 30;
   const DEFAULT_FEED_API_PAGE_SIZE = 30;
+  const DEFAULT_FEED_MIN_SKELETON_MS = 300;
 
   function parsePositiveInt(value, fallbackValue) {
     const parsed = Number(value);
@@ -23,6 +24,10 @@
   const FEED_API_PAGE_SIZE = parsePositiveInt(
     window.APP_CONFIG?.STORY_FEED_API_PAGE_SIZE,
     DEFAULT_FEED_API_PAGE_SIZE,
+  );
+  const FEED_MIN_SKELETON_MS = parsePositiveInt(
+    window.APP_CONFIG?.STORY_FEED_MIN_SKELETON_MS,
+    DEFAULT_FEED_MIN_SKELETON_MS,
   );
 
   let feedAuthorItems = [];
@@ -330,13 +335,28 @@
   function renderSkeletons(container, count) {
     let html = "";
     for (let i = 0; i < count; i++) {
+      const storyClass = i === 0 ? "story story-skeleton story-own" : "story story-skeleton";
       html += `
-        <div class="story story-skeleton">
+        <div class="${storyClass}">
           <div class="story-avatar-skeleton skeleton"></div>
           <div class="story-name-skeleton skeleton"></div>
         </div>`;
     }
     container.innerHTML = html;
+  }
+
+  function wait(ms) {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    });
+  }
+
+  async function ensureMinimumSkeletonDuration(startedAt) {
+    const elapsed = Date.now() - startedAt;
+    const remaining = FEED_MIN_SKELETON_MS - elapsed;
+    if (remaining > 0) {
+      await wait(remaining);
+    }
   }
 
   /* ─── render ─── */
@@ -837,6 +857,7 @@
     bindStoryFeedLanguageChange();
 
     feedNavActionInFlight = false;
+    const skeletonStartedAt = Date.now();
 
     // Hiển thị skeleton ngay lập tức
     renderSkeletons(container, 7);
@@ -886,9 +907,11 @@
         FEED_API_PAGE_SIZE,
         Array.isArray(rawItems) ? rawItems.length : 0,
       );
+      await ensureMinimumSkeletonDuration(skeletonStartedAt);
       bindStoryFeedNavigation();
       renderCurrentStoryWindow("");
     } catch (err) {
+      await ensureMinimumSkeletonDuration(skeletonStartedAt);
       console.error("Story feed load failed:", err);
       container.innerHTML = "";
       updateStoryFeedNavButtons();

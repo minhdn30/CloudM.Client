@@ -57,6 +57,27 @@
   color: var(--text-primary);
 }
 
+.follow-suggestions-panel-head-skeleton {
+  pointer-events: none;
+}
+
+.follow-suggestions-panel-title-skeleton,
+.follow-suggestions-panel-action-skeleton {
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.follow-suggestions-panel-title-skeleton {
+  width: 136px;
+  max-width: 52%;
+  height: 16px;
+}
+
+.follow-suggestions-panel-action-skeleton {
+  width: 82px;
+  height: 32px;
+}
+
 .follow-suggestions-back-btn {
   display: inline-flex;
   align-items: center;

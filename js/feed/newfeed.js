@@ -54,13 +54,63 @@
     loadFeed();
   }
 
+  function renderFeedSkeletons(count = 2) {
+    if (!feedContainer) return;
+
+    const safeCount = Math.max(1, Number.parseInt(count, 10) || 2);
+    feedContainer.innerHTML = Array.from({ length: safeCount })
+      .map(
+        () => `
+          <article class="post feed-skeleton-post" aria-hidden="true">
+            <div class="feed-skeleton-header">
+              <div class="feed-skeleton-avatar skeleton"></div>
+              <div class="feed-skeleton-meta">
+                <div class="feed-skeleton-line skeleton"></div>
+                <div class="feed-skeleton-line short skeleton"></div>
+              </div>
+            </div>
+            <div class="feed-skeleton-caption">
+              <div class="feed-skeleton-line skeleton"></div>
+              <div class="feed-skeleton-line medium skeleton"></div>
+            </div>
+            <div class="feed-skeleton-media skeleton"></div>
+            <div class="feed-skeleton-actions">
+              <div class="feed-skeleton-action skeleton"></div>
+              <div class="feed-skeleton-action skeleton"></div>
+              <div class="feed-skeleton-action skeleton"></div>
+            </div>
+          </article>
+        `,
+      )
+      .join("");
+  }
+
+  function clearFeedSkeletons() {
+    if (!feedContainer) return;
+    feedContainer
+      .querySelectorAll(".feed-skeleton-post")
+      .forEach((item) => item.remove());
+  }
+
   async function loadFeed() {
     if (isLoading || !hasMore) return;
 
     isLoading = true;
+    const isInitialLoad =
+      feedContainer &&
+      (feedContainer.children.length === 0 ||
+        feedContainer.querySelector(".feed-skeleton-post"));
+
+    if (isInitialLoad) {
+      renderFeedSkeletons(2);
+    }
 
     // Chỉ hiện loader khi đã có bài viết (load more)
-    if (feedContainer && feedContainer.children.length > 0) {
+    if (
+      feedContainer &&
+      feedContainer.children.length > 0 &&
+      !feedContainer.querySelector(".feed-skeleton-post")
+    ) {
       LoadingUtils.toggle(loader, true);
     }
 
@@ -79,6 +129,7 @@
       const data = await res.json();
       const nextCursor = data?.nextCursor || null;
 
+      clearFeedSkeletons();
       renderFeed(data.items);
 
       if (nextCursor?.token) {
@@ -97,6 +148,7 @@
       }
     } catch (err) {
       console.error(err);
+      clearFeedSkeletons();
     } finally {
       isLoading = false;
       if (loader) LoadingUtils.toggle(loader, false);

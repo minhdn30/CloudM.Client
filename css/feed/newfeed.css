@@ -68,6 +68,71 @@
   box-sizing: border-box;
 }
 
+.feed-skeleton-post {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.feed-skeleton-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.feed-skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.feed-skeleton-meta,
+.feed-skeleton-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.feed-skeleton-meta {
+  flex: 1;
+}
+
+.feed-skeleton-line {
+  height: 12px;
+  border-radius: 999px;
+  width: 100%;
+}
+
+.feed-skeleton-line.short {
+  width: 34%;
+}
+
+.feed-skeleton-line.medium {
+  width: 72%;
+}
+
+.feed-skeleton-media {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+}
+
+.feed-skeleton-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.feed-skeleton-action {
+  width: 54px;
+  height: 18px;
+  border-radius: 999px;
+}
+
 /* Animation for newly prepended posts */
 .post-new-fade-in {
   animation: post-fade-in 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;

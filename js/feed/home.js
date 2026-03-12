@@ -6,17 +6,26 @@ async function loadPartial(id, page, featureFolder = "feed") {
 
 async function loadHome() {
   await loadPage("feed/home");
-  await loadPartial("story-section", "story", "story");
+  await Promise.all([
+    loadPartial("story-section", "story", "story"),
+    loadPartial("feed-section", "newfeed", "feed"),
+  ]);
+
+  const initTasks = [];
+
   if (window.initStoryFeed) {
-    initStoryFeed();
+    initTasks.push(window.initStoryFeed());
   }
-  await loadPartial("feed-section", "newfeed", "feed");
 
   if (window.initFeed) {
-    initFeed();
+    window.initFeed();
   }
 
   if (window.FollowSuggestionsModule?.initHomeRail) {
-    await window.FollowSuggestionsModule.initHomeRail();
+    initTasks.push(window.FollowSuggestionsModule.initHomeRail());
+  }
+
+  if (initTasks.length > 0) {
+    await Promise.allSettled(initTasks);
   }
 }

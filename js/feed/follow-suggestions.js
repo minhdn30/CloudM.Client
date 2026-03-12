@@ -408,9 +408,16 @@
     `;
   }
 
-  function renderHomeRailShell(contentHtml) {
-    return `
-      <section class="follow-suggestions-panel">
+  function renderHomeRailShell(contentHtml, options = {}) {
+    const loadingHead = options.loadingHead === true;
+    const headHtml = loadingHead
+      ? `
+        <div class="follow-suggestions-panel-head follow-suggestions-panel-head-skeleton" aria-hidden="true">
+          <div class="follow-suggestions-panel-title-skeleton skeleton"></div>
+          <div class="follow-suggestions-panel-action-skeleton skeleton"></div>
+        </div>
+      `
+      : `
         <div class="follow-suggestions-panel-head">
           <h2 class="follow-suggestions-panel-title" data-i18n="follow.suggestions.home.title">${escapeHtml(
             sugT(
@@ -428,6 +435,11 @@
             <i data-lucide="chevron-right" aria-hidden="true"></i>
           </a>
         </div>
+      `;
+
+    return `
+      <section class="follow-suggestions-panel">
+        ${headHtml}
         <div class="follow-suggestions-panel-body">
           ${contentHtml}
         </div>
@@ -440,6 +452,7 @@
       `<div class="follow-suggestions-list">${renderSkeletonList(
         getHomePageSize(),
       )}</div>`,
+      { loadingHead: true },
     );
   }
 

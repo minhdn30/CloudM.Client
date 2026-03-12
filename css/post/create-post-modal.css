@@ -787,21 +787,45 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    visibility var(--transition-fast),
+    transform var(--transition-fast),
+    background var(--transition-fast);
   pointer-events: all;
   backdrop-filter: blur(10px);
+  opacity: 0;
+  visibility: hidden;
 }
 
 .nav-btn:hover {
   background: var(--text-tertiary);
 }
 
+.media-preview-readonly:hover .nav-btn,
+.media-preview-readonly:focus-within .nav-btn {
+  opacity: 1;
+  visibility: visible;
+}
+
+.media-preview-readonly:hover .prev-btn,
+.media-preview-readonly:focus-within .prev-btn {
+  transform: translateY(-50%) translateX(0);
+}
+
+.media-preview-readonly:hover .next-btn,
+.media-preview-readonly:focus-within .next-btn {
+  transform: translateY(-50%) translateX(0);
+}
+
 .prev-btn {
   left: 20px;
+  transform: translateY(-50%) translateX(-8px);
 }
 
 .next-btn {
   right: 20px;
+  transform: translateY(-50%) translateX(8px);
 }
 
 .nav-btn svg {

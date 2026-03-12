@@ -219,6 +219,7 @@
     STORY_FEED_INITIAL_LOAD_COUNT: 8, // Tổng số ô story hiển thị tại 1 thời điểm ở home (đã gồm "Your Story" nếu có)
     STORY_FEED_LOAD_MORE_PAGE_SIZE: 4, // Bước dịch chuyển UI mỗi lần bấm next/prev ở story-section
     STORY_FEED_API_PAGE_SIZE: 30, // Kích thước page thực tế khi gọi API lấy author story
+    STORY_FEED_MIN_SKELETON_MS: 300, // Thời gian tối thiểu giữ shimmer của story feed để tránh chớp quá nhanh
     STORY_FEED_NAV_SCROLL_STEP_PX: 0, // Bước cuộn khi bấm prev/next ở story-section (0 = tự tính theo chiều rộng container)
     STORY_HIGHLIGHT_GROUP_NAME_MAX_LENGTH: 50, // Max ký tự tên nhóm highlight
     STORY_HIGHLIGHT_MAX_GROUPS: 20, // Số lượng nhóm highlight tối đa mỗi user
