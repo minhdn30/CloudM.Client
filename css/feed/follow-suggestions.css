@@ -189,7 +189,10 @@
   display: flex;
   flex-direction: column;
 }
-
+.follow-suggestions-list-skeleton {
+  gap: 8px;
+  padding: 10px 12px 12px;
+}
 .follow-suggestion-row,
 .follow-suggestion-skeleton-item {
   display: flex;

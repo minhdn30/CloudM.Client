@@ -65,13 +65,17 @@
     if (!Array.isArray(value)) return [];
 
     return value
-      .map((item) => (item === undefined || item === null ? "" : `${item}`.trim()))
+      .map((item) =>
+        item === undefined || item === null ? "" : `${item}`.trim(),
+      )
       .filter(Boolean);
   }
 
   function normalizePositiveInt(value, fallback = 1) {
     const parsed = Number(value);
-    return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+    return Number.isFinite(parsed) && parsed > 0
+      ? Math.floor(parsed)
+      : fallback;
   }
 
   function getHomePageSize() {
@@ -151,7 +155,9 @@
   }
 
   function isSuggestionsPath(rawHashOrPath) {
-    const rawValue = (rawHashOrPath || global.location.hash || "").toString().trim();
+    const rawValue = (rawHashOrPath || global.location.hash || "")
+      .toString()
+      .trim();
     if (!rawValue) return false;
 
     if (RouteHelper?.parseHash) {
@@ -187,7 +193,9 @@
         "HasDirectConversation",
       ]),
       isContact: readBoolean(rawItem, ["isContact", "IsContact"]),
-      lastContactedAt: (pickValue(rawItem, ["lastContactedAt", "LastContactedAt"]) || "")
+      lastContactedAt: (
+        pickValue(rawItem, ["lastContactedAt", "LastContactedAt"]) || ""
+      )
         .toString()
         .trim(),
       mutualFollowCount: Math.max(
@@ -233,7 +241,10 @@
         : pageSize > 0
           ? Math.ceil(totalItems / pageSize)
           : 1;
-    const totalPages = Math.max(1, Math.min(computedTotalPages || 1, getMaxPages()));
+    const totalPages = Math.max(
+      1,
+      Math.min(computedTotalPages || 1, getMaxPages()),
+    );
 
     return {
       items,
@@ -265,9 +276,11 @@
 
   function buildReasonText(item) {
     if (item.isFollower) {
-      return global.AccountRelationshipText?.resolveLabel?.({
-        isFollower: true,
-      }) || sugT("common.relationships.followsYou", {}, "Follows you");
+      return (
+        global.AccountRelationshipText?.resolveLabel?.({
+          isFollower: true,
+        }) || sugT("common.relationships.followsYou", {}, "Follows you")
+      );
     }
 
     const mutualFollowCount = Math.max(0, item.mutualFollowCount || 0);
@@ -328,10 +341,12 @@
     }
 
     if (item.hasDirectConversation) {
-      return global.AccountRelationshipText?.resolveLabel?.({
-        hasDirectConversation: item.hasDirectConversation,
-        lastContactedAt: item.lastContactedAt,
-      }) || sugT("common.relationships.messagedBefore", {}, "Messaged before");
+      return (
+        global.AccountRelationshipText?.resolveLabel?.({
+          hasDirectConversation: item.hasDirectConversation,
+          lastContactedAt: item.lastContactedAt,
+        }) || sugT("common.relationships.messagedBefore", {}, "Messaged before")
+      );
     }
 
     return sugT(
@@ -424,11 +439,7 @@
       : `
         <div class="follow-suggestions-panel-head">
           <h2 class="follow-suggestions-panel-title" data-i18n="follow.suggestions.home.title">${escapeHtml(
-            sugT(
-              "follow.suggestions.home.title",
-              {},
-              "Suggested for you",
-            ),
+            sugT("follow.suggestions.home.title", {}, "Suggested for you"),
           )}</h2>
           <a class="follow-suggestions-view-more" href="${escapeAttr(
             buildSuggestionsHash(),
@@ -453,7 +464,7 @@
 
   function renderHomeLoading() {
     return renderHomeRailShell(
-      `<div class="follow-suggestions-list">${renderSkeletonList(
+      `<div class="follow-suggestions-list follow-suggestions-list-skeleton">${renderSkeletonList(
         getHomePageSize(),
       )}</div>`,
       { loadingHead: true },
@@ -464,11 +475,7 @@
     return renderHomeRailShell(
       renderState(
         "refresh-cw",
-        sugT(
-          "follow.suggestions.error.title",
-          {},
-          "Couldn't load suggestions",
-        ),
+        sugT("follow.suggestions.error.title", {}, "Couldn't load suggestions"),
         sugT(
           "follow.suggestions.error.description",
           {},
@@ -485,11 +492,7 @@
     return renderHomeRailShell(
       renderState(
         "users-round",
-        sugT(
-          "follow.suggestions.empty.title",
-          {},
-          "No suggestions right now",
-        ),
+        sugT("follow.suggestions.empty.title", {}, "No suggestions right now"),
         sugT(
           "follow.suggestions.empty.description",
           {},
@@ -518,11 +521,7 @@
   function renderPageError() {
     return renderState(
       "refresh-cw",
-      sugT(
-        "follow.suggestions.error.title",
-        {},
-        "Couldn't load suggestions",
-      ),
+      sugT("follow.suggestions.error.title", {}, "Couldn't load suggestions"),
       sugT(
         "follow.suggestions.error.description",
         {},
@@ -537,11 +536,7 @@
   function renderPageEmpty() {
     return renderState(
       "users-round",
-      sugT(
-        "follow.suggestions.empty.title",
-        {},
-        "No suggestions right now",
-      ),
+      sugT("follow.suggestions.empty.title", {}, "No suggestions right now"),
       sugT(
         "follow.suggestions.empty.description",
         {},
@@ -731,7 +726,9 @@
       pageState.hasNextPage = snapshot.hasNextPage === true;
       pageState.loadFailed = snapshot.loadFailed === true;
       pageState.items = Array.isArray(snapshot.items)
-        ? snapshot.items.map(normalizeSuggestionItem).filter((item) => item.accountId)
+        ? snapshot.items
+            .map(normalizeSuggestionItem)
+            .filter((item) => item.accountId)
         : [];
     };
   }
@@ -835,11 +832,7 @@
     postRender(container);
 
     try {
-      const paging = await fetchSuggestions(
-        HOME_SURFACE,
-        1,
-        getHomePageSize(),
-      );
+      const paging = await fetchSuggestions(HOME_SURFACE, 1, getHomePageSize());
       if (requestToken !== homeRequestToken) return;
 
       container.innerHTML =

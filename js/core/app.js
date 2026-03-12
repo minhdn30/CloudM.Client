@@ -1406,6 +1406,23 @@ async function showErrorPage(title, message) {
 }
 window.showErrorPage = showErrorPage;
 
+function appGoBackFromErrorPage() {
+    const fallbackPath = APP_ROUTE_PATHS.HOME || APP_ROUTE_PATHS.ROOT;
+
+    if (AppRouteHelper?.goBack) {
+        AppRouteHelper.goBack(fallbackPath);
+        return;
+    }
+
+    if (window.history && window.history.length > 1) {
+        window.history.back();
+        return;
+    }
+
+    window.location.hash = appBuildHash(fallbackPath);
+}
+window.goBackFromErrorPage = appGoBackFromErrorPage;
+
 function loadPlaceholder(title, iconName) {
     const homeHash = appBuildHash(APP_ROUTE_PATHS.ROOT);
     app.innerHTML = `

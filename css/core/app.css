@@ -100,6 +100,7 @@ html, body {
 
 /* ================= PLACEHOLDER PAGE ================= */
 .placeholder-container {
+  --placeholder-panel-offset: 0px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -107,6 +108,7 @@ html, body {
   width: 100%;
   padding: 20px;
   text-align: center;
+  transition: padding 0.4s ease-in-out;
 }
 
 .placeholder-content {
@@ -115,6 +117,9 @@ html, body {
   flex-direction: column;
   align-items: center;
   gap: 24px;
+  transform: translateX(var(--placeholder-panel-offset));
+  transition: transform 0.4s ease-in-out;
+  will-change: transform;
 }
 
 .placeholder-icon {
@@ -169,4 +174,17 @@ html, body {
 
 .placeholder-btn:active {
   transform: translateY(0);
+}
+
+body.search-sidebar-open .placeholder-container,
+body.search-panel-open .placeholder-container,
+body.notifications-panel-open .placeholder-container,
+body.chat-sidebar-open .placeholder-container {
+  --placeholder-panel-offset: 18px;
+}
+
+@media (max-width: 768px) {
+  .placeholder-container {
+    --placeholder-panel-offset: 0px;
+  }
 }

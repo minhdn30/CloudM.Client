@@ -7,7 +7,7 @@
   let isInitializing = false;
   let heartbeatTimer = null;
   const HEARTBEAT_INTERVAL_MS =
-    Number(window.APP_CONFIG?.PRESENCE_HEARTBEAT_INTERVAL_MS) || 25000;
+    Number(window.APP_CONFIG?.PRESENCE_HEARTBEAT_INTERVAL_MS) || 30000;
   const pendingAutoOpenConversations = new Set();
   const MESSAGE_NOTIFICATION_DEDUPE_WINDOW_MS =
     Number(window.APP_CONFIG?.CHAT_NOTIFICATION_DEDUPE_WINDOW_MS) || 10000;
