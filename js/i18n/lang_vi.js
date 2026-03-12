@@ -108,6 +108,12 @@
         followers_or_following: "Người theo dõi hoặc đang theo dõi",
         current: "Đang dùng",
       },
+      relationships: {
+        following: "Đang theo dõi",
+        followsYou: "Đang theo dõi bạn",
+        messagedRecently: "Đã nhắn tin gần đây",
+        messagedBefore: "Từng trò chuyện",
+      },
       loading: {
         generic: "Đang tải...",
         followRequests: "Đang tải yêu cầu theo dõi...",
@@ -2865,7 +2871,6 @@
           viewMore: "Xem thêm",
         },
         labels: {
-          chattedBefore: "Từng trò chuyện với nhau",
           followedByOne: "Được {name} theo dõi",
           followedByOneAndOthers: "Được {name} và {count} người khác theo dõi",
           followedByTwo: "Được {first} và {second} theo dõi",

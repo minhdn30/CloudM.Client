@@ -108,6 +108,12 @@
         followers_or_following: "Followers or following",
         current: "Current",
       },
+      relationships: {
+        following: "Following",
+        followsYou: "Follows you",
+        messagedRecently: "Messaged recently",
+        messagedBefore: "Messaged before",
+      },
       loading: {
         generic: "Loading...",
         notifications: "Loading notifications...",
@@ -2836,7 +2842,6 @@
           viewMore: "View More",
         },
         labels: {
-          chattedBefore: "You chatted before",
           followedByOne: "Followed by {name}",
           followedByOneAndOthers: "Followed by {name} and {count} others",
           followedByTwo: "Followed by {first} and {second}",

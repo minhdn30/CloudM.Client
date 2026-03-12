@@ -233,6 +233,24 @@
       username: (rawItem?.username ?? rawItem?.Username ?? "").toString().trim(),
       fullName: (rawItem?.fullName ?? rawItem?.FullName ?? "").toString().trim(),
       avatarUrl: (rawItem?.avatarUrl ?? rawItem?.AvatarUrl ?? "").toString().trim(),
+      isFollowing:
+        rawItem?.isFollowing === true ||
+        rawItem?.IsFollowing === true ||
+        rawItem?.isFollowing === 1 ||
+        rawItem?.IsFollowing === 1,
+      isFollower:
+        rawItem?.isFollower === true ||
+        rawItem?.IsFollower === true ||
+        rawItem?.isFollower === 1 ||
+        rawItem?.IsFollower === 1,
+      hasDirectConversation:
+        rawItem?.hasDirectConversation === true ||
+        rawItem?.HasDirectConversation === true ||
+        rawItem?.hasDirectConversation === 1 ||
+        rawItem?.HasDirectConversation === 1,
+      lastContactedAt: (rawItem?.lastContactedAt ?? rawItem?.LastContactedAt ?? "")
+        .toString()
+        .trim(),
       lastSearchedAt: (rawItem?.lastSearchedAt ?? rawItem?.LastSearchedAt ?? "")
         .toString()
         .trim(),
@@ -252,10 +270,18 @@
   }
 
   function getSecondaryName(item) {
-    if (!item.username || !item.fullName) return item.username ? "" : item.fullName;
-    return item.fullName.localeCompare(item.username, undefined, { sensitivity: "accent" }) === 0
-      ? ""
-      : item.fullName;
+    return (item?.fullName || "").toString().trim();
+  }
+
+  function getRelationshipLabel(item) {
+    return (
+      global.AccountRelationshipText?.resolveLabel?.({
+        isFollowing: item?.isFollowing,
+        isFollower: item?.isFollower,
+        hasDirectConversation: item?.hasDirectConversation,
+        lastContactedAt: item?.lastContactedAt,
+      }) || ""
+    );
   }
 
   function buildAccountPath(item) {
@@ -316,6 +342,7 @@
             .map((item) => {
               const primaryName = getPrimaryName(item);
               const secondaryName = getSecondaryName(item);
+              const relationshipLabel = getRelationshipLabel(item);
               const avatarUrl = getAvatarUrl(item);
 
               return `
@@ -340,6 +367,11 @@
                       ${
                         secondaryName
                           ? `<div class="search-panel-item-secondary">${escapeHtml(secondaryName)}</div>`
+                          : ""
+                      }
+                      ${
+                        relationshipLabel
+                          ? `<div class="search-panel-item-relationship">${escapeHtml(relationshipLabel)}</div>`
                           : ""
                       }
                     </div>
