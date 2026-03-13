@@ -104,6 +104,11 @@ const MediaPreviewer = {
       if (e.key === "ArrowRight") this.next();
     });
 
+    window.addEventListener("resize", () => {
+      if (!this.overlay?.classList.contains("active")) return;
+      this.updateNavigationButtons();
+    });
+
     if (window.lucide) lucide.createIcons();
   },
 
@@ -536,6 +541,19 @@ const MediaPreviewer = {
     const prevBtn = document.getElementById("preview-nav-prev");
     const nextBtn = document.getElementById("preview-nav-next");
     if (!prevBtn || !nextBtn) return;
+
+    const hideNavForMobile =
+      window.innerWidth <= 768 ||
+      document.body.classList.contains("is-mobile-layout");
+    if (hideNavForMobile) {
+      prevBtn.style.display = "none";
+      nextBtn.style.display = "none";
+      prevBtn.classList.remove("disabled");
+      nextBtn.classList.remove("disabled");
+      prevBtn.removeAttribute("aria-disabled");
+      nextBtn.removeAttribute("aria-disabled");
+      return;
+    }
 
     const showNav = this.mediaList.length > 1 || !this.shouldLoopNavigation();
     prevBtn.style.display = showNav ? "flex" : "none";

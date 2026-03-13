@@ -299,17 +299,3 @@ body.light-mode .media-preview-overlay::before {
     color: var(--text-primary);
 }
 
-/* Mobile responsive */
-@media (max-width: 1024px) {
-    .media-preview-nav.prev { left: -10px; }
-    .media-preview-nav.next { right: -10px; }
-    .media-preview-container { width: 95%; }
-}
-
-@media (max-width: 768px) {
-    .media-preview-nav { display: none; }
-    .media-preview-container { height: 60%; }
-    .media-preview-toolbar { top: 20px; right: 20px; }
-    .media-preview-footer { bottom: 20px; }
-}
-

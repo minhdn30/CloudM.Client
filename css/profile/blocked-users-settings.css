@@ -258,17 +258,3 @@
   line-height: 1.55;
 }
 
-@media (max-width: 640px) {
-  .blocked-users-item {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .blocked-users-item-main {
-    width: 100%;
-  }
-
-  .blocked-users-unblock-btn {
-    width: 100%;
-  }
-}

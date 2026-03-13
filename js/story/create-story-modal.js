@@ -257,6 +257,7 @@ const createStoryModalState = {
   expires: 24,
   activeDropdown: null,
   lastTextSelectionRange: null,
+  dropdownSyncFrameId: 0,
 };
 let csLanguageUnsubscribe = null;
 
@@ -514,6 +515,97 @@ function csCloseAllDropdowns() {
   privacyDropdown?.classList.remove("show");
   expiresDropdown?.classList.remove("show");
   createStoryModalState.activeDropdown = null;
+}
+
+function csUseMobileDropdownLayout() {
+  return (
+    window.innerWidth <= 768 ||
+    document.body.classList.contains("is-mobile-layout")
+  );
+}
+
+function csResolveDropdownRefs(dropdownName) {
+  const normalizedName =
+    typeof dropdownName === "string" ? dropdownName.trim().toLowerCase() : "";
+  if (!["privacy", "expires"].includes(normalizedName)) return null;
+
+  const normalizedSuffix =
+    normalizedName.charAt(0).toUpperCase() + normalizedName.slice(1);
+
+  return {
+    normalizedName,
+    dropdown: document.getElementById(`cs${normalizedSuffix}Dropdown`),
+    selector: document.getElementById(`cs${normalizedSuffix}Selector`),
+  };
+}
+
+function csPositionDropdown(dropdown, selector, options = {}) {
+  if (!dropdown || !selector) return;
+
+  if (csUseMobileDropdownLayout()) {
+    dropdown.style.left = "0";
+    dropdown.style.right = "0";
+    dropdown.style.top = "auto";
+    dropdown.style.bottom = "0";
+    dropdown.classList.remove("dropup");
+    return;
+  }
+
+  const rect = selector.getBoundingClientRect();
+  dropdown.style.right = "auto";
+  dropdown.style.left = `${rect.left}px`;
+
+  let dropdownHeight = dropdown.offsetHeight;
+  if (options.measureHidden === true || dropdownHeight <= 0) {
+    const wasVisible = dropdown.classList.contains("show");
+    dropdown.style.visibility = "hidden";
+    dropdown.style.display = "block";
+    if (!wasVisible) {
+      dropdown.classList.add("show");
+    }
+    dropdownHeight = dropdown.offsetHeight;
+    if (!wasVisible) {
+      dropdown.classList.remove("show");
+    }
+    dropdown.style.display = "";
+    dropdown.style.visibility = "";
+  }
+
+  const spaceBelow = window.innerHeight - rect.bottom;
+  if (spaceBelow >= dropdownHeight + 10) {
+    dropdown.style.top = `${rect.bottom + 8}px`;
+    dropdown.style.bottom = "auto";
+    dropdown.classList.remove("dropup");
+  } else {
+    dropdown.style.top = "auto";
+    dropdown.style.bottom = `${window.innerHeight - rect.top + 8}px`;
+    dropdown.classList.add("dropup");
+  }
+}
+
+function csReconcileActiveDropdownPosition() {
+  const { modal } = csGetElements();
+  if (!modal?.classList.contains("show") || !createStoryModalState.activeDropdown) {
+    return;
+  }
+
+  const refs = csResolveDropdownRefs(createStoryModalState.activeDropdown);
+  if (!refs?.dropdown?.classList.contains("show") || !refs.selector) {
+    return;
+  }
+
+  csPositionDropdown(refs.dropdown, refs.selector);
+}
+
+function csScheduleDropdownReposition() {
+  if (createStoryModalState.dropdownSyncFrameId) {
+    cancelAnimationFrame(createStoryModalState.dropdownSyncFrameId);
+  }
+
+  createStoryModalState.dropdownSyncFrameId = requestAnimationFrame(() => {
+    createStoryModalState.dropdownSyncFrameId = 0;
+    csReconcileActiveDropdownPosition();
+  });
 }
 
 function csCloseEmojiPicker() {
@@ -1473,6 +1565,10 @@ function csBindDocumentEvents() {
     closeCreateStoryModal();
   });
 
+  window.addEventListener("resize", csScheduleDropdownReposition);
+  window.addEventListener("orientationchange", csScheduleDropdownReposition);
+  window.addEventListener("cloudm:viewport-change", csScheduleDropdownReposition);
+
   createStoryModalState.documentEventsBound = true;
 }
 
@@ -1750,45 +1846,16 @@ window.csToggleDropdown = function (dropdownName, event) {
   }
   if (createStoryModalState.isSubmitting) return;
 
-  const normalizedName =
-    typeof dropdownName === "string" ? dropdownName.trim().toLowerCase() : "";
-  if (!["privacy", "expires"].includes(normalizedName)) return;
-
-  const dropId = `cs${normalizedName.charAt(0).toUpperCase() + normalizedName.slice(1)}Dropdown`;
-  const btnId = `cs${normalizedName.charAt(0).toUpperCase() + normalizedName.slice(1)}Selector`;
-  const dropdown = document.getElementById(dropId);
-  const selector = document.getElementById(btnId);
-  if (!dropdown || !selector) return;
+  const refs = csResolveDropdownRefs(dropdownName);
+  if (!refs?.dropdown || !refs.selector) return;
+  const { normalizedName, dropdown, selector } = refs;
 
   const isSameDropdown =
     createStoryModalState.activeDropdown === normalizedName;
   csCloseAllDropdowns();
   if (isSameDropdown) return;
 
-  const rect = selector.getBoundingClientRect();
-  dropdown.style.left = `${rect.left}px`;
-
-  // Measure dropdown height
-  dropdown.style.visibility = "hidden";
-  dropdown.style.display = "block";
-  dropdown.classList.add("show");
-  const dropdownHeight = dropdown.offsetHeight;
-  dropdown.classList.remove("show");
-  dropdown.style.display = "";
-  dropdown.style.visibility = "";
-
-  const spaceBelow = window.innerHeight - rect.bottom;
-
-  if (spaceBelow >= dropdownHeight + 10) {
-    dropdown.style.top = `${rect.bottom + 8}px`;
-    dropdown.style.bottom = "auto";
-    dropdown.classList.remove("dropup");
-  } else {
-    dropdown.style.top = "auto";
-    dropdown.style.bottom = `${window.innerHeight - rect.top + 8}px`;
-    dropdown.classList.add("dropup");
-  }
-
+  csPositionDropdown(dropdown, selector, { measureHidden: true });
   dropdown.classList.add("show");
   createStoryModalState.activeDropdown = normalizedName;
 };

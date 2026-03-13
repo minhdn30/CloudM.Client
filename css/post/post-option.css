@@ -134,23 +134,3 @@
   grid-template-columns: unset;
 }
 
-/* ===== Mobile ===== */
-@media (max-width: 768px) {
-  .post-options-overlay {
-    align-items: flex-end;
-    padding: 0;
-  }
-
-  .post-options-popup {
-    max-width: 100%;
-    border-radius: 16px 16px 0 0;
-    transform: translateY(100%);
-    box-shadow:
-      0 -4px 20px rgba(0, 0, 0, 0.3),
-      0 -1px 4px rgba(0, 0, 0, 0.2);
-  }
-
-  .post-options-overlay.show .post-options-popup {
-    transform: translateY(0);
-  }
-}

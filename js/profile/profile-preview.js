@@ -407,8 +407,19 @@ function renderProfilePreview(data) {
 }
 
 /* ===== Position ===== */
+function isProfilePreviewDisabledForLayout() {
+  return (
+    window.innerWidth <= 768 ||
+    document.body.classList.contains("is-mobile-layout")
+  );
+}
+
 function showPreview(mouseEvent) {
   if (!mouseEvent) return;
+  if (isProfilePreviewDisabledForLayout()) {
+    hidePreview();
+    return;
+  }
 
   const mouseX = mouseEvent.clientX;
   const mouseY = mouseEvent.clientY;
@@ -652,6 +663,11 @@ function initProfilePreview() {
         return;
       }
 
+      if (isProfilePreviewDisabledForLayout()) {
+        hidePreview();
+        return;
+      }
+
       e.preventDefault();
       const accountId = resolvePreviewAccountId(e.target);
       if (!accountId) return;
@@ -676,6 +692,11 @@ function initProfilePreview() {
     let pendingAccountId = null; // Track which accountId the timer is for
 
     document.addEventListener("mouseover", async (e) => {
+      if (isProfilePreviewDisabledForLayout()) {
+        hidePreview();
+        return;
+      }
+
       if (!isProfilePreviewTrigger(e.target)) return;
 
       const accountId = resolvePreviewAccountId(e.target);
@@ -797,6 +818,12 @@ function initProfilePreview() {
       }
     });
   }
+
+  window.addEventListener("resize", () => {
+    if (isProfilePreviewDisabledForLayout()) {
+      hidePreview();
+    }
+  });
 
   // Keep preview open when hovering/touching over it
   if (previewEl) {

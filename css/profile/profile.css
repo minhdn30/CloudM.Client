@@ -41,15 +41,6 @@ body.is-profile-page .main-content::-webkit-scrollbar:horizontal {
   padding: 0 !important;
 }
 
-@media (max-width: 768px) {
-  .profile-container {
-    margin-left: 0;
-    width: 100%;
-    padding: 20px 10px 80px;
-    display: block; /* Trở về block trên mobile */
-  }
-}
-
 /* ===== Profile Cover ===== */
 .profile-cover {
   width: 100%;
@@ -582,23 +573,6 @@ body.is-profile-page .main-content::-webkit-scrollbar:horizontal {
   grid-template-columns: 1.2fr 1fr;
   gap: 40px;
   align-items: start;
-}
-
-@media (max-width: 768px) {
-  .profile-modal-content {
-    max-width: 95%;
-    max-height: 95vh;
-  }
-
-  .edit-profile-grid {
-    grid-template-columns: 1fr;
-    gap: 24px;
-  }
-
-  .edit-profile-left,
-  .edit-profile-right {
-    gap: 15px;
-  }
 }
 
 .edit-profile-left,
@@ -1461,152 +1435,6 @@ body.light-mode .profile-story-created-at-badge {
 }
 
 /* ===== Responsive ===== */
-@media (max-width: 768px) {
-  .profile-header {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 16px;
-    margin-top: -80px; /* Pull up to align avatar center with cover bottom (20px margin + 60px radius) */
-    padding: 0 20px;
-  }
-
-  .profile-avatar-wrapper {
-    --presence-avatar-size: 120px;
-    width: 120px;
-    height: 120px;
-  }
-
-  .profile-avatar-wrapper .profile-story-ring.story-ring-unseen,
-  .profile-avatar-wrapper .profile-story-ring.story-ring-seen {
-    --_avatar: 112px;
-  }
-
-  .profile-online-dot {
-    right: calc(
-      (var(--presence-avatar-size) * var(--presence-diagonal-inset-ratio)) -
-        (var(--presence-dot-size) / 2)
-    );
-    bottom: calc(
-      (var(--presence-avatar-size) * var(--presence-diagonal-inset-ratio)) -
-        (var(--presence-dot-size) / 2)
-    );
-    width: var(--presence-dot-size);
-    height: var(--presence-dot-size);
-    border-width: var(--presence-dot-border-size);
-  }
-
-  .profile-info-container {
-    padding-bottom: 0;
-  }
-
-  .profile-name-row {
-    flex-direction: column;
-    gap: 12px;
-    margin-bottom: 20px;
-    margin-left: 0;
-    margin-right: 0;
-    padding: 0;
-    height: auto;
-    background: transparent;
-  }
-
-  .profile-name-row::before,
-  .profile-name-row::after {
-    display: none;
-  }
-
-  .profile-username-header {
-    font-size: 22px;
-  }
-
-  .profile-stats {
-    justify-content: center;
-    gap: 24px;
-    width: 100%;
-    border-top: 1px solid var(--glass-border);
-    border-bottom: 1px solid var(--glass-border);
-    padding: 12px 0;
-  }
-
-  .profile-stats li {
-    align-items: center;
-  }
-
-  .stat-count {
-    font-size: 16px;
-  }
-
-  .stat-label {
-    font-size: 12px;
-  }
-
-  .profile-bio-section {
-    margin-left: 0;
-    padding: 0;
-    text-align: center;
-    margin-top: 10px;
-    display: flex;
-    justify-content: center;
-  }
-
-  .profile-bio-text {
-    width: auto;
-    max-width: 100%;
-    text-align: center;
-  }
-
-  .profile-details-section {
-    margin-left: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    margin-top: 15px;
-  }
-
-  .profile-detail-item {
-    font-size: 13px;
-  }
-
-  .profile-footer-slot {
-    margin-top: auto;
-  }
-
-  /* Edit Profile Modal Responsive */
-  .profile-modal-content {
-    max-width: 100vw;
-    height: 100vh;
-    max-height: 100vh;
-    border-radius: 0;
-    border: none;
-  }
-
-  .profile-modal-header {
-    padding: 16px 20px;
-  }
-
-  .profile-modal-body {
-    padding: 20px;
-  }
-
-  .profile-modal-footer {
-    padding: 16px 20px;
-  }
-
-  .bio-emoji-picker-container emoji-picker {
-    height: 280px;
-  }
-
-  .profile-photo-upload {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-}
-
 /* Privacy Settings Section in Modal */
 .profile-privacy-section {
   margin-top: 10px;
@@ -1642,9 +1470,3 @@ body.light-mode .profile-story-created-at-badge {
   color: var(--text-secondary);
 }
 
-@media (max-width: 480px) {
-  .profile-form-group-row {
-    grid-template-columns: 1fr;
-  }
-
-}

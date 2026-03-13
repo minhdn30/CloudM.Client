@@ -55,6 +55,7 @@ let cpTagSearchRequestSequence = 0;
 let cpTagActiveResultIndex = -1;
 let cpTagEventsBound = false;
 let cpLanguageUnsubscribe = null;
+let cpPrivacyDropdownSyncFrame = 0;
 
 const cpGetPostTagMaxCount = () => window.APP_CONFIG?.MAX_POST_TAGS || 20;
 const cpGetPostTagSearchLimit = () =>
@@ -1864,6 +1865,61 @@ function resetPrivacySelector() {
 }
 
 // Toggle privacy dropdown
+function useMobilePrivacyDropdownLayout() {
+  return (
+    window.innerWidth <= 768 ||
+    document.body.classList.contains("is-mobile-layout")
+  );
+}
+
+function positionPrivacyDropdown(dropdown = null) {
+  const privacyDropdown =
+    dropdown || document.getElementById("privacyDropdown");
+  const privacySelector = document.querySelector(
+    "#createPostModal .privacy-selector",
+  );
+
+  if (!privacyDropdown || !privacySelector) return;
+
+  if (useMobilePrivacyDropdownLayout()) {
+    privacyDropdown.style.left = "0";
+    privacyDropdown.style.right = "0";
+    privacyDropdown.style.top = "auto";
+    privacyDropdown.style.bottom = "0";
+    return;
+  }
+
+  const rect = privacySelector.getBoundingClientRect();
+  privacyDropdown.style.right = "auto";
+  privacyDropdown.style.top = rect.bottom + 8 + "px";
+  privacyDropdown.style.left = rect.left + "px";
+  privacyDropdown.style.bottom = "auto";
+}
+
+function reconcilePrivacyDropdownPosition() {
+  const modal = document.getElementById("createPostModal");
+  const privacyDropdown = document.getElementById("privacyDropdown");
+  if (
+    !modal?.classList.contains("show") ||
+    !privacyDropdown?.classList.contains("show")
+  ) {
+    return;
+  }
+
+  positionPrivacyDropdown(privacyDropdown);
+}
+
+function schedulePrivacyDropdownReposition() {
+  if (cpPrivacyDropdownSyncFrame) {
+    cancelAnimationFrame(cpPrivacyDropdownSyncFrame);
+  }
+
+  cpPrivacyDropdownSyncFrame = requestAnimationFrame(() => {
+    cpPrivacyDropdownSyncFrame = 0;
+    reconcilePrivacyDropdownPosition();
+  });
+}
+
 function togglePrivacyDropdown(event) {
   if (event) {
     event.preventDefault();
@@ -1898,15 +1954,7 @@ function togglePrivacyDropdown(event) {
   if (isVisible) {
     dropdown.classList.remove("show");
   } else {
-    // Position dropdown relative to privacy selector button
-    const privacySelector = document.querySelector(
-      "#createPostModal .privacy-selector",
-    );
-    if (privacySelector) {
-      const rect = privacySelector.getBoundingClientRect();
-      dropdown.style.top = rect.bottom + 8 + "px";
-      dropdown.style.left = rect.left + "px";
-    }
+    positionPrivacyDropdown(dropdown);
     dropdown.classList.add("show");
   }
 }
@@ -2920,6 +2968,13 @@ document.addEventListener("click", (e) => {
     }
   }
 });
+
+window.addEventListener("resize", schedulePrivacyDropdownReposition);
+window.addEventListener("orientationchange", schedulePrivacyDropdownReposition);
+window.addEventListener(
+  "cloudm:viewport-change",
+  schedulePrivacyDropdownReposition,
+);
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {

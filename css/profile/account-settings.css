@@ -210,12 +210,3 @@
   }
 }
 
-/* Responsive */
-@media (max-width: 650px) {
-  .acc-setting-top-row {
-    flex-wrap: wrap;
-  }
-  .acc-setting-title {
-    width: 100%;
-  }
-}
