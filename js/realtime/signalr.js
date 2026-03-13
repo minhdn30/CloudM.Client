@@ -1,5 +1,6 @@
 let chatConnection = null;
 let isStarting = false;
+let logoutRequestPromise = null;
 
 function getHubBase() {
   if (window.API?.getCurrentHubBase) {
@@ -23,6 +24,51 @@ function getAccessToken() {
 function setAccessToken(token) {
   if (window.AuthStore?.setAccessToken) {
     window.AuthStore.setAccessToken(token, "signalr");
+  }
+}
+
+async function requestLogout() {
+  if (logoutRequestPromise) {
+    await logoutRequestPromise;
+    return;
+  }
+
+  logoutRequestPromise = (async () => {
+    if (typeof window.logout === "function") {
+      await window.logout();
+      return;
+    }
+
+    if (typeof window.clearClientSession === "function") {
+      window.clearClientSession();
+    } else {
+      if (window.AuthStore?.clearAccessToken) {
+        window.AuthStore.clearAccessToken("signalr-logout");
+      }
+
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("avatarUrl");
+      localStorage.removeItem("fullname");
+      localStorage.removeItem("username");
+      localStorage.removeItem("accountId");
+      localStorage.removeItem("isSocialEligible");
+      localStorage.removeItem("defaultPostPrivacy");
+      localStorage.removeItem("SOCIAL_NETWORK_OPEN_CHATS");
+    }
+
+    if (window.PageCache?.clearAll) {
+      window.PageCache.clearAll();
+    }
+
+    if (!window.location.pathname.includes("auth.html")) {
+      window.location.href = "auth.html";
+    }
+  })();
+
+  try {
+    await logoutRequestPromise;
+  } finally {
+    logoutRequestPromise = null;
   }
 }
 
@@ -100,7 +146,7 @@ async function startChatHub() {
         await window.refreshAccessToken();
       } catch {
         console.warn("🔐 Refresh token invalid → logout");
-        logout(); // bạn đã có sẵn hàm này
+        await requestLogout();
         return;
       }
     }
@@ -124,7 +170,7 @@ async function startChatHub() {
       try {
         await window.refreshAccessToken();
       } catch {
-        logout();
+        await requestLogout();
         return;
       }
     }
