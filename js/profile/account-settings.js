@@ -9,6 +9,7 @@
   let originalSettings = null;
 
   const LANGUAGE_OPTIONS = ["en", "vi"];
+  const SPECIAL_SETTING_KEYS = new Set(["language", "sound-effects"]);
 
   const PRIVACY_LEVELS = {
     0: { key: "profile.accountSettings.labels.anyone", icon: "globe", class: "public" },
@@ -66,6 +67,7 @@
     "online-status": "onlineStatusVisibility",
     "group-chat-invite": "groupChatInvitePermission",
     "tag-permission": "tagPermission",
+    "sound-effects": "soundEffectsEnabled",
     language: "language",
   };
 
@@ -146,6 +148,17 @@
     return window.I18n?.getLanguage ? window.I18n.getLanguage() : "en";
   }
 
+  function normalizeSoundEffectsEnabled(value) {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "number") return value !== 0;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (!normalized) return true;
+      return normalized !== "false" && normalized !== "0" && normalized !== "off";
+    }
+    return value === undefined || value === null ? true : !!value;
+  }
+
   function formatLanguageLabel(language) {
     return window.I18n?.formatLanguageLabel
       ? t(
@@ -158,6 +171,12 @@
       : normalizeLanguage(language) === "vi"
         ? t("profile.accountSettings.labels.vietnamese", {}, "Vietnamese")
         : t("profile.accountSettings.labels.english", {}, "English");
+  }
+
+  function formatSoundEffectsLabel(isEnabled) {
+    return isEnabled
+      ? t("profile.accountSettings.labels.soundEffectsOn", {}, "On")
+      : t("profile.accountSettings.labels.soundEffectsOff", {}, "Off");
   }
 
   function getMyProfileHash() {
@@ -216,6 +235,7 @@
       onlineStatusVisibility: 1,
       groupChatInvitePermission: 2,
       tagPermission: 1,
+      soundEffectsEnabled: window.SoundManager?.getEnabled?.() ?? true,
       language: getCurrentLanguage(),
     };
   }
@@ -250,6 +270,11 @@
         defaults.groupChatInvitePermission,
       tagPermission:
         settings?.tagPermission ?? settings?.TagPermission ?? defaults.tagPermission,
+      soundEffectsEnabled: normalizeSoundEffectsEnabled(
+        settings?.soundEffectsEnabled ??
+          settings?.SoundEffectsEnabled ??
+          defaults.soundEffectsEnabled,
+      ),
       language: normalizeLanguage(settings?.language ?? settings?.Language ?? defaults.language),
     };
   }
@@ -335,6 +360,37 @@
     }
   }
 
+  function updateSoundEffectsButton(isEnabled) {
+    const button = document.getElementById("btn-sound-effects-preference");
+    const label = document.getElementById("label-sound-effects-preference");
+    if (!button || !label) return;
+
+    const normalizedEnabled = normalizeSoundEffectsEnabled(isEnabled);
+    button.className = `acc-privacy-toggle-btn ${normalizedEnabled ? "public" : "private"}`;
+    button.innerHTML = normalizedEnabled
+      ? '<i data-lucide="volume-2"></i>'
+      : '<i data-lucide="volume-x"></i>';
+    button.dataset.value = normalizedEnabled ? "true" : "false";
+    label.textContent = formatSoundEffectsLabel(normalizedEnabled);
+
+    const descriptionElement =
+      button.closest(".acc-setting-item")?.querySelector(".acc-setting-description");
+    if (descriptionElement) {
+      const descriptionKey = normalizedEnabled
+        ? "profile.accountSettings.descriptions.soundEffects.on"
+        : "profile.accountSettings.descriptions.soundEffects.off";
+      descriptionElement.textContent = t(
+        descriptionKey,
+        {},
+        descriptionElement.textContent || "",
+      );
+    }
+
+    if (window.lucide) {
+      lucide.createIcons();
+    }
+  }
+
   function populateSettings(settings) {
     const state = extractSettingsState(settings);
     updatePrivacyButton("phone", state.phonePrivacy);
@@ -347,6 +403,7 @@
     updatePrivacyButton("online-status", state.onlineStatusVisibility);
     updatePrivacyButton("group-chat-invite", state.groupChatInvitePermission);
     updatePrivacyButton("tag-permission", state.tagPermission);
+    updateSoundEffectsButton(state.soundEffectsEnabled);
     updateLanguageButton(state.language);
     currentSettings = { ...(currentSettings || {}), ...state };
     hasUnsavedChanges = false;
@@ -356,6 +413,12 @@
     const data = {};
 
     Object.keys(SETTING_KEYS).forEach((key) => {
+      if (key === "sound-effects") {
+        const button = document.getElementById("btn-sound-effects-preference");
+        data.soundEffectsEnabled = normalizeSoundEffectsEnabled(button?.dataset.value);
+        return;
+      }
+
       if (key === "language") {
         const button = document.getElementById("btn-language-preference");
         data.language = normalizeLanguage(button?.dataset.value || getCurrentLanguage());
@@ -386,6 +449,20 @@
     };
     if (options.persistOriginal !== false && originalSettings) {
       originalSettings.language = normalizedLanguage;
+    }
+    hasUnsavedChanges = hasAccountSettingsChanges();
+  }
+
+  function syncSoundEffectsSelection(isEnabled, options = {}) {
+    const normalizedEnabled = normalizeSoundEffectsEnabled(isEnabled);
+    updateSoundEffectsButton(normalizedEnabled);
+    currentSettings = {
+      ...(currentSettings || {}),
+      soundEffectsEnabled: normalizedEnabled,
+      SoundEffectsEnabled: normalizedEnabled,
+    };
+    if (options.persistOriginal !== false && originalSettings) {
+      originalSettings.soundEffectsEnabled = normalizedEnabled;
     }
     hasUnsavedChanges = hasAccountSettingsChanges();
   }
@@ -478,7 +555,7 @@
     }
 
     Object.keys(SETTING_KEYS).forEach((key) => {
-      if (key === "language") return;
+      if (SPECIAL_SETTING_KEYS.has(key)) return;
 
       const button = document.getElementById(`btn-${key}-privacy`);
       if (!button) return;
@@ -492,6 +569,16 @@
         hasUnsavedChanges = hasAccountSettingsChanges();
       });
     });
+
+    const soundEffectsButton = document.getElementById("btn-sound-effects-preference");
+    if (soundEffectsButton) {
+      const newSoundEffectsButton = soundEffectsButton.cloneNode(true);
+      soundEffectsButton.parentNode.replaceChild(newSoundEffectsButton, soundEffectsButton);
+      newSoundEffectsButton.addEventListener("click", () => {
+        const nextValue = !normalizeSoundEffectsEnabled(newSoundEffectsButton.dataset.value);
+        syncSoundEffectsSelection(nextValue, { persistOriginal: false });
+      });
+    }
 
     const languageButton = document.getElementById("btn-language-preference");
     if (languageButton) {
@@ -632,6 +719,11 @@
       const normalizedLanguage = normalizeLanguage(
         newSettings?.language ?? newSettings?.Language ?? data.language,
       );
+      const normalizedSoundEffectsEnabled = normalizeSoundEffectsEnabled(
+        newSettings?.soundEffectsEnabled ??
+          newSettings?.SoundEffectsEnabled ??
+          data.soundEffectsEnabled,
+      );
       const shouldReloadAfterSave = normalizedLanguage !== previousLanguage;
 
       const postPrivacy =
@@ -644,11 +736,14 @@
         window.I18n.setLanguage(normalizedLanguage);
       }
       window.I18n?.clearPendingLanguageSync?.(normalizedLanguage);
+      window.SoundManager?.setEnabled?.(normalizedSoundEffectsEnabled);
 
       originalSettings = extractSettingsState({
         ...newSettings,
         language: normalizedLanguage,
         Language: normalizedLanguage,
+        soundEffectsEnabled: normalizedSoundEffectsEnabled,
+        SoundEffectsEnabled: normalizedSoundEffectsEnabled,
       });
       currentSettings = { ...(newSettings || {}), ...originalSettings };
       hasUnsavedChanges = false;
@@ -680,16 +775,21 @@
         window.I18n.translateDom(settingsRoot);
       }
       Object.keys(SETTING_KEYS).forEach((key) => {
-        if (key === "language") return;
+        if (SPECIAL_SETTING_KEYS.has(key)) return;
         const button = document.getElementById(`btn-${key}-privacy`);
         if (!button) return;
         updatePrivacyButton(key, parseInt(button.dataset.value || "0", 10));
       });
+      const soundEffectsButton = document.getElementById("btn-sound-effects-preference");
+      if (soundEffectsButton) {
+        updateSoundEffectsButton(soundEffectsButton.dataset.value);
+      }
       updateLanguageButton(language);
     });
   }
 
   window.AccountSettingsPage = window.AccountSettingsPage || {};
+  window.AccountSettingsPage.syncSoundEffectsSelection = syncSoundEffectsSelection;
   window.AccountSettingsPage.syncLanguageSelection = syncLanguageSelection;
   window.initAccountSettings = initAccountSettings;
 })();

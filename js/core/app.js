@@ -720,63 +720,85 @@ if (window.APP_CONFIG) {
   APP_CONFIG.CURRENT_USER_ID = localStorage.getItem("accountId");
 }
 
-async function syncLanguagePreferenceFromAccountSettings() {
-  if (!window.I18n) {
-    return;
-  }
+async function syncRuntimePreferencesFromAccountSettings() {
+  const canSyncLanguage = !!window.I18n;
+  let settingsData = null;
+  const applySoundPreferenceFallback = () => {
+    window.SoundManager?.resolvePreferenceFallback?.({
+      enabled: window.APP_CONFIG?.SOUND_ENABLED_DEFAULT !== false,
+    });
+  };
 
-  const pendingLanguage = window.I18n.getPendingLanguageSync?.();
+  const pendingLanguage = canSyncLanguage
+    ? window.I18n.getPendingLanguageSync?.()
+    : null;
+
   if (pendingLanguage) {
     try {
-      if (!window.API?.Accounts?.updateLanguagePreference) {
-        return;
+      if (window.API?.Accounts?.updateLanguagePreference) {
+        const res = await window.API.Accounts.updateLanguagePreference(
+          pendingLanguage,
+        );
+        if (res?.ok) {
+          settingsData = await res.json();
+          window.I18n.clearPendingLanguageSync?.(pendingLanguage);
+          window.AccountSettingsPage?.syncLanguageSelection?.(pendingLanguage);
+        }
       }
-
-      const res = await window.API.Accounts.updateLanguagePreference(
-        pendingLanguage,
-      );
-      if (!res?.ok) {
-        return;
-      }
-
-      window.I18n.clearPendingLanguageSync?.(pendingLanguage);
-      window.AccountSettingsPage?.syncLanguageSelection?.(pendingLanguage);
-      return;
     } catch (error) {
       console.warn("Failed to retry language preference sync.", error);
+    }
+  }
+
+  if (!settingsData) {
+    if (!window.API?.Accounts?.getSettings) {
+      applySoundPreferenceFallback();
+      return;
+    }
+
+    try {
+      const res = await window.API.Accounts.getSettings();
+      if (!res?.ok) {
+        applySoundPreferenceFallback();
+        return;
+      }
+      settingsData = await res.json();
+    } catch (error) {
+      console.warn(
+        "Failed to sync runtime preferences from account settings.",
+        error,
+      );
+      applySoundPreferenceFallback();
       return;
     }
   }
 
-  if (!window.API?.Accounts?.getSettings) {
+  window.SoundManager?.applyAccountSettings(settingsData);
+  window.AccountSettingsPage?.syncSoundEffectsSelection?.(
+    settingsData?.soundEffectsEnabled ?? settingsData?.SoundEffectsEnabled,
+  );
+
+  if (!canSyncLanguage) {
     return;
   }
 
-  try {
-    const res = await window.API.Accounts.getSettings();
-    if (!res?.ok) return;
+  const serverLanguage = window.I18n.normalizeLanguage(
+    settingsData?.language ?? settingsData?.Language,
+  );
 
-    const data = await res.json();
-    const serverLanguage = window.I18n.normalizeLanguage(
-      data?.language ?? data?.Language,
-    );
-
-    if (window.I18n.getLanguage() !== serverLanguage) {
-      window.I18n.setLanguage(serverLanguage, { translate: false });
-      const sidebarRoot = document.getElementById("sidebar");
-      const appRoot = document.getElementById("app");
-      if (sidebarRoot && window.I18n.translateDom) {
-        window.I18n.translateDom(sidebarRoot);
-      }
-      if (appRoot && window.I18n.translateDom) {
-        window.I18n.translateDom(appRoot);
-      }
+  if (window.I18n.getLanguage() !== serverLanguage) {
+    window.I18n.setLanguage(serverLanguage, { translate: false });
+    const sidebarRoot = document.getElementById("sidebar");
+    const appRoot = document.getElementById("app");
+    if (sidebarRoot && window.I18n.translateDom) {
+      window.I18n.translateDom(sidebarRoot);
     }
-
-    window.AccountSettingsPage?.syncLanguageSelection?.(serverLanguage);
-  } catch (error) {
-    console.warn("Failed to sync language preference from account settings.", error);
+    if (appRoot && window.I18n.translateDom) {
+      window.I18n.translateDom(appRoot);
+    }
   }
+
+  window.AccountSettingsPage?.syncLanguageSelection?.(serverLanguage);
 }
 
 /* =========================
@@ -1602,7 +1624,7 @@ window.logout = async function() {
       }
 
       await loadSidebar();
-      await syncLanguagePreferenceFromAccountSettings();
+      await syncRuntimePreferencesFromAccountSettings();
       if (typeof initProfilePreview === "function") await initProfilePreview();
     } catch (err) {
       console.error("Bootstrap failed", err);

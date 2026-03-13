@@ -842,6 +842,8 @@
           anyone: "Mọi người",
           followApprovalOff: "Tắt",
           followApprovalOn: "Bật",
+          soundEffectsOn: "Bật",
+          soundEffectsOff: "Tắt",
           noOneAtAll: "Không ai cả",
           contactsOnly: "Chỉ người liên hệ",
           followersOrFollowing: "Người theo dõi hoặc đang theo dõi",
@@ -910,6 +912,10 @@
             noOneAtAll: "Không ai có thể gắn thẻ tôi",
             anyone: "Mọi người đều có thể gắn thẻ tôi",
           },
+          soundEffects: {
+            on: "Phát âm thanh cho tin nhắn mới, lượt nhắc tên và thông báo",
+            off: "Không phát âm thanh cho tin nhắn mới, lượt nhắc tên hoặc thông báo",
+          },
           language: {
             english:
               "Dùng tiếng Anh trên thiết bị này và trên tài khoản của tôi",
@@ -931,6 +937,7 @@
             "Ai có thể nhìn thấy trạng thái trực tuyến của tôi?",
           groupChatInvitePermission: "Ai có thể thêm tôi vào nhóm chat?",
           tagPermission: "Ai có thể gắn thẻ tôi?",
+          soundEffects: "Hiệu ứng âm thanh",
           language: "Ngôn ngữ",
         },
         address: {
@@ -984,6 +991,11 @@
         tagPermission: {
           description: "Chọn ai có thể gắn thẻ tôi",
           title: "Ai có thể gắn thẻ tôi",
+        },
+        soundEffects: {
+          description:
+            "Phát âm thanh cho tin nhắn mới, lượt nhắc tên và thông báo.",
+          title: "Hiệu ứng âm thanh",
         },
         title: "Cài đặt tài khoản",
         language: {

@@ -566,6 +566,15 @@
       payload.Language = nextLanguage;
     }
 
+    const nextSoundEffectsEnabled =
+      overrides.SoundEffectsEnabled ??
+      overrides.soundEffectsEnabled ??
+      settings.soundEffectsEnabled ??
+      settings.SoundEffectsEnabled;
+    if (nextSoundEffectsEnabled !== undefined) {
+      payload.SoundEffectsEnabled = !!nextSoundEffectsEnabled;
+    }
+
     return payload;
   }
 

@@ -184,8 +184,25 @@
     NOTIFICATION_READ_STATE_DRAFT_TTL_MS: 72 * 60 * 60 * 1000, // TTL for pending notification seen-state draft in localStorage
     NOTIFICATION_RECENT_HIGHLIGHT_DURATION_MS: 4000, // Duration for temporary highlight of newly seen notification items
     DEFAULT_TOAST_DURATION_MS: 4000, // Default auto-close duration for non-persistent toasts
+    CHAT_NOTIFICATION_DEDUPE_WINDOW_MS: 10000, // Dedupe window for incoming chat notification events per tab
+    CHAT_NOTIFICATION_DEDUPE_MAX_ENTRIES: 500, // Hard cap for per-tab incoming chat notification dedupe keys
+    NOTIFICATION_TOAST_DEDUPE_WINDOW_MS: 10000, // Dedupe window for realtime notification toasts per tab
+    NOTIFICATION_TOAST_DEDUPE_MAX_ENTRIES: 500, // Hard cap for per-tab realtime notification toast dedupe keys
     NOTIFICATION_TOAST_RATE_LIMIT_WINDOW_MS: 5000, // Rate-limit window for stale notification toasts
     NOTIFICATION_TOAST_RATE_LIMIT_MAX: 2, // Max stale notification toasts shown per window
+    SOUND_ENABLED_DEFAULT: true, // Default sound effects preference before server settings sync
+    SOUND_VOLUME: 0.4, // Shared sound effects volume (0.0 - 1.0)
+    SOUND_COOLDOWN_MS: 900, // Minimum gap between two sound plays on the leader tab
+    SOUND_EVENT_DECISION_WINDOW_MS: 150, // Small decision window to collect suppress signals from other tabs
+    SOUND_EVENT_DEDUPE_WINDOW_MS: 10000, // Dedupe window for cross-tab sound events
+    SOUND_EVENT_DEDUPE_MAX_ENTRIES: 200, // Max finalized sound event keys kept in memory
+    SOUND_LEADER_LEASE_TTL_MS: 6000, // Cross-tab leader lease TTL for sound playback ownership
+    SOUND_LEADER_RENEW_INTERVAL_MS: 2500, // Only the leader tab renews the lease on this interval
+    SOUND_FILES: {
+      message: "assets/sounds/sound-basic.mp3",
+      mention: "assets/sounds/sound-basic.mp3",
+      notification: "assets/sounds/sound-basic.mp3",
+    }, // Centralized sound assets so later replacements stay config-only
     SEARCH_PANEL_WIDTH: 400, // Search panel width in px
     SEARCH_PANEL_SEARCH_LIMIT: 10, // Max accounts returned per search panel request
     SEARCH_PANEL_SEARCH_DEBOUNCE_MS: 300, // Debounce delay for search panel input

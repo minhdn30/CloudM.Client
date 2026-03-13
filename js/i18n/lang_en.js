@@ -857,6 +857,8 @@
           anyone: "Anyone",
           followApprovalOff: "Off",
           followApprovalOn: "On",
+          soundEffectsOn: "On",
+          soundEffectsOff: "Off",
           noOneAtAll: "No one",
           contactsOnly: "Contacts only",
           followersOrFollowing: "Followers or following",
@@ -914,6 +916,10 @@
             noOneAtAll: "No one can tag me",
             anyone: "Anyone can tag me",
           },
+          soundEffects: {
+            on: "Play sounds for new messages, mentions, and notifications",
+            off: "Don't play sounds for new messages, mentions, or notifications",
+          },
           language: {
             english: "Use English across this device and my account",
             vietnamese: "Use Vietnamese across this device and my account",
@@ -930,6 +936,7 @@
           onlineStatusVisibility: "Who can see my online status?",
           groupChatInvitePermission: "Who can add me to group chats?",
           tagPermission: "Who can tag me?",
+          soundEffects: "Sound Effects",
           language: "Language",
         },
         address: {
@@ -984,6 +991,11 @@
         tagPermission: {
           description: "Choose who can tag me",
           title: "Who Can Tag Me",
+        },
+        soundEffects: {
+          description:
+            "Play sounds for new messages, mentions, and notifications.",
+          title: "Sound Effects",
         },
         title: "Account Settings",
         language: {

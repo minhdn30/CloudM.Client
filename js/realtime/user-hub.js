@@ -11,9 +11,13 @@
   const pendingAutoOpenConversations = new Set();
   const MESSAGE_NOTIFICATION_DEDUPE_WINDOW_MS =
     Number(window.APP_CONFIG?.CHAT_NOTIFICATION_DEDUPE_WINDOW_MS) || 10000;
+  const MESSAGE_NOTIFICATION_DEDUPE_MAX_ENTRIES =
+    Number(window.APP_CONFIG?.CHAT_NOTIFICATION_DEDUPE_MAX_ENTRIES) || 500;
   const processedMessageNotificationKeys = new Map();
   const NOTIFICATION_TOAST_DEDUPE_WINDOW_MS =
     Number(window.APP_CONFIG?.NOTIFICATION_TOAST_DEDUPE_WINDOW_MS) || 10000;
+  const NOTIFICATION_TOAST_DEDUPE_MAX_ENTRIES =
+    Number(window.APP_CONFIG?.NOTIFICATION_TOAST_DEDUPE_MAX_ENTRIES) || 500;
   const processedNotificationToastKeys = new Map();
   const SYSTEM_MESSAGE_TYPE = 3;
   const SYSTEM_MESSAGE_ACTION_MEMBER_ADDED = 1;
@@ -181,6 +185,12 @@
         processedMessageNotificationKeys.delete(key);
       }
     }
+
+    while (processedMessageNotificationKeys.size > MESSAGE_NOTIFICATION_DEDUPE_MAX_ENTRIES) {
+      const oldestKey = processedMessageNotificationKeys.keys().next().value;
+      if (!oldestKey) break;
+      processedMessageNotificationKeys.delete(oldestKey);
+    }
   }
 
   function buildMessageNotificationKey(conversationId, message) {
@@ -241,6 +251,7 @@
     }
 
     processedMessageNotificationKeys.set(key, nowMs);
+    cleanupProcessedNotificationKeys(nowMs);
     return false;
   }
 
@@ -251,9 +262,15 @@
         processedNotificationToastKeys.delete(key);
       }
     }
+
+    while (processedNotificationToastKeys.size > NOTIFICATION_TOAST_DEDUPE_MAX_ENTRIES) {
+      const oldestKey = processedNotificationToastKeys.keys().next().value;
+      if (!oldestKey) break;
+      processedNotificationToastKeys.delete(oldestKey);
+    }
   }
 
-  function isDuplicateNotificationToast(data) {
+  function buildNotificationToastKey(data) {
     const eventId = (
       data?.EventId ||
       data?.eventId ||
@@ -284,7 +301,11 @@
       .trim()
       .toLowerCase();
 
-    const key = eventId || `${type}:${actorUsername}:${occurredAt}`;
+    return eventId || `${type}:${actorUsername}:${occurredAt}`;
+  }
+
+  function isDuplicateNotificationToast(data) {
+    const key = buildNotificationToastKey(data);
     if (!key) return false;
 
     const nowMs = Date.now();
@@ -299,7 +320,16 @@
     }
 
     processedNotificationToastKeys.set(key, nowMs);
+    cleanupProcessedNotificationToastKeys(nowMs);
     return false;
+  }
+
+  function isActivelyReadingVisibleConversation(isActiveInPage, isActiveInWindow) {
+    return (
+      (isActiveInPage || isActiveInWindow) &&
+      document.visibilityState === "visible" &&
+      document.hasFocus()
+    );
   }
 
   function getMessageType(message) {
@@ -439,6 +469,11 @@
 
     const shouldIncrementUnread =
       senderId !== myId && !isActiveInPage && !isActiveInWindow;
+    const shouldSuppressSound = isActivelyReadingVisibleConversation(
+      isActiveInPage,
+      isActiveInWindow,
+    );
+    const soundEventKey = buildMessageNotificationKey(convId, message);
 
     if (
       shouldIncrementUnread &&
@@ -474,6 +509,20 @@
     ) {
       window.ChatWindow.syncUnreadFromSidebar(convId, {
         expectIncomingUnreadIncrement: shouldIncrementUnread,
+      });
+    }
+
+    const shouldRequestMessageSound =
+      !!soundEventKey &&
+      senderId !== myId &&
+      !isSystemMessage(message) &&
+      (!isMuted || isMentioned);
+    if (shouldRequestMessageSound && global.SoundManager) {
+      global.SoundManager.requestPlayback({
+        accountId: myId,
+        eventKey: soundEventKey,
+        suppress: shouldSuppressSound,
+        type: isMentioned ? "mention" : "message",
       });
     }
 
@@ -665,6 +714,15 @@
       toastType,
     );
     const message = `${actorName} ${actionText}`.trim();
+    const soundEventKey = buildNotificationToastKey(data);
+
+    if (soundEventKey && global.SoundManager) {
+      global.SoundManager.requestPlayback({
+        accountId: myId,
+        eventKey: soundEventKey,
+        type: "notification",
+      });
+    }
 
     if (window.toastNotification) {
       window.toastNotification(message, {
@@ -1169,6 +1227,15 @@
           const isMe =
             accountId && myId && accountId.toLowerCase() === myId.toLowerCase();
           let isFollowedByCurrentUser = false;
+
+          if (isMe) {
+            global.SoundManager?.applyAccountSettings(settings);
+            if (!window.getAccountSettingsModified?.()) {
+              window.AccountSettingsPage?.syncSoundEffectsSelection?.(
+                settings?.soundEffectsEnabled ?? settings?.SoundEffectsEnabled,
+              );
+            }
+          }
 
           if (window.ProfilePage) {
             const currentProfileId = window.ProfilePage.getAccountId();
