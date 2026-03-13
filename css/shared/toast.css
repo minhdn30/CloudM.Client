@@ -193,39 +193,6 @@
   font-weight: 500;
 }
 
-/* Responsive */
-@media (max-width: 480px) {
-  .toast-notification {
-    width: fit-content;
-    max-width: calc(100vw - 32px);
-    font-size: 14px;
-    padding: 14px 20px;
-  }
-
-  .toast-container {
-    right: 16px;
-    bottom: 16px;
-    max-width: calc(100vw - 32px);
-  }
-
-  .toast-notification.notification {
-    padding: 13px 15px;
-  }
-
-  .toast-notification-avatar-wrap {
-    width: 36px;
-    height: 36px;
-  }
-  .toast-notification-message,
-  .toast-notification-actor {
-    font-size: 13px;
-  }
-
-  .toast-notification-action {
-    font-size: 12px;
-  }
-}
-
 /* Toast Actions */
 .toast-actions {
   display: flex;

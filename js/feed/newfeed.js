@@ -13,12 +13,38 @@
   const feedT = (key, params = {}, fallback = "") =>
     window.I18n?.t ? window.I18n.t(key, params, fallback) : fallback;
 
+  function isHomeSurfaceRoute() {
+    const routeHelper = window.RouteHelper;
+    const currentHash =
+      window.location.hash ||
+      (routeHelper?.buildHash ? routeHelper.buildHash("/") : "#/");
+    const currentPath = routeHelper?.parseHash
+      ? routeHelper.parseHash(currentHash).path
+      : "";
+    const paths = routeHelper?.PATHS || {};
+    const storiesPath = paths.STORIES || "/stories";
+    const storyPath = paths.STORY || "/story";
+    const isHome = routeHelper?.isHomePath
+      ? routeHelper.isHomePath(currentPath)
+      : currentPath === "/" || currentPath === "/home";
+
+    return (
+      isHome ||
+      currentPath === storiesPath ||
+      currentPath.startsWith(`${storiesPath}/`) ||
+      currentPath === storyPath ||
+      currentPath.startsWith(`${storyPath}/`)
+    );
+  }
+
   function initFeed(shouldReload = true) {
     feedContainer = document.getElementById("feed");
     loader = document.getElementById("feed-loader");
 
     if (!feedContainer || !loader) {
-      console.warn("Feed DOM not ready");
+      if (isHomeSurfaceRoute()) {
+        console.warn("Feed DOM not ready");
+      }
       return;
     }
 

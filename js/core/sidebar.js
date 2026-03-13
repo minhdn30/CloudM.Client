@@ -120,11 +120,17 @@ window.updateSidebarInfo = function (url, name) {
 };
 
 async function loadSidebar() {
+  const sidebarRoot = document.getElementById("sidebar");
+  if (!sidebarRoot) return;
+
   const res = await fetch("pages/core/sidebar.html");
-  document.getElementById("sidebar").innerHTML = await res.text();
+  const sidebarMarkup = await res.text();
+  if (!sidebarRoot.isConnected) return;
+
+  sidebarRoot.innerHTML = sidebarMarkup;
   applySidebarProfileRoutes();
   if (window.I18n?.translateDom) {
-    window.I18n.translateDom(document.getElementById("sidebar"));
+    window.I18n.translateDom(sidebarRoot);
   }
   updateSidebarLanguageValue();
   lucide.createIcons();
@@ -134,6 +140,7 @@ async function loadSidebar() {
   const username = localStorage.getItem("username");
 
   const nameElement = document.getElementById("sidebar-name");
+  if (!nameElement) return;
 
   // Initial update
   window.updateSidebarInfo(avatarUrl);
@@ -161,7 +168,7 @@ async function loadSidebar() {
   await loadCreateChatGroupModal();
 
   // Attach global navigation listener to sidebar menu items
-  document.getElementById("sidebar").addEventListener("click", (e) => {
+  sidebarRoot.addEventListener("click", (e) => {
     const menuItem = e.target.closest(".menu-item, .dropdown-item");
     if (menuItem && menuItem.dataset.route) {
       if (!menuItem.getAttribute("onclick")) {

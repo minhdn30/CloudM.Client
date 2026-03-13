@@ -656,21 +656,3 @@ body.notifications-panel-open #sidebar.expanded ~ .main-content {
   padding: 14px 16px 18px;
   opacity: 0.8;
 }
-
-@media (max-width: 768px) {
-  .notifications-panel {
-    left: 0;
-    width: 100%;
-  }
-
-  body.notifications-panel-open .main-content,
-  body.notifications-panel-open #sidebar:hover ~ .main-content,
-  body.notifications-panel-open #sidebar.expanded ~ .main-content {
-    margin-left: 0;
-  }
-
-  #sidebar:hover ~ .notifications-panel,
-  #sidebar.expanded ~ .notifications-panel {
-    left: 0;
-  }
-}

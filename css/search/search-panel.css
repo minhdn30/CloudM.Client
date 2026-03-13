@@ -318,30 +318,3 @@ body.search-panel-open #sidebar.expanded ~ .main-content {
   max-width: 280px;
   line-height: 1.55;
 }
-
-@media (max-width: 768px) {
-  .search-panel {
-    left: 0;
-    width: 100vw;
-    max-width: 100vw;
-    border-left: none;
-  }
-
-  body.search-panel-open .main-content {
-    margin-left: 0;
-  }
-
-  body.search-panel-open #sidebar:hover ~ .main-content,
-  body.search-panel-open #sidebar.expanded ~ .main-content {
-    margin-left: 0;
-  }
-
-  #sidebar:hover ~ .search-panel,
-  #sidebar.expanded ~ .search-panel {
-    left: 0;
-  }
-
-  .search-panel-header {
-    padding-top: max(24px, env(safe-area-inset-top, 0px) + 12px);
-  }
-}
