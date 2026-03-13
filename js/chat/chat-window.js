@@ -3227,6 +3227,7 @@ const ChatWindow = {
     }
 
     if (chat.element) {
+      chat.element.classList.remove("minimized");
       chat.element.classList.remove("no-transition");
       chat.element.style.display = "flex";
       requestAnimationFrame(() => {
@@ -3284,6 +3285,7 @@ const ChatWindow = {
     if (immediate) {
       windowEl.classList.add("no-transition");
       windowEl.style.display = "none";
+      windowEl.classList.add("minimized");
       requestAnimationFrame(() => {
         windowEl.classList.remove("no-transition");
       });
@@ -3298,6 +3300,7 @@ const ChatWindow = {
       const liveChat = this.openChats.get(id);
       if (!liveChat || !liveChat.minimized || !liveChat.element) return;
       liveChat.element.style.display = "none";
+      liveChat.element.classList.add("minimized");
       this.renderBubble(id, liveChat.data);
     };
 
@@ -4051,6 +4054,7 @@ const ChatWindow = {
     if (!windowsStack) return;
 
     const windowIds = Array.from(windowsStack.children)
+      .filter((child) => !child.classList.contains("minimized"))
       .map((c) => c.dataset.id)
       .filter((id) => id && this.openChats.has(id));
     const bubbleIds = this.getBubbleOrderIds().filter(
@@ -4559,17 +4563,27 @@ const ChatWindow = {
         !id ||
         !chat ||
         chat._isClosing ||
-        chat.minimized ||
-        !windowIdSet.has(id) ||
         chat.element !== child
       ) {
         child.remove();
+        return;
       }
+
+      if (chat.minimized || !windowIdSet.has(id)) {
+        child.classList.add("minimized");
+        child.classList.remove("show");
+        child.style.display = "none";
+        return;
+      }
+
+      child.classList.remove("minimized");
+      child.style.display = "flex";
     });
 
     windowIdSet.forEach((id) => {
       const chat = this.openChats.get(id);
       if (!chat?.element || chat._isClosing) return;
+      chat.element.classList.remove("minimized");
       chat.element.style.display = "flex";
       if (chat.element.parentElement !== stack) {
         stack.appendChild(chat.element);
@@ -6886,6 +6900,14 @@ const ChatWindow = {
 
     menuEl.classList.remove("is-dropup", "is-align-left");
     menuEl.style.maxHeight = "";
+
+    if (
+      window.CloudMResponsive?.isMobileLayout?.() ||
+      document.body.classList.contains("is-mobile-layout") ||
+      window.innerWidth <= 768
+    ) {
+      return;
+    }
 
     const safePadding = 8;
     const containerRect = scrollContainer.getBoundingClientRect();

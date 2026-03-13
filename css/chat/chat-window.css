@@ -1354,13 +1354,6 @@ body.is-dragging-chat .chat-box * {
   );
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .chat-window-container {
-    display: none !important; /* Hide floating chats on mobile */
-  }
-}
-
 /* Animations */
 @keyframes slideUp {
   from {
