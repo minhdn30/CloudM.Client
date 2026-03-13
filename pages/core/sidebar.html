@@ -11,33 +11,33 @@
       <span id="sidebar-name" data-i18n="common.labels.user">User</span>
     </a>
 
-    <a class="menu-item active" href="#/home" data-route="/home">
+    <a class="menu-item home active" href="#/home" data-route="/home">
       <i data-lucide="home"></i>
       <span data-i18n="common.navigation.home">Home</span>
     </a>
 
-    <a class="menu-item" href="#/search" data-route="/search">
+    <a class="menu-item search" href="#/search" data-route="/search">
       <i data-lucide="search"></i>
       <span data-i18n="common.navigation.search">Search</span>
     </a>
 
-    <a class="menu-item" href="#/explore" data-route="/explore">
+    <a class="menu-item explore" href="#/explore" data-route="/explore">
       <i data-lucide="compass"></i>
       <span data-i18n="common.navigation.explore">Explore</span>
     </a>
 
-    <a class="menu-item" href="#/reels" data-route="/reels">
+    <a class="menu-item reels" href="#/reels" data-route="/reels">
       <i data-lucide="clapperboard"></i>
       <span data-i18n="common.navigation.reels">Reels</span>
     </a>
 
-    <a class="menu-item" href="#/messages" data-route="/messages">
+    <a class="menu-item messages" href="#/messages" data-route="/messages">
       <i data-lucide="send"></i>
       <span data-i18n="common.navigation.messages">Messages</span>
       <span class="badge" id="messages-badge" style="display:none;"></span>
     </a>
 
-    <a class="menu-item" href="#/notifications" data-route="/notifications">
+    <a class="menu-item notifications" href="#/notifications" data-route="/notifications">
       <i data-lucide="bell"></i>
       <span data-i18n="common.navigation.notifications">Notifications</span>
       <span class="badge" id="notifications-badge" style="display:none;"></span>
@@ -45,7 +45,7 @@
 
     <div class="create-wrapper">
       <a
-        class="menu-item"
+        class="menu-item create"
         id="createButton"
         data-route="/create"
         onclick="toggleCreateMenu(event)"
@@ -73,12 +73,28 @@
 
   <div class="sidebar-footer">
     <div class="more-wrapper">
-      <a class="menu-item" onclick="toggleMoreMenu(event)">
+      <a class="menu-item more-trigger" onclick="toggleMoreMenu(event)">
         <i data-lucide="menu"></i>
         <span data-i18n="common.navigation.more">More</span>
       </a>
 
       <div class="more-dropdown" id="moreDropdown">
+        <div
+          class="dropdown-item mobile-more-only"
+          data-route="/explore"
+          onclick="navigate(event, '/explore')"
+        >
+          <i data-lucide="compass"></i>
+          <span data-i18n="common.navigation.explore">Explore</span>
+        </div>
+        <div
+          class="dropdown-item mobile-more-only"
+          data-route="/reels"
+          onclick="navigate(event, '/reels')"
+        >
+          <i data-lucide="clapperboard"></i>
+          <span data-i18n="common.navigation.reels">Reels</span>
+        </div>
         <div class="dropdown-item" onclick="toggleSettingsMenu(event)">
           <i data-lucide="settings"></i>
           <span data-i18n="common.navigation.settings">Settings</span>

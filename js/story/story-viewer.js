@@ -587,6 +587,18 @@
               </div>
             </div>
             <div class="sn-story-viewer-header-actions">
+              <button
+                type="button"
+                class="sn-story-viewer-close-btn sn-story-viewer-mobile-close"
+                data-story-viewer-close="true"
+                aria-label="${stEscapeAttr(stT("common.buttons.close", {}, "Close"))}"
+                title="${stEscapeAttr(stT("common.buttons.close", {}, "Close"))}"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 6 6 18"></path>
+                  <path d="m6 6 12 12"></path>
+                </svg>
+              </button>
               <button type="button" class="sn-story-viewer-more-btn" id="storyViewerMoreBtn" aria-label="${stEscapeAttr(stT("story.viewer.moreOptionsAria", {}, "More options"))}">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="12" cy="12" r="1"></circle>

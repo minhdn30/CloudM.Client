@@ -620,38 +620,45 @@
     `;
     document.body.appendChild(menuEl);
 
+    const useMobileMenuLayout =
+      window.innerWidth <= 768 ||
+      document.body.classList.contains("is-mobile-layout");
     const rect = menuBtn.getBoundingClientRect();
-    const menuWidth = menuEl.offsetWidth || 190;
-    const menuHeight = menuEl.offsetHeight || 132;
-    const viewportPadding = 10;
+    if (useMobileMenuLayout) {
+      menuEl.style.left = "0";
+      menuEl.style.right = "0";
+      menuEl.style.top = "auto";
+      menuEl.style.bottom = "0";
+    } else {
+      const menuWidth = menuEl.offsetWidth || 190;
+      const menuHeight = menuEl.offsetHeight || 132;
+      const viewportPadding = 10;
 
-    let left = rect.right - menuWidth + 12; // align right edge of popup near right edge of button
-    if (left < viewportPadding) left = viewportPadding;
-    if (left + menuWidth > window.innerWidth - viewportPadding) {
-      left = Math.max(
-        viewportPadding,
-        window.innerWidth - viewportPadding - menuWidth,
-      );
+      let left = rect.right - menuWidth + 12;
+      if (left < viewportPadding) left = viewportPadding;
+      if (left + menuWidth > window.innerWidth - viewportPadding) {
+        left = Math.max(
+          viewportPadding,
+          window.innerWidth - viewportPadding - menuWidth,
+        );
+      }
+
+      let top = rect.top - menuHeight - 6;
+      let isArrowBottom = true;
+
+      if (top < viewportPadding) {
+        top = rect.bottom + 6;
+        isArrowBottom = false;
+      }
+
+      menuEl.classList.add(isArrowBottom ? "arrow-bottom" : "arrow-top");
+
+      const arrowX = rect.left + rect.width / 2 - left;
+      menuEl.style.setProperty("--arrow-x", `${Math.round(arrowX)}px`);
+      menuEl.style.left = `${Math.round(left)}px`;
+      menuEl.style.top = `${Math.round(top)}px`;
     }
 
-    const estimatedHeight = 132;
-    let top = rect.top - menuHeight - 6; // Render firmly above the button
-    let isArrowBottom = true;
-
-    // Only fall back to bottom behavior if there's no vertical space at the top
-    if (top < viewportPadding) {
-      top = rect.bottom + 6;
-      isArrowBottom = false;
-    }
-
-    menuEl.classList.add(isArrowBottom ? "arrow-bottom" : "arrow-top");
-
-    // Calculate precise center point of the button relative to the popup's X coordinate
-    const arrowX = rect.left + rect.width / 2 - left;
-    menuEl.style.setProperty("--arrow-x", `${Math.round(arrowX)}px`);
-
-    menuEl.style.left = `${Math.round(left)}px`;
-    menuEl.style.top = `${Math.round(top)}px`;
     cardEl.classList.add("menu-open");
 
     if (window.lucide) {

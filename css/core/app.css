@@ -182,9 +182,3 @@ body.notifications-panel-open .placeholder-container,
 body.chat-sidebar-open .placeholder-container {
   --placeholder-panel-offset: 18px;
 }
-
-@media (max-width: 768px) {
-  .placeholder-container {
-    --placeholder-panel-offset: 0px;
-  }
-}

@@ -30,14 +30,3 @@
   color: var(--text-tertiary);
   user-select: none;
 }
-
-@media (max-width: 768px) {
-  .app-footer {
-    padding: 24px 12px 28px;
-    gap: 8px;
-  }
-
-  .app-footer-links {
-    gap: 12px;
-  }
-}

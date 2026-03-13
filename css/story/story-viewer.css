@@ -60,7 +60,6 @@
   display: grid;
   place-items: center;
 }
-
 /* ===== Light Mode ===== */
 body.light-mode .sn-story-viewer-modal {
   --snsv-backdrop: rgba(120, 120, 130, 0.42);
@@ -1031,31 +1030,6 @@ body.light-mode .sn-story-viewer-react-btn.sn-story-viewer-react-active {
   color: #fff;
 }
 
-@media (max-width: 640px) {
-  .sn-story-viewer-card {
-    width: 100vw;
-    height: 100vh;
-    border-radius: 0;
-    border: none;
-    box-shadow: none;
-  }
-
-  .sn-story-viewer-nav-prev {
-    left: 8px;
-  }
-
-  .sn-story-viewer-nav-next {
-    right: 8px;
-  }
-
-  .sn-story-viewer-actions {
-    grid-template-columns: 1fr;
-  }
-
-  .sn-story-viewer-react-frame {
-    justify-content: center;
-  }
-}
 
 /* ===== More Button & Menu ===== */
 
@@ -1856,68 +1830,3 @@ body.light-mode .sn-story-viewer-strip-sentinel {
   border-top-color: var(--accent-primary);
 }
 
-/* ─── Responsive: Horizontal layout on tablets/mobiles ─── */
-@media (max-width: 1024px) {
-  .sn-story-viewer-strip-wrapper {
-    left: 12px;
-    right: 12px;
-    top: auto;
-    bottom: -90px;
-    width: auto;
-    height: auto;
-    flex-direction: row;
-    transform: none;
-    justify-content: center;
-    gap: 10px;
-    animation: snsvStripFadeInMob 0.5s ease backwards;
-  }
-
-  @keyframes snsvStripFadeInMob {
-    from {
-      opacity: 0;
-      transform: translateY(25px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .sn-story-viewer-strip {
-    flex-direction: row;
-    width: auto;
-    max-width: 88vw;
-    padding: 12px 20px;
-    border-radius: 36px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    gap: 14px;
-  }
-
-  .sn-story-viewer-strip-ring {
-    width: 48px;
-    height: 48px;
-  }
-  .sn-story-viewer-strip-item {
-    width: 52px;
-  }
-  .sn-story-viewer-strip-name {
-    font-size: 10px;
-    max-width: 52px;
-  }
-  .sn-story-viewer-author-nav {
-    width: 40px;
-    height: 40px;
-  }
-  .sn-story-viewer-author-nav-icon {
-    width: 18px;
-    height: 18px;
-    transform: rotate(-90deg); /* Switch ▲ to ◀ / ▶ for horizontal */
-  }
-}
-
-@media (max-width: 640px) {
-  .sn-story-viewer-strip-wrapper {
-    display: none; /* Hide strip on very small mobile for focus */
-  }
-}

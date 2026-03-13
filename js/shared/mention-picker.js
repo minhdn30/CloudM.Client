@@ -5,6 +5,7 @@
   const mentionDropdownShowClass = "show";
   const mentionDropdownBelowClass = "show-below";
   const mentionDropdownKeyboardNavClass = "keyboard-nav";
+  const mentionDropdownMobileSheetClass = "mention-picker-mobile-sheet";
   const mentionActiveIndicatorClass = "mention-picker-active-indicator";
   const mentionActiveIndicatorNoAnimClass =
     "mention-picker-active-indicator-no-anim";
@@ -24,6 +25,36 @@
     "--chat-theme-accent",
   ];
   let mentionCleanupTimerId = 0;
+  let mentionRepositionFrameId = 0;
+
+  function cancelScheduledDropdownReposition() {
+    if (!mentionRepositionFrameId) return;
+
+    global.cancelAnimationFrame(mentionRepositionFrameId);
+    mentionRepositionFrameId = 0;
+  }
+
+  function isMobileLayout() {
+    return (
+      global.CloudMResponsive?.isMobileLayout?.() ||
+      document.body?.classList.contains("is-mobile-layout") ||
+      global.innerWidth <= 768
+    );
+  }
+
+  function getViewportMetrics() {
+    const viewport = global.visualViewport;
+    const doc = document.documentElement;
+
+    return {
+      height:
+        viewport?.height || global.innerHeight || doc?.clientHeight || 0,
+      width:
+        viewport?.width || global.innerWidth || doc?.clientWidth || 0,
+      offsetTop: viewport?.offsetTop || 0,
+      offsetLeft: viewport?.offsetLeft || 0,
+    };
+  }
 
   function normalizeUsername(value) {
     return (value || "").toString().trim().replace(/^@+/, "");
@@ -601,6 +632,10 @@
         delete state.input.dataset[mentionInputHandlerFlag];
       }
     }
+
+    if (mentionOpenStateSet.size <= 0) {
+      cancelScheduledDropdownReposition();
+    }
   }
 
   function cleanupDetachedStates() {
@@ -675,13 +710,20 @@
     state.isOpen = false;
     mentionOpenStateSet.delete(state);
 
+    if (mentionOpenStateSet.size <= 0) {
+      cancelScheduledDropdownReposition();
+    }
+
     if (!state.dropdown) return;
 
     state.dropdown.classList.remove(mentionDropdownShowClass);
     state.dropdown.classList.remove(mentionDropdownBelowClass);
     state.dropdown.classList.remove(mentionDropdownKeyboardNavClass);
+    state.dropdown.classList.remove(mentionDropdownMobileSheetClass);
     state.dropdown.style.left = "";
+    state.dropdown.style.right = "";
     state.dropdown.style.top = "";
+    state.dropdown.style.bottom = "";
     state.dropdown.style.width = "";
     state.dropdown.style.maxHeight = "";
     state.dropdown.innerHTML = "";
@@ -697,14 +739,38 @@
       return null;
     }
 
-    const viewportHeight =
-      window.innerHeight || document.documentElement.clientHeight;
-    const viewportWidth =
-      window.innerWidth || document.documentElement.clientWidth;
+    const viewportMetrics = getViewportMetrics();
+    const viewportHeight = viewportMetrics.height;
+    const viewportWidth = viewportMetrics.width;
     const verticalGap = 6;
-    const viewportPadding = 8;
-    const preferredHeight = 260;
-    const minHeight = 120;
+    const mobileLayout = isMobileLayout();
+    const viewportPadding = mobileLayout ? 12 : 8;
+    const preferredHeight = mobileLayout ? 320 : 260;
+    const minHeight = mobileLayout ? 140 : 120;
+
+    if (mobileLayout) {
+      const width = Math.max(
+        0,
+        Math.floor(viewportWidth - viewportPadding * 2),
+      );
+      const maxHeight = Math.max(
+        minHeight,
+        Math.min(preferredHeight, viewportHeight - viewportPadding * 2 - 56),
+      );
+
+      return {
+        isAbove: false,
+        isMobileSheet: true,
+        left: Math.floor(viewportMetrics.offsetLeft + viewportPadding),
+        width,
+        maxHeight,
+        viewportPadding,
+        viewportTop: Math.floor(viewportMetrics.offsetTop),
+        viewportBottom: Math.floor(
+          viewportMetrics.offsetTop + viewportHeight,
+        ),
+      };
+    }
 
     const availableSpaceBelow = Math.max(
       0,
@@ -752,6 +818,10 @@
 
     state.isDropdownAbove = !!placement.isAbove;
     dropdown.classList.toggle(
+      mentionDropdownMobileSheetClass,
+      !!placement.isMobileSheet,
+    );
+    dropdown.classList.toggle(
       mentionDropdownBelowClass,
       !state.isDropdownAbove,
     );
@@ -765,6 +835,18 @@
     );
     const fallbackHeight = placement.maxHeight;
     const dropdownHeight = renderedHeight > 0 ? renderedHeight : fallbackHeight;
+
+    if (placement.isMobileSheet) {
+      const top = Math.max(
+        placement.viewportTop + placement.viewportPadding,
+        placement.viewportBottom -
+          placement.viewportPadding -
+          dropdownHeight,
+      );
+
+      dropdown.style.top = `${Math.floor(top)}px`;
+      return;
+    }
 
     const top = state.isDropdownAbove
       ? Math.max(
@@ -793,6 +875,34 @@
     }
 
     applyDropdownPlacement(state, placement);
+  }
+
+  function repositionOpenDropdowns() {
+    if (mentionOpenStateSet.size <= 0) return;
+
+    cleanupDetachedStates();
+    if (mentionOpenStateSet.size <= 0) return;
+
+    mentionOpenStateSet.forEach((state) => {
+      if (!state?.isOpen) return;
+      positionDropdown(state);
+    });
+  }
+
+  function scheduleOpenDropdownReposition() {
+    if (mentionOpenStateSet.size <= 0) {
+      cancelScheduledDropdownReposition();
+      return;
+    }
+
+    if (mentionRepositionFrameId) {
+      global.cancelAnimationFrame(mentionRepositionFrameId);
+    }
+
+    mentionRepositionFrameId = global.requestAnimationFrame(() => {
+      mentionRepositionFrameId = 0;
+      repositionOpenDropdowns();
+    });
   }
 
   function refreshDisplayItems(state, resetActiveIndex = false) {
@@ -1274,6 +1384,19 @@
       }
     });
   });
+
+  global.addEventListener("resize", scheduleOpenDropdownReposition);
+  global.addEventListener("orientationchange", scheduleOpenDropdownReposition);
+  if (global.visualViewport) {
+    global.visualViewport.addEventListener(
+      "resize",
+      scheduleOpenDropdownReposition,
+    );
+    global.visualViewport.addEventListener(
+      "scroll",
+      scheduleOpenDropdownReposition,
+    );
+  }
 
   global.MentionPicker = {
     attach(input, options = {}) {

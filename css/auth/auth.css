@@ -751,22 +751,3 @@ input:focus {
   }
 }
 
-/* Responsive cho màn hình nhỏ */
-@media (max-width: 400px) {
-  .rules-tooltip {
-    width: 220px;
-    left: -100px;
-  }
-
-  #verify-popup .verify-popup-content,
-  #forgot-password-popup .verify-popup-content,
-  #external-profile-popup .verify-popup-content {
-    padding: 20px;
-  }
-
-  .code-inputs input {
-    width: 35px;
-    height: 45px;
-    font-size: 20px;
-  }
-}
