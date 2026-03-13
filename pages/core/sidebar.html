@@ -79,22 +79,6 @@
       </a>
 
       <div class="more-dropdown" id="moreDropdown">
-        <div
-          class="dropdown-item mobile-more-only"
-          data-route="/explore"
-          onclick="navigate(event, '/explore')"
-        >
-          <i data-lucide="compass"></i>
-          <span data-i18n="common.navigation.explore">Explore</span>
-        </div>
-        <div
-          class="dropdown-item mobile-more-only"
-          data-route="/reels"
-          onclick="navigate(event, '/reels')"
-        >
-          <i data-lucide="clapperboard"></i>
-          <span data-i18n="common.navigation.reels">Reels</span>
-        </div>
         <div class="dropdown-item" onclick="toggleSettingsMenu(event)">
           <i data-lucide="settings"></i>
           <span data-i18n="common.navigation.settings">Settings</span>
@@ -127,6 +111,14 @@
           <i data-lucide="moon" id="theme-icon"></i>
           <span data-i18n="common.navigation.darkMode">Dark Mode</span>
           <div class="toggle-switch" id="theme-toggle">
+            <div class="toggle-slider"></div>
+          </div>
+        </div>
+
+        <div class="dropdown-item" onclick="toggleSidebarSoundEffects(event)">
+          <i data-lucide="volume-2" id="sidebar-sound-effects-icon"></i>
+          <span data-i18n="common.navigation.soundEffects">Sound Effects</span>
+          <div class="toggle-switch" id="sidebar-sound-effects-toggle">
             <div class="toggle-slider"></div>
           </div>
         </div>
@@ -169,16 +161,6 @@
             <i data-lucide="check"></i>
             <span data-i18n="common.labels.vietnamese">Tiếng Việt</span>
           </div>
-        </div>
-
-        <div class="dropdown-item" onclick="openNotificationSettings(event)">
-          <i data-lucide="bell"></i>
-          <span data-i18n="common.navigation.notifications">Notifications</span>
-        </div>
-
-        <div class="dropdown-item" onclick="openPrivacySettings(event)">
-          <i data-lucide="shield"></i>
-          <span data-i18n="common.navigation.privacySecurity">Privacy & Security</span>
         </div>
 
         <div

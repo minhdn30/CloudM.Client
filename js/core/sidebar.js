@@ -66,6 +66,18 @@ function sidebarGetAccountSettingsCacheKey(path) {
   return subpage ? `#/account-settings/${subpage}` : "#/account-settings";
 }
 
+function normalizeSidebarSoundEffectsEnabled(value, fallback = true) {
+  if (typeof value === "boolean") return value;
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+
+  return Boolean(fallback);
+}
+
 function applySidebarProfileRoutes() {
   const selfProfilePath = sidebarResolveSelfProfilePath();
   const selfSettingsPath = sidebarResolveSelfSettingsPath();
@@ -154,6 +166,7 @@ async function loadSidebar() {
 
   // Load theme preference
   loadThemePreference();
+  loadSidebarSoundEffectsPreference();
 
   // Setup auto-close on mouse leave
   setupAutoClose();
@@ -549,6 +562,8 @@ function toggleSettingsMenu(e) {
   // Keep sidebar expanded
   sidebar.classList.add("expanded");
   document.getElementById("sidebar")?.classList.add("expanded");
+
+  loadSidebarSoundEffectsPreference();
 
   // Recreate icons for the settings menu
   lucide.createIcons();
@@ -1014,6 +1029,88 @@ function loadThemePreference() {
     themeIcon?.setAttribute("data-lucide", "moon");
   }
   if (window.lucide) lucide.createIcons();
+}
+
+function updateSidebarSoundEffectsToggleState(isEnabled) {
+  const normalizedEnabled = normalizeSidebarSoundEffectsEnabled(isEnabled, true);
+  const soundToggle = document.getElementById("sidebar-sound-effects-toggle");
+  const soundIcon = document.getElementById("sidebar-sound-effects-icon");
+
+  soundToggle?.classList.toggle("active", normalizedEnabled);
+  soundIcon?.setAttribute(
+    "data-lucide",
+    normalizedEnabled ? "volume-2" : "volume-x",
+  );
+
+  if (window.lucide) {
+    lucide.createIcons();
+  }
+}
+
+function loadSidebarSoundEffectsPreference() {
+  const isEnabled = window.SoundManager?.getEnabled?.() ?? true;
+  updateSidebarSoundEffectsToggleState(isEnabled);
+}
+
+async function toggleSidebarSoundEffects(e) {
+  e.stopPropagation();
+  closeLanguageMenu();
+
+  if (window.__sidebarSoundEffectsChangeInFlight) {
+    return;
+  }
+
+  const previousEnabled = normalizeSidebarSoundEffectsEnabled(
+    window.SoundManager?.getEnabled?.(),
+    true,
+  );
+  const nextEnabled = !previousEnabled;
+
+  window.__sidebarSoundEffectsChangeInFlight = true;
+  window.SoundManager?.setEnabled?.(nextEnabled);
+  updateSidebarSoundEffectsToggleState(nextEnabled);
+
+  try {
+    if (!window.API?.Accounts?.updateSettings) {
+      throw new Error("sound-settings-sync-unavailable");
+    }
+
+    const res = await window.API.Accounts.updateSettings({
+      SoundEffectsEnabled: nextEnabled,
+    });
+
+    if (!res?.ok) {
+      throw new Error("sound-settings-save-failed");
+    }
+
+    let appliedEnabled = nextEnabled;
+    const contentType = (res.headers?.get("content-type") || "").toLowerCase();
+
+    if (contentType.includes("application/json")) {
+      const settings = await res.json();
+      appliedEnabled = normalizeSidebarSoundEffectsEnabled(
+        settings?.soundEffectsEnabled ?? settings?.SoundEffectsEnabled,
+        nextEnabled,
+      );
+    }
+
+    window.SoundManager?.setEnabled?.(appliedEnabled);
+    updateSidebarSoundEffectsToggleState(appliedEnabled);
+    window.AccountSettingsPage?.syncSoundEffectsSelection?.(appliedEnabled);
+  } catch (error) {
+    console.error("Failed to sync sound effects preference:", error);
+    window.SoundManager?.setEnabled?.(previousEnabled);
+    updateSidebarSoundEffectsToggleState(previousEnabled);
+    if (window.toastErrorKey) {
+      toastErrorKey(
+        error?.message === "sound-settings-save-failed"
+          ? "profile.settings.saveFailed"
+          : "profile.settings.saveError",
+      );
+    }
+  } finally {
+    window.__sidebarSoundEffectsChangeInFlight = false;
+  }
 }
 
 // Settings menu functions (placeholder)

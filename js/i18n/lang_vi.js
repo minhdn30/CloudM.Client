@@ -71,6 +71,7 @@
         settings: "Cài đặt",
         profile: "Trang cá nhân",
         darkMode: "Chế độ tối",
+        soundEffects: "Hiệu ứng âm thanh",
         language: "Ngôn ngữ",
         privacySecurity: "Quyền riêng tư & bảo mật",
         accountSettings: "Cài đặt tài khoản",
@@ -913,8 +914,8 @@
             anyone: "Mọi người đều có thể gắn thẻ tôi",
           },
           soundEffects: {
-            on: "Phát âm thanh cho tin nhắn mới, lượt nhắc tên và thông báo",
-            off: "Không phát âm thanh cho tin nhắn mới, lượt nhắc tên hoặc thông báo",
+            on: "Có âm báo khi có gì mới",
+            off: "Giữ yên lặng",
           },
           language: {
             english:
@@ -994,7 +995,7 @@
         },
         soundEffects: {
           description:
-            "Phát âm thanh cho tin nhắn mới, lượt nhắc tên và thông báo.",
+            "Bật hoặc tắt âm báo trong ứng dụng",
           title: "Hiệu ứng âm thanh",
         },
         title: "Cài đặt tài khoản",

@@ -72,6 +72,7 @@
         profile: "Profile",
         logout: "Log out",
         darkMode: "Dark Mode",
+        soundEffects: "Sound Effects",
         language: "Language",
         privacySecurity: "Privacy & Security",
         accountSettings: "Account Settings",
@@ -917,8 +918,8 @@
             anyone: "Anyone can tag me",
           },
           soundEffects: {
-            on: "Play sounds for new messages, mentions, and notifications",
-            off: "Don't play sounds for new messages, mentions, or notifications",
+            on: "Play a sound when there's something new",
+            off: "Keep things quiet",
           },
           language: {
             english: "Use English across this device and my account",
@@ -994,7 +995,7 @@
         },
         soundEffects: {
           description:
-            "Play sounds for new messages, mentions, and notifications.",
+            "Turn sounds on or off in the app",
           title: "Sound Effects",
         },
         title: "Account Settings",
