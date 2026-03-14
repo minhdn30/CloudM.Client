@@ -1,0 +1,108 @@
+<div class="admin-audit-page">
+  <section class="admin-audit-grid">
+    <article class="admin-card admin-audit-control-card">
+      <div class="admin-card-header">
+        <div>
+          <h2 class="admin-card-title" data-i18n="admin.auditLog.introTitle">
+            Recent admin audit trail
+          </h2>
+          <p class="admin-card-description" data-i18n="admin.auditLog.introDescription">
+            Foundation page for read-only visibility into admin actions.
+          </p>
+        </div>
+        <span class="admin-chip" data-i18n="admin.auditLog.liveChip">Live foundation</span>
+      </div>
+
+      <form id="adminAuditLogForm" class="admin-audit-form">
+        <div class="admin-audit-field-row">
+          <label class="admin-audit-field">
+            <span data-i18n="admin.auditLog.moduleLabel">Module</span>
+            <select id="adminAuditModuleSelect" class="admin-audit-select">
+              <option value="" data-i18n="admin.auditLog.moduleFilter.all">All modules</option>
+              <option value="auth" data-i18n="admin.auditLog.moduleFilter.auth">Auth</option>
+              <option value="accounts" data-i18n="admin.auditLog.moduleFilter.accounts">Accounts</option>
+              <option value="moderation" data-i18n="admin.auditLog.moduleFilter.moderation">Moderation</option>
+              <option value="audit" data-i18n="admin.auditLog.moduleFilter.audit">Audit</option>
+            </select>
+          </label>
+
+          <label class="admin-audit-field">
+            <span data-i18n="admin.auditLog.actionLabel">Action type</span>
+            <select id="adminAuditActionSelect" class="admin-audit-select">
+              <option value="" data-i18n="admin.auditLog.actionFilter.all">All actions</option>
+              <option value="AdminLogin" data-i18n="admin.auditLog.actionFilter.adminLogin">
+                Admin login
+              </option>
+            </select>
+          </label>
+        </div>
+
+        <button type="submit" id="adminAuditRefreshBtn" class="admin-login-submit admin-audit-submit">
+          <span data-i18n="admin.auditLog.refreshSubmit">Refresh logs</span>
+        </button>
+      </form>
+
+      <div id="adminAuditLogMessage" class="admin-login-message" aria-live="polite"></div>
+    </article>
+
+    <article class="admin-card admin-audit-guide-card">
+      <div class="admin-card-header">
+        <div>
+          <h2 class="admin-card-title" data-i18n="admin.auditLog.guideTitle">
+            Audit guardrails
+          </h2>
+          <p class="admin-card-description" data-i18n="admin.auditLog.guideDescription">
+            This first audit screen stays narrow, recent and operationally safe.
+          </p>
+        </div>
+      </div>
+
+      <div class="admin-list">
+        <div class="admin-list-item">
+          <i data-lucide="fingerprint"></i>
+          <span data-i18n="admin.auditLog.guidePointOne">
+            The first recorded action is admin login to create a safe audit baseline
+          </span>
+        </div>
+        <div class="admin-list-item">
+          <i data-lucide="database-zap"></i>
+          <span data-i18n="admin.auditLog.guidePointTwo">
+            Each read only loads a recent slice instead of scanning a large history
+          </span>
+        </div>
+        <div class="admin-list-item">
+          <i data-lucide="shield-check"></i>
+          <span data-i18n="admin.auditLog.guidePointThree">
+            Future admin mutations should flow through this lane with clear actor and target context
+          </span>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="admin-card admin-audit-results-card">
+    <div class="admin-card-header">
+      <div>
+        <h2 class="admin-card-title" data-i18n="admin.auditLog.timelineTitle">
+          Recent activity
+        </h2>
+        <p class="admin-card-description" data-i18n="admin.auditLog.timelineDescription">
+          Each record is isolated inside the admin lane and does not touch social realtime.
+        </p>
+      </div>
+      <span class="admin-chip muted" id="adminAuditLogCount" data-i18n="admin.auditLog.idleCount">
+        Waiting for logs
+      </span>
+    </div>
+
+    <div class="admin-lookup-results-summary" id="adminAuditLogSummary" data-i18n="admin.auditLog.idleSummary">
+      Recent admin actions appear here
+    </div>
+
+    <div class="admin-lookup-empty-state" id="adminAuditLogState" data-i18n="admin.auditLog.idleState">
+      Audit entries will appear here once admin actions are recorded.
+    </div>
+
+    <div class="admin-audit-timeline" id="adminAuditLogTimeline"></div>
+  </section>
+</div>

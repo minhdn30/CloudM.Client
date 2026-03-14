@@ -1,0 +1,160 @@
+<div class="admin-moderation-page">
+  <section class="admin-lookup-grid">
+    <article class="admin-card admin-lookup-search-card">
+      <div class="admin-card-header">
+        <div>
+          <h2 class="admin-card-title" data-i18n="admin.moderation.title">
+            Moderation center
+          </h2>
+          <p class="admin-card-description" data-i18n="admin.moderation.description">
+            Look up exact targets and apply isolated admin actions without editing the social query lane.
+          </p>
+        </div>
+        <span class="admin-chip" data-i18n="admin.moderation.chip">Core actions</span>
+      </div>
+
+      <form id="adminModerationLookupForm" class="admin-control-form">
+        <div class="admin-control-grid">
+          <label class="admin-audit-field">
+            <span data-i18n="admin.moderation.targetTypeLabel">Target type</span>
+            <select id="adminModerationTargetType" class="admin-audit-select">
+              <option value="Post" data-i18n="admin.moderation.targetTypes.post">Post</option>
+              <option value="Story" data-i18n="admin.moderation.targetTypes.story">Story</option>
+              <option value="Comment" data-i18n="admin.moderation.targetTypes.comment">Comment</option>
+              <option value="Reply" data-i18n="admin.moderation.targetTypes.reply">Reply</option>
+            </select>
+          </label>
+
+          <label class="admin-audit-field">
+            <span data-i18n="admin.moderation.lookupLabel">Lookup key</span>
+            <input
+              id="adminModerationKeyword"
+              type="text"
+              autocomplete="off"
+              class="admin-control-input"
+              data-i18n-placeholder="admin.moderation.lookupPlaceholder"
+              placeholder="Enter postCode or exact targetId"
+            />
+          </label>
+        </div>
+
+        <button type="submit" class="admin-login-submit admin-control-submit" id="adminModerationLookupSubmit">
+          <span data-i18n="admin.moderation.lookupSubmit">Look up target</span>
+        </button>
+      </form>
+
+      <div id="adminModerationLookupMessage" class="admin-login-message" aria-live="polite"></div>
+    </article>
+
+    <article class="admin-card admin-lookup-guide-card">
+      <div class="admin-card-header">
+        <div>
+          <h2 class="admin-card-title" data-i18n="admin.moderation.guardrailsTitle">
+            Moderation guardrails
+          </h2>
+          <p class="admin-card-description" data-i18n="admin.moderation.guardrailsDescription">
+            The admin lane uses exact lookups and deliberate actions to protect social performance.
+          </p>
+        </div>
+      </div>
+
+      <div class="admin-list">
+        <div class="admin-list-item">
+          <i data-lucide="focus"></i>
+          <span data-i18n="admin.moderation.guardrailOne">
+            Use exact IDs or postCode instead of broad scans
+          </span>
+        </div>
+        <div class="admin-list-item">
+          <i data-lucide="shield-alert"></i>
+          <span data-i18n="admin.moderation.guardrailTwo">
+            Post and story can be restored, comment and reply stay remove only
+          </span>
+        </div>
+        <div class="admin-list-item">
+          <i data-lucide="history"></i>
+          <span data-i18n="admin.moderation.guardrailThree">
+            Every mutation requires a reason and lands in admin audit
+          </span>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="admin-card admin-control-deck" id="adminModerationActionDeck" hidden>
+    <div class="admin-card-header">
+      <div>
+        <h2 class="admin-card-title" data-i18n="admin.moderation.actionTitle">
+          Moderation action
+        </h2>
+        <p class="admin-card-description" data-i18n="admin.moderation.actionDescription">
+          Review the selected target, then confirm the intended action with a reason.
+        </p>
+      </div>
+      <span class="admin-chip muted" id="adminModerationCurrentState" data-i18n="admin.moderation.actionIdleChip">
+        Awaiting target
+      </span>
+    </div>
+
+    <div class="admin-control-target" id="adminModerationTargetSummary">
+      Look up a target to unlock moderation actions.
+    </div>
+
+    <form id="adminModerationActionForm" class="admin-control-form">
+      <div class="admin-control-grid">
+        <label class="admin-audit-field">
+          <span data-i18n="admin.moderation.actionLabel">Action</span>
+          <select id="adminModerationActionSelect" class="admin-audit-select"></select>
+        </label>
+
+        <label class="admin-audit-field">
+          <span data-i18n="admin.moderation.reasonLabel">Reason</span>
+          <textarea
+            id="adminModerationReason"
+            class="admin-control-textarea"
+            data-i18n-placeholder="admin.moderation.reasonPlaceholder"
+            placeholder="State the reason for this moderation action"
+          ></textarea>
+        </label>
+      </div>
+
+      <div class="admin-control-actions">
+        <button type="button" class="admin-action-btn" id="adminModerationClear">
+          <i data-lucide="x"></i>
+          <span data-i18n="admin.moderation.clearSelection">Clear target</span>
+        </button>
+        <button type="submit" class="admin-login-submit admin-control-submit" id="adminModerationActionSubmit">
+          <span data-i18n="admin.moderation.actionSubmit">Confirm moderation action</span>
+        </button>
+      </div>
+    </form>
+
+    <div id="adminModerationActionMessage" class="admin-login-message" aria-live="polite"></div>
+  </section>
+
+  <section class="admin-card admin-lookup-results-card">
+    <div class="admin-card-header">
+      <div>
+        <h2 class="admin-card-title" data-i18n="admin.moderation.resultTitle">
+          Lookup result
+        </h2>
+        <p class="admin-card-description" data-i18n="admin.moderation.resultDescription">
+          The selected target appears here with owner context and current moderation state.
+        </p>
+      </div>
+      <span class="admin-chip muted" id="adminModerationResultCount" data-i18n="admin.moderation.idleCount">
+        Waiting for target
+      </span>
+    </div>
+
+    <div class="admin-lookup-results-summary" id="adminModerationSummary" data-i18n="admin.moderation.idleSummary">
+      Use an exact key to look up a moderation target.
+    </div>
+
+    <div class="admin-lookup-empty-state" id="adminModerationState" data-i18n="admin.moderation.idleState">
+      Moderation target details appear here after a successful lookup.
+    </div>
+
+    <div class="admin-lookup-results-grid admin-moderation-results-grid" id="adminModerationResults"></div>
+  </section>
+</div>
