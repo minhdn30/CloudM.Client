@@ -3,6 +3,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title data-i18n="auth.title">CloudM Auth</title>
+    <link rel="icon" href="assets/images/favicon.png" />
     <link rel="stylesheet" href="css/shared/theme.css" />
     <link rel="stylesheet" href="css/shared/loading.css" />
     <link rel="stylesheet" href="css/auth/auth.css" />
@@ -22,40 +23,75 @@
             >
               <span class="rules-info-btn" aria-hidden="true">i</span>
               <div class="rules-tooltip" role="tooltip">
-                <p data-i18n="auth.registrationRequirements">Registration Requirements</p>
+                <p data-i18n="auth.registrationRequirements">
+                  Registration Requirements
+                </p>
                 <ul>
                   <li>
-                    <strong data-i18n="auth.registration_rules.username_label">Username:</strong>
+                    <strong data-i18n="auth.registration_rules.username_label"
+                      >Username:</strong
+                    >
                     <span id="signup-rule-username-length">6-30</span>
-                    <span data-i18n="auth.registration_rules.username_suffix">characters. Letters, numbers, and underscores only. No spaces.</span>
-                    
+                    <span data-i18n="auth.registration_rules.username_suffix"
+                      >characters. Letters, numbers, and underscores only. No
+                      spaces.</span
+                    >
                   </li>
                   <li>
-                    <strong data-i18n="auth.registration_rules.full_name_label">Full Name:</strong>
+                    <strong data-i18n="auth.registration_rules.full_name_label"
+                      >Full Name:</strong
+                    >
                     <span id="signup-rule-fullname-length">2-25</span>
-                    <span data-i18n="auth.registration_rules.full_name_suffix">characters.</span>
+                    <span data-i18n="auth.registration_rules.full_name_suffix"
+                      >characters.</span
+                    >
                   </li>
                   <li>
-                    <strong data-i18n="auth.registration_rules.password_label">Password:</strong>
-                    <span data-i18n="auth.registration_rules.password_prefix">At least</span>
+                    <strong data-i18n="auth.registration_rules.password_label"
+                      >Password:</strong
+                    >
+                    <span data-i18n="auth.registration_rules.password_prefix"
+                      >At least</span
+                    >
                     <span id="signup-rule-password-min-length">6</span>
-                    <span data-i18n="auth.registration_rules.password_suffix">characters. No spaces or accents.</span>
+                    <span data-i18n="auth.registration_rules.password_suffix"
+                      >characters. No spaces or accents.</span
+                    >
                   </li>
                 </ul>
               </div>
             </div>
           </div>
           <div class="floating-field">
-            <input id="signup-email" type="email" placeholder="Email" data-i18n-placeholder="auth.email" />
+            <input
+              id="signup-email"
+              type="email"
+              placeholder="Email"
+              data-i18n-placeholder="auth.email"
+            />
             <label for="signup-email" data-i18n="auth.email">Email</label>
           </div>
           <div class="floating-field">
-            <input id="signup-username" type="text" placeholder="Username" data-i18n-placeholder="auth.username" />
-            <label for="signup-username" data-i18n="auth.username">Username</label>
+            <input
+              id="signup-username"
+              type="text"
+              placeholder="Username"
+              data-i18n-placeholder="auth.username"
+            />
+            <label for="signup-username" data-i18n="auth.username"
+              >Username</label
+            >
           </div>
           <div class="floating-field">
-            <input id="signup-fullname" type="text" placeholder="Full Name" data-i18n-placeholder="auth.fullName" />
-            <label for="signup-fullname" data-i18n="auth.fullName">Full Name</label>
+            <input
+              id="signup-fullname"
+              type="text"
+              placeholder="Full Name"
+              data-i18n-placeholder="auth.fullName"
+            />
+            <label for="signup-fullname" data-i18n="auth.fullName"
+              >Full Name</label
+            >
           </div>
           <div class="password-wrapper floating-field">
             <input
@@ -64,7 +100,9 @@
               placeholder="Password"
               data-i18n-placeholder="auth.password"
             />
-            <label for="signup-password" data-i18n="auth.password">Password</label>
+            <label for="signup-password" data-i18n="auth.password"
+              >Password</label
+            >
             <span class="toggle-password" data-target="signup-password">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -90,7 +128,9 @@
               placeholder="Confirm Password"
               data-i18n-placeholder="auth.confirmPassword"
             />
-            <label for="cf-password" data-i18n="auth.confirmPassword">Confirm Password</label>
+            <label for="cf-password" data-i18n="auth.confirmPassword"
+              >Confirm Password</label
+            >
             <span class="toggle-password" data-target="cf-password">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -116,12 +156,24 @@
         <form action="#">
           <h1 data-i18n="auth.signInHeading">Sign in</h1>
           <div class="floating-field">
-            <input id="login-email" type="email" placeholder="Email" data-i18n-placeholder="auth.email" />
+            <input
+              id="login-email"
+              type="email"
+              placeholder="Email"
+              data-i18n-placeholder="auth.email"
+            />
             <label for="login-email" data-i18n="auth.email">Email</label>
           </div>
           <div class="password-wrapper floating-field">
-            <input id="login-password" type="password" placeholder="Password" data-i18n-placeholder="auth.password" />
-            <label for="login-password" data-i18n="auth.password">Password</label>
+            <input
+              id="login-password"
+              type="password"
+              placeholder="Password"
+              data-i18n-placeholder="auth.password"
+            />
+            <label for="login-password" data-i18n="auth.password"
+              >Password</label
+            >
             <span class="toggle-password" data-target="login-password">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -151,7 +203,11 @@
               aria-label=""
               data-i18n-aria-label="auth.continueWithGoogle"
             >
-              <span id="google-signin-render-host" class="google-signin-render-host" aria-hidden="true"></span>
+              <span
+                id="google-signin-render-host"
+                class="google-signin-render-host"
+                aria-hidden="true"
+              ></span>
               <img
                 src="https://cdn-icons-png.flaticon.com/512/270/270014.png"
                 alt=""
@@ -185,22 +241,44 @@
               />
             </a>
           </div>
-          <a class="forgot-password" id="forgot-password-link" href="#" data-i18n="auth.forgotPassword">Forgot your password?</a>
+          <a
+            class="forgot-password"
+            id="forgot-password-link"
+            href="#"
+            data-i18n="auth.forgotPassword"
+            >Forgot your password?</a
+          >
         </form>
       </div>
       <div class="overlay-container">
         <div class="overlay">
           <div class="overlay-panel overlay-left">
-            <h1 data-i18n="auth.welcomeBack">Welcome Back!</h1>
+            <img
+              class="auth-overlay-logo"
+              src="assets/images/favicon.png"
+              alt="CloudM"
+            />
             <p>
-              <span data-i18n="auth.welcomeBackDescription">Log in to stay connected with your community</span>
+              <span data-i18n="auth.welcomeBackDescription"
+                >Log in to stay connected with your community</span
+              >
             </p>
-            <button class="ghost" id="signIn" data-i18n="common.buttons.signIn">Sign In</button>
+            <button class="ghost" id="signIn" data-i18n="common.buttons.signIn">
+              Sign In
+            </button>
           </div>
           <div class="overlay-panel overlay-right">
-            <h1 data-i18n="auth.helloFriend">Hello, Friend!</h1>
-            <p data-i18n="auth.helloFriendDescription">Sign up and start sharing your moments</p>
-            <button class="ghost" id="signUp" data-i18n="common.buttons.signUp">Sign Up</button>
+            <img
+              class="auth-overlay-logo"
+              src="assets/images/favicon.png"
+              alt="CloudM"
+            />
+            <p data-i18n="auth.helloFriendDescription">
+              Sign up and start sharing your moments
+            </p>
+            <button class="ghost" id="signUp" data-i18n="common.buttons.signUp">
+              Sign Up
+            </button>
           </div>
         </div>
       </div>
@@ -209,10 +287,14 @@
       <div class="verify-popup-content">
         <span class="close-popup">&times;</span>
         <h2 id="verify-title" data-i18n="auth.verifyEmail">Verify Email</h2>
-        <p id="verify-description" data-i18n="auth.verifyEmailDescription">Enter the 6-digit code sent to your email</p>
+        <p id="verify-description" data-i18n="auth.verifyEmailDescription">
+          Enter the 6-digit code sent to your email
+        </p>
 
         <div id="verify-step-send" class="verify-step">
-          <button id="send-code-btn" data-i18n="common.buttons.sendCode">Send Code</button>
+          <button id="send-code-btn" data-i18n="common.buttons.sendCode">
+            Send Code
+          </button>
         </div>
 
         <div id="verify-step-code" class="verify-step">
@@ -224,16 +306,29 @@
             <input type="text" maxlength="1" class="code-input" />
             <input type="text" maxlength="1" class="code-input" />
           </div>
-          <button id="verify-btn" data-i18n="common.buttons.verify">Verify</button>
-          <button id="resend-btn" class="ghost" data-i18n="common.buttons.resendCode">Resend Code</button>
+          <button id="verify-btn" data-i18n="common.buttons.verify">
+            Verify
+          </button>
+          <button
+            id="resend-btn"
+            class="ghost"
+            data-i18n="common.buttons.resendCode"
+          >
+            Resend Code
+          </button>
         </div>
       </div>
     </div>
     <div id="forgot-password-popup" class="verify-popup forgot-password-popup">
       <div class="verify-popup-content forgot-password-content">
         <span class="close-forgot-popup">&times;</span>
-        <h2 id="forgot-password-title" data-i18n="auth.forgotPasswordTitle">Forgot Password</h2>
-        <p id="forgot-password-description" data-i18n="auth.forgotPasswordDescription">
+        <h2 id="forgot-password-title" data-i18n="auth.forgotPasswordTitle">
+          Forgot Password
+        </h2>
+        <p
+          id="forgot-password-description"
+          data-i18n="auth.forgotPasswordDescription"
+        >
           Enter your account email to receive a 6-digit reset code
         </p>
 
@@ -248,7 +343,9 @@
             />
             <label for="forgot-email" data-i18n="auth.email">Email</label>
           </div>
-          <button id="forgot-send-code-btn" data-i18n="common.buttons.sendCode">Send Code</button>
+          <button id="forgot-send-code-btn" data-i18n="common.buttons.sendCode">
+            Send Code
+          </button>
         </div>
 
         <div id="forgot-step-code" class="forgot-step">
@@ -260,8 +357,19 @@
             <input type="text" maxlength="1" class="forgot-code-input" />
             <input type="text" maxlength="1" class="forgot-code-input" />
           </div>
-          <button id="forgot-verify-code-btn" data-i18n="common.buttons.verify_code">Verify Code</button>
-          <button id="forgot-resend-code-btn" class="ghost" data-i18n="common.buttons.resendCode">Resend Code</button>
+          <button
+            id="forgot-verify-code-btn"
+            data-i18n="common.buttons.verify_code"
+          >
+            Verify Code
+          </button>
+          <button
+            id="forgot-resend-code-btn"
+            class="ghost"
+            data-i18n="common.buttons.resendCode"
+          >
+            Resend Code
+          </button>
         </div>
 
         <div id="forgot-step-reset" class="forgot-step">
@@ -273,7 +381,9 @@
               data-i18n-placeholder="auth.newPassword"
               autocomplete="new-password"
             />
-            <label for="forgot-new-password" data-i18n="auth.newPassword">New Password</label>
+            <label for="forgot-new-password" data-i18n="auth.newPassword"
+              >New Password</label
+            >
             <span class="toggle-password" data-target="forgot-new-password">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -301,7 +411,11 @@
               data-i18n-placeholder="auth.confirmPassword"
               autocomplete="new-password"
             />
-            <label for="forgot-confirm-password" data-i18n="auth.confirmPassword">Confirm Password</label>
+            <label
+              for="forgot-confirm-password"
+              data-i18n="auth.confirmPassword"
+              >Confirm Password</label
+            >
             <span class="toggle-password" data-target="forgot-confirm-password">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -321,15 +435,25 @@
             </span>
           </div>
 
-          <button id="forgot-reset-password-btn" data-i18n="common.buttons.resetPassword">Reset Password</button>
+          <button
+            id="forgot-reset-password-btn"
+            data-i18n="common.buttons.resetPassword"
+          >
+            Reset Password
+          </button>
         </div>
       </div>
     </div>
-    <div id="external-profile-popup" class="verify-popup external-profile-popup">
+    <div
+      id="external-profile-popup"
+      class="verify-popup external-profile-popup"
+    >
       <div class="verify-popup-content external-profile-content">
         <span class="close-external-profile-popup">&times;</span>
         <h2 data-i18n="auth.completeProfile">Complete your profile</h2>
-        <p data-i18n="auth.completeProfileDescription">Choose username and full name to finish sign in.</p>
+        <p data-i18n="auth.completeProfileDescription">
+          Choose username and full name to finish sign in.
+        </p>
 
         <div class="floating-field">
           <input
@@ -339,7 +463,9 @@
             data-i18n-placeholder="auth.email"
             disabled
           />
-          <label for="external-profile-email" data-i18n="auth.email">Email</label>
+          <label for="external-profile-email" data-i18n="auth.email"
+            >Email</label
+          >
         </div>
 
         <div class="floating-field">
@@ -350,7 +476,9 @@
             data-i18n-placeholder="auth.username"
             autocomplete="username"
           />
-          <label for="external-profile-username" data-i18n="auth.username">Username</label>
+          <label for="external-profile-username" data-i18n="auth.username"
+            >Username</label
+          >
         </div>
 
         <div class="floating-field">
@@ -361,10 +489,17 @@
             data-i18n-placeholder="auth.fullName"
             autocomplete="name"
           />
-          <label for="external-profile-fullname" data-i18n="auth.fullName">Full Name</label>
+          <label for="external-profile-fullname" data-i18n="auth.fullName"
+            >Full Name</label
+          >
         </div>
 
-        <button id="external-profile-submit-btn" data-i18n="common.buttons.continue">Continue</button>
+        <button
+          id="external-profile-submit-btn"
+          data-i18n="common.buttons.continue"
+        >
+          Continue
+        </button>
       </div>
     </div>
 
