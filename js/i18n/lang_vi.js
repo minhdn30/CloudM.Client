@@ -193,7 +193,7 @@
     },
     auth: {
       sending: "Đang gửi...",
-      title: "CloudM Đăng nhập",
+      title: "CloudM",
       createAccount: "Tạo tài khoản",
       signInHeading: "Đăng nhập",
       fullName: "Họ tên",
@@ -998,8 +998,7 @@
           title: "Ai có thể gắn thẻ tôi",
         },
         soundEffects: {
-          description:
-            "Bật hoặc tắt âm báo trong ứng dụng",
+          description: "Bật hoặc tắt âm báo trong ứng dụng",
           title: "Hiệu ứng âm thanh",
         },
         title: "Cài đặt tài khoản",
@@ -1281,8 +1280,10 @@
           nudity: "Ảnh khỏa thân hoặc hoạt động tình dục",
           violence: "Các tổ chức bạo lực hoặc nguy hiểm",
           failed: "Hiện chưa thể gửi báo cáo",
-          alreadyReported: "Bạn đã báo cáo mục này và mục đó vẫn đang được xem xét",
-          rateLimited: "Bạn đang báo cáo quá nhanh. Vui lòng thử lại sau một chút",
+          alreadyReported:
+            "Bạn đã báo cáo mục này và mục đó vẫn đang được xem xét",
+          rateLimited:
+            "Bạn đang báo cáo quá nhanh. Vui lòng thử lại sau một chút",
           successAccount: "Đã gửi báo cáo. Tài khoản này sẽ được xem xét.",
           successComment: "Đã gửi báo cáo. Bình luận này sẽ được xem xét.",
           scam: "Lừa đảo hoặc gian lận",

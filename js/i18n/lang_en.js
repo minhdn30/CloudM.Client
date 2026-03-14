@@ -192,7 +192,7 @@
       },
     },
     auth: {
-      title: "CloudM Auth",
+      title: "CloudM",
       createAccount: "Create Account",
       signInHeading: "Sign in",
       registrationRules: "Registration rules",
@@ -998,8 +998,7 @@
           title: "Who Can Tag Me",
         },
         soundEffects: {
-          description:
-            "Turn sounds on or off in the app",
+          description: "Turn sounds on or off in the app",
           title: "Sound Effects",
         },
         title: "Account Settings",
@@ -1473,8 +1472,10 @@
           falseInformation: "False information",
           scam: "Scam or fraud",
           failed: "We couldn't send your report right now",
-          alreadyReported: "You've already reported this item and it's still under review",
-          rateLimited: "You're reporting too fast right now. Please try again shortly",
+          alreadyReported:
+            "You've already reported this item and it's still under review",
+          rateLimited:
+            "You're reporting too fast right now. Please try again shortly",
           successAccount: "Thanks for reporting this account. We'll review it",
           successPost: "Thanks for reporting this post. We'll review it",
           successStory: "Thanks for reporting this story. We'll review it",
@@ -1736,7 +1737,8 @@
           pickerHint: "Pick a mood to post a text story instantly",
           actionAria: "Create a quick story for {label}",
           confirmTitle: "Create this story?",
-          confirmMessage: "This will create a quick story with the mood {label}",
+          confirmMessage:
+            "This will create a quick story with the mood {label}",
           confirmAction: "Create story",
           happy: {
             label: "Happy",
