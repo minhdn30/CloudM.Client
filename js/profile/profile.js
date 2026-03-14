@@ -4183,10 +4183,18 @@
     event?.stopPropagation?.();
     closeProfileMoreMenu();
 
-    if (window.toastInfo) {
-      toastInfo(
+    const targetId = getProfileDataAccountId() || currentProfileId;
+    if (targetId && typeof window.showReportReasons === "function") {
+      window.showReportReasons(targetId, "account");
+      return;
+    }
+
+    if (window.toastError) {
+      toastError(
         profileT(
-          "profile.more.reportComingSoon",
+          "profile.more.reportUnavailable",
+          {},
+          "We couldn't send your report right now",
         ),
       );
     }
