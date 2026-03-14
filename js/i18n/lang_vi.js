@@ -271,6 +271,10 @@
       accountRestricted: "Tài khoản của bạn đang bị hạn chế",
       accountRestrictedSupport:
         "Tài khoản của bạn đang bị hạn chế, vui lòng liên hệ hỗ trợ",
+      accountSuspended:
+        "Tài khoản của bạn đang bị tạm khóa, vui lòng liên hệ hỗ trợ",
+      accountBanned:
+        "Tài khoản của bạn đã bị cấm, vui lòng liên hệ hỗ trợ",
       accountNotFound: "Không tìm thấy tài khoản",
       invalidResetCode: "Mã đặt lại không hợp lệ hoặc đã hết hạn",
       prepareResetRequestFailed: "Không thể bắt đầu yêu cầu đặt lại",

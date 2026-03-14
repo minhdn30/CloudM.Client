@@ -9,7 +9,7 @@
     brandSubtitle: "Operations console",
     eyebrow: "Operations desk",
     heading: "CloudM admin",
-    subtitle: "Accounts, moderation, reports and audit in one isolated workspace.",
+    subtitle: "Security, accounts, moderation, reports and audit in one isolated workspace.",
     actions: {
       openMenu: "Open navigation",
       toggleTheme: "Toggle theme",
@@ -22,6 +22,7 @@
     nav: {
       overview: "Overview",
       overviewMeta: "Core admin live",
+      security: "Security",
       accounts: "Accounts",
       accountsMeta: "Status control ready",
       moderation: "Moderation",
@@ -37,8 +38,11 @@
       performanceTag: "Protected social lane",
       views: {
         overviewTitle: "Operations",
-        overviewSubtitle: "Manage accounts, content, reports and audit from one place.",
+        overviewSubtitle: "Manage security, accounts, content, reports and audit from one place.",
         overviewStep: "Live",
+        securityTitle: "Security",
+        securitySubtitle: "Change the password for the current admin account.",
+        securityStep: "Password",
         accountsTitle: "Accounts",
         accountsSubtitle: "Search records and update status with audit.",
         accountsStep: "Status control",
@@ -121,6 +125,59 @@
     },
     common: {
       notAvailable: "Not available",
+    },
+    security: {
+      title: "Password",
+      description: "Update the password for the current admin account.",
+      chip: "Security",
+      formTitle: "Change password",
+      formDescription:
+        "Enter the current password, then save a new one for this admin account.",
+      fields: {
+        currentPassword: "Current password",
+        newPassword: "New password",
+        confirmPassword: "Confirm new password",
+      },
+      placeholders: {
+        currentPassword: "Enter the current password",
+        newPassword: "Enter the new password",
+        confirmPassword: "Confirm the new password",
+      },
+      showPasswordAria: "Show password",
+      hidePasswordAria: "Hide password",
+      progress: {
+        empty: "Enter a new password to check the policy",
+        ready: "Password is ready to save",
+        incomplete: "{count}/{total} rules completed",
+      },
+      rules: {
+        length: "At least 6 characters",
+        noSpaces: "No spaces",
+        noAccents: "No Vietnamese accents",
+      },
+      sessionTitle: "Current admin session",
+      sessionDescription: "Review the account receiving this password change.",
+      session: {
+        name: "Name",
+        email: "Email",
+        username: "Username",
+        role: "Role",
+        changedAt: "Changed at",
+      },
+      submit: "Update password",
+      submitting: "Updating admin password...",
+      updated: "Admin password updated",
+      reloginRequired: "Admin password updated, please sign in again",
+      errors: {
+        currentRequired: "Enter your current password",
+        currentIncorrect: "Current password is incorrect",
+        newRequired: "Enter your new password",
+        length: "Password must be at least {count} characters",
+        spaces: "Password cannot contain spaces",
+        accents: "Password cannot contain Vietnamese accents",
+        confirmMismatch: "New password and confirm password do not match",
+        updateFailed: "Unable to change the admin password right now",
+      },
     },
     overview: {
       metrics: {
@@ -474,6 +531,7 @@
         all: "All actions",
         adminLogin: "Admin login",
         adminlogin: "Admin login",
+        adminpasswordchanged: "Change admin password",
         accountstatussetactive: "Set account active",
         accountstatussetinactive: "Set account inactive",
         accountstatussetsuspended: "Set account suspended",
@@ -502,6 +560,7 @@
       },
       actionName: {
         adminlogin: "Admin login",
+        adminpasswordchanged: "Change admin password",
         accountstatussetactive: "Set account active",
         accountstatussetinactive: "Set account inactive",
         accountstatussetsuspended: "Set account suspended",
@@ -532,6 +591,7 @@
       },
       summary: {
         adminlogin: "Admin signed in to the admin portal",
+        adminpasswordchanged: "Admin password updated",
         accountstatussetactive: "Account status changed to Active",
         accountstatussetinactive: "Account status changed to Inactive",
         accountstatussetsuspended: "Account status changed to Suspended",

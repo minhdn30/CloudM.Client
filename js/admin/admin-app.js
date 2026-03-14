@@ -4,11 +4,14 @@
     login: "pages/admin/login-shell.html",
     dashboard: "pages/admin/dashboard-shell.html",
     foundation: "pages/admin/foundation-overview.html",
+    security: "pages/admin/password-security.html",
     accountLookup: "pages/admin/account-lookup.html",
     moderation: "pages/admin/moderation-center.html",
     reports: "pages/admin/report-center.html",
     auditLog: "pages/admin/audit-log.html",
   };
+  const PASSWORD_MIN_LENGTH = 6;
+  const PASSWORD_ACCENT_REGEX = /[\u00C0-\u024F\u1E00-\u1EFF]/u;
 
   const accountStatusOptions = [
     { value: 0, key: "active" },
@@ -24,6 +27,7 @@
   const auditModules = ["auth", "accounts", "moderation", "reports", "audit"];
   const auditActions = [
     "AdminLogin",
+    "AdminPasswordChanged",
     "AccountStatusSetActive",
     "AccountStatusSetInactive",
     "AccountStatusSetSuspended",
@@ -357,6 +361,66 @@
     }
 
     return isGuidKeyword(normalizedKeyword);
+  }
+
+  function getPasswordRules(password) {
+    const value = (password || "").toString();
+    const rules = {
+      length: value.length >= PASSWORD_MIN_LENGTH,
+      noSpaces: !value.includes(" "),
+      noAccents: !PASSWORD_ACCENT_REGEX.test(value),
+    };
+    const completedCount = Object.values(rules).filter(Boolean).length;
+
+    return {
+      ...rules,
+      completedCount,
+      progress: Math.round((completedCount / 3) * 100),
+    };
+  }
+
+  function getAdminPasswordPolicyError(newPassword, confirmPassword) {
+    if (!newPassword) {
+      return t(
+        "admin.security.errors.newRequired",
+        {},
+        "Enter your new password",
+      );
+    }
+
+    if (newPassword.length < PASSWORD_MIN_LENGTH) {
+      return t(
+        "admin.security.errors.length",
+        { count: PASSWORD_MIN_LENGTH },
+        `Password must be at least ${PASSWORD_MIN_LENGTH} characters`,
+      );
+    }
+
+    if (newPassword.includes(" ")) {
+      return t(
+        "admin.security.errors.spaces",
+        {},
+        "Password cannot contain spaces",
+      );
+    }
+
+    if (PASSWORD_ACCENT_REGEX.test(newPassword)) {
+      return t(
+        "admin.security.errors.accents",
+        {},
+        "Password cannot contain Vietnamese accents",
+      );
+    }
+
+    if (newPassword !== confirmPassword) {
+      return t(
+        "admin.security.errors.confirmMismatch",
+        {},
+        "New password and confirm password do not match",
+      );
+    }
+
+    return "";
   }
 
   function getRoleLabel(role) {
@@ -1385,6 +1449,15 @@
     );
   }
 
+  async function readResponseMessage(response) {
+    try {
+      const payload = await response.clone().json();
+      return typeof payload?.message === "string" ? payload.message.trim() : "";
+    } catch (_error) {
+      return "";
+    }
+  }
+
   async function fetchAccountLookup(keyword) {
     const response = await fetchAdminApi(
       `/admin/accounts/lookup?keyword=${encodeURIComponent(keyword)}`,
@@ -1537,6 +1610,315 @@
     }
 
     return await response.json();
+  }
+
+  async function changeAdminPassword(currentPassword, newPassword, confirmPassword) {
+    const response = await fetchAdminApi("/admin/auth/change-password", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        currentPassword,
+        newPassword,
+        confirmPassword,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status}`);
+      error.status = response.status;
+      error.serverMessage = await readResponseMessage(response);
+      throw error;
+    }
+
+    return await response.json();
+  }
+
+  function populateSecurityIdentity() {
+    const session = state.session || global.AdminAuthStore?.getProfile?.() || {};
+    setText(
+      "adminSecurityIdentityName",
+      session.fullname || session.username || session.email || t("admin.profile.adminRole", {}, "Admin"),
+    );
+    setText(
+      "adminSecurityIdentityEmail",
+      session.email || t("admin.common.notAvailable", {}, "Not available"),
+    );
+    setText(
+      "adminSecurityIdentityUsername",
+      session.username ? `@${session.username}` : t("admin.common.notAvailable", {}, "Not available"),
+    );
+    setText(
+      "adminSecurityIdentityRole",
+      session.role || t("admin.profile.adminRole", {}, "Admin"),
+    );
+  }
+
+  function updateSecurityRuleState(ruleId, isComplete) {
+    const element = document.getElementById(ruleId);
+    if (!element) {
+      return;
+    }
+
+    element.classList.toggle("is-complete", !!isComplete);
+  }
+
+  function updateSecurityPasswordProgress() {
+    const newPassword = document.getElementById("adminSecurityNewPassword")?.value || "";
+    const progressFill = document.getElementById("adminSecurityProgressFill");
+    const progressLabel = document.getElementById("adminSecurityProgressLabel");
+    const rules = getPasswordRules(newPassword);
+
+    if (progressFill) {
+      progressFill.style.width = `${rules.progress}%`;
+    }
+
+    updateSecurityRuleState("adminSecurityRuleLength", rules.length);
+    updateSecurityRuleState("adminSecurityRuleSpaces", rules.noSpaces);
+    updateSecurityRuleState("adminSecurityRuleAccents", rules.noAccents);
+
+    if (!progressLabel) {
+      return;
+    }
+
+    if (!newPassword) {
+      progressLabel.textContent = t(
+        "admin.security.progress.empty",
+        {},
+        "Enter a new password to check the policy",
+      );
+      return;
+    }
+
+    if (rules.completedCount === 3) {
+      progressLabel.textContent = t(
+        "admin.security.progress.ready",
+        {},
+        "Password is ready to save",
+      );
+      return;
+    }
+
+    progressLabel.textContent = t(
+      "admin.security.progress.incomplete",
+      { count: rules.completedCount, total: 3 },
+      `${rules.completedCount}/3 rules completed`,
+    );
+  }
+
+  function updateSecurityVisibilityButton(button, isVisible) {
+    if (!button) {
+      return;
+    }
+
+    button.dataset.visible = isVisible ? "true" : "false";
+    button.innerHTML = `<i data-lucide="${isVisible ? "eye-off" : "eye"}"></i>`;
+    button.setAttribute(
+      "aria-label",
+      t(
+        isVisible
+          ? "admin.security.hidePasswordAria"
+          : "admin.security.showPasswordAria",
+        {},
+        isVisible ? "Hide password" : "Show password",
+      ),
+    );
+  }
+
+  function bindSecurityVisibilityButtons() {
+    root.querySelectorAll("[data-admin-password-toggle]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const targetId = button.dataset.adminPasswordToggle || "";
+        const input = document.getElementById(targetId);
+        if (!input) {
+          return;
+        }
+
+        const nextVisible = input.type === "password";
+        input.type = nextVisible ? "text" : "password";
+        updateSecurityVisibilityButton(button, nextVisible);
+        refreshIcons();
+      });
+    });
+  }
+
+  function resetSecurityPasswordVisibility() {
+    root.querySelectorAll("[data-admin-password-toggle]").forEach((button) => {
+      const targetId = button.dataset.adminPasswordToggle || "";
+      const input = document.getElementById(targetId);
+      if (!input) {
+        return;
+      }
+
+      input.type = "password";
+      updateSecurityVisibilityButton(button, false);
+    });
+
+    refreshIcons();
+  }
+
+  function mapAdminPasswordError(error) {
+    const status = Number(error?.status || 0);
+    const serverMessage = (error?.serverMessage || "").toString().trim().toLowerCase();
+
+    if (status === 400) {
+      if (serverMessage === "current password is required.") {
+        return t(
+          "admin.security.errors.currentRequired",
+          {},
+          "Enter your current password",
+        );
+      }
+
+      if (serverMessage === "current password is incorrect.") {
+        return t(
+          "admin.security.errors.currentIncorrect",
+          {},
+          "Current password is incorrect",
+        );
+      }
+
+      if (serverMessage === "new password is required.") {
+        return t(
+          "admin.security.errors.newRequired",
+          {},
+          "Enter your new password",
+        );
+      }
+
+      if (serverMessage.includes("at least")) {
+        return t(
+          "admin.security.errors.length",
+          { count: PASSWORD_MIN_LENGTH },
+          `Password must be at least ${PASSWORD_MIN_LENGTH} characters`,
+        );
+      }
+
+      if (serverMessage === "password cannot contain spaces.") {
+        return t(
+          "admin.security.errors.spaces",
+          {},
+          "Password cannot contain spaces",
+        );
+      }
+
+      if (serverMessage === "password cannot contain vietnamese accents.") {
+        return t(
+          "admin.security.errors.accents",
+          {},
+          "Password cannot contain Vietnamese accents",
+        );
+      }
+
+      if (serverMessage === "password and confirm password do not match.") {
+        return t(
+          "admin.security.errors.confirmMismatch",
+          {},
+          "New password and confirm password do not match",
+        );
+      }
+    }
+
+    return t(
+      "admin.security.errors.updateFailed",
+      {},
+      "Unable to change the admin password right now",
+    );
+  }
+
+  function bindSecurityCenter() {
+    const form = document.getElementById("adminSecurityPasswordForm");
+    const currentInput = document.getElementById("adminSecurityCurrentPassword");
+    const newInput = document.getElementById("adminSecurityNewPassword");
+    const confirmInput = document.getElementById("adminSecurityConfirmPassword");
+    const submitButton = document.getElementById("adminSecuritySubmit");
+    const changedAtValue = document.getElementById("adminSecurityChangedAt");
+
+    if (!form || !currentInput || !newInput || !confirmInput || !submitButton) {
+      return;
+    }
+
+    populateSecurityIdentity();
+    bindSecurityVisibilityButtons();
+    resetSecurityPasswordVisibility();
+    updateSecurityPasswordProgress();
+
+    [newInput, confirmInput].forEach((input) => {
+      input.addEventListener("input", updateSecurityPasswordProgress);
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const currentPassword = currentInput.value || "";
+      const newPassword = newInput.value || "";
+      const confirmPassword = confirmInput.value || "";
+
+      if (!currentPassword.trim()) {
+        setMessage(
+          "adminSecurityMessage",
+          t(
+            "admin.security.errors.currentRequired",
+            {},
+            "Enter your current password",
+          ),
+          "error",
+        );
+        currentInput.focus();
+        return;
+      }
+
+      const passwordPolicyError = getAdminPasswordPolicyError(newPassword, confirmPassword);
+      if (passwordPolicyError) {
+        setMessage("adminSecurityMessage", passwordPolicyError, "error");
+        if (!newPassword) {
+          newInput.focus();
+          return;
+        }
+
+        confirmInput.focus();
+        return;
+      }
+
+      submitButton.disabled = true;
+      setMessage(
+        "adminSecurityMessage",
+        t("admin.security.submitting", {}, "Updating admin password..."),
+        "info",
+      );
+
+      try {
+        const response = await changeAdminPassword(currentPassword, newPassword, confirmPassword);
+
+        if (changedAtValue) {
+          changedAtValue.textContent = formatDateTime(response?.changedAt);
+        }
+
+        global.AdminAuthStore?.clear?.();
+        state.session = null;
+        state.currentView = "overview";
+        await renderLogin(
+          t(
+            "admin.security.reloginRequired",
+            {},
+            "Admin password updated, please sign in again",
+          ),
+          "info",
+        );
+        return;
+      } catch (error) {
+        const status = Number(error?.status || 0);
+        if (status === 401 || status === 403) {
+          await handleAuthFailure();
+          return;
+        }
+
+        setMessage("adminSecurityMessage", mapAdminPasswordError(error), "error");
+      } finally {
+        submitButton.disabled = false;
+      }
+    });
   }
 
   function bindAccountLookup() {
@@ -2311,6 +2693,12 @@
         subtitleKey: "admin.topbar.views.overviewSubtitle",
         stepKey: "admin.topbar.views.overviewStep",
       },
+      security: {
+        partial: paths.security,
+        titleKey: "admin.topbar.views.securityTitle",
+        subtitleKey: "admin.topbar.views.securitySubtitle",
+        stepKey: "admin.topbar.views.securityStep",
+      },
       accounts: {
         partial: paths.accountLookup,
         titleKey: "admin.topbar.views.accountsTitle",
@@ -2373,7 +2761,7 @@
       return;
     }
 
-    const supportedViews = ["overview", "accounts", "moderation", "reports", "audit-log"];
+    const supportedViews = ["overview", "security", "accounts", "moderation", "reports", "audit-log"];
     const normalizedView = supportedViews.includes(viewName)
       ? viewName
       : "overview";
@@ -2387,6 +2775,10 @@
 
     if (normalizedView === "overview") {
       await hydrateBootstrap();
+    }
+
+    if (normalizedView === "security") {
+      bindSecurityCenter();
     }
 
     if (normalizedView === "accounts") {

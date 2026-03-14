@@ -9,7 +9,7 @@
     brandSubtitle: "Bảng điều hành",
     eyebrow: "Bàn điều phối",
     heading: "CloudM admin",
-    subtitle: "Tài khoản, kiểm duyệt, báo cáo và audit trong một không gian tách biệt.",
+    subtitle: "Bảo mật, tài khoản, kiểm duyệt, báo cáo và audit trong một không gian tách biệt.",
     actions: {
       openMenu: "Mở điều hướng",
       toggleTheme: "Đổi giao diện",
@@ -22,6 +22,7 @@
     nav: {
       overview: "Tổng quan",
       overviewMeta: "Công cụ lõi đã sẵn sàng",
+      security: "Bảo mật",
       accounts: "Tài khoản",
       accountsMeta: "Điều khiển trạng thái",
       moderation: "Kiểm duyệt",
@@ -37,8 +38,11 @@
       performanceTag: "Bảo vệ lane social",
       views: {
         overviewTitle: "Điều hành",
-        overviewSubtitle: "Quản lý tài khoản, nội dung, báo cáo và audit ở một nơi.",
+        overviewSubtitle: "Quản lý bảo mật, tài khoản, nội dung, báo cáo và audit ở một nơi.",
         overviewStep: "Đang hoạt động",
+        securityTitle: "Bảo mật",
+        securitySubtitle: "Đổi mật khẩu cho tài khoản admin hiện tại.",
+        securityStep: "Mật khẩu",
         accountsTitle: "Tài khoản",
         accountsSubtitle: "Tra cứu hồ sơ và đổi trạng thái có audit.",
         accountsStep: "Điều khiển trạng thái",
@@ -121,6 +125,59 @@
     },
     common: {
       notAvailable: "Chưa có",
+    },
+    security: {
+      title: "Mật khẩu",
+      description: "Cập nhật mật khẩu cho tài khoản admin hiện tại.",
+      chip: "Bảo mật",
+      formTitle: "Đổi mật khẩu",
+      formDescription:
+        "Nhập mật khẩu hiện tại rồi lưu mật khẩu mới cho tài khoản admin này.",
+      fields: {
+        currentPassword: "Mật khẩu hiện tại",
+        newPassword: "Mật khẩu mới",
+        confirmPassword: "Xác nhận mật khẩu mới",
+      },
+      placeholders: {
+        currentPassword: "Nhập mật khẩu hiện tại",
+        newPassword: "Nhập mật khẩu mới",
+        confirmPassword: "Xác nhận mật khẩu mới",
+      },
+      showPasswordAria: "Hiện mật khẩu",
+      hidePasswordAria: "Ẩn mật khẩu",
+      progress: {
+        empty: "Nhập mật khẩu mới để kiểm tra điều kiện",
+        ready: "Mật khẩu đã sẵn sàng để lưu",
+        incomplete: "Đã đạt {count}/{total} điều kiện",
+      },
+      rules: {
+        length: "Tối thiểu 6 ký tự",
+        noSpaces: "Không chứa khoảng trắng",
+        noAccents: "Không chứa dấu tiếng Việt",
+      },
+      sessionTitle: "Phiên admin hiện tại",
+      sessionDescription: "Xem lại tài khoản sẽ nhận thay đổi mật khẩu này.",
+      session: {
+        name: "Tên",
+        email: "Email",
+        username: "Username",
+        role: "Vai trò",
+        changedAt: "Đổi lúc",
+      },
+      submit: "Cập nhật mật khẩu",
+      submitting: "Đang cập nhật mật khẩu admin...",
+      updated: "Đã cập nhật mật khẩu admin",
+      reloginRequired: "Đã cập nhật mật khẩu admin, hãy đăng nhập lại",
+      errors: {
+        currentRequired: "Hãy nhập mật khẩu hiện tại",
+        currentIncorrect: "Mật khẩu hiện tại chưa đúng",
+        newRequired: "Hãy nhập mật khẩu mới",
+        length: "Mật khẩu phải có ít nhất {count} ký tự",
+        spaces: "Mật khẩu không được chứa khoảng trắng",
+        accents: "Mật khẩu không được chứa dấu tiếng Việt",
+        confirmMismatch: "Mật khẩu mới và xác nhận mật khẩu chưa khớp",
+        updateFailed: "Hiện chưa thể đổi mật khẩu admin",
+      },
     },
     overview: {
       metrics: {
@@ -474,6 +531,7 @@
         all: "Tất cả hành động",
         adminLogin: "Đăng nhập admin",
         adminlogin: "Đăng nhập admin",
+        adminpasswordchanged: "Đổi mật khẩu admin",
         accountstatussetactive: "Đặt tài khoản về hoạt động",
         accountstatussetinactive: "Đặt tài khoản về không hoạt động",
         accountstatussetsuspended: "Đặt tài khoản về tạm khóa",
@@ -502,6 +560,7 @@
       },
       actionName: {
         adminlogin: "Đăng nhập admin",
+        adminpasswordchanged: "Đổi mật khẩu admin",
         accountstatussetactive: "Đặt tài khoản về hoạt động",
         accountstatussetinactive: "Đặt tài khoản về không hoạt động",
         accountstatussetsuspended: "Đặt tài khoản về tạm khóa",
@@ -532,6 +591,7 @@
       },
       summary: {
         adminlogin: "Admin đã đăng nhập vào cổng quản trị",
+        adminpasswordchanged: "Admin đã cập nhật mật khẩu",
         accountstatussetactive: "Đã đổi trạng thái tài khoản sang hoạt động",
         accountstatussetinactive: "Đã đổi trạng thái tài khoản sang không hoạt động",
         accountstatussetsuspended: "Đã đổi trạng thái tài khoản sang tạm khóa",

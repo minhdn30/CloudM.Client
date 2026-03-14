@@ -161,6 +161,14 @@
       return "auth.emailNotVerifiedLogin";
     }
 
+    if (normalizedMessage.includes("account has been suspended")) {
+      return "auth.accountSuspended";
+    }
+
+    if (normalizedMessage.includes("account has been banned")) {
+      return "auth.accountBanned";
+    }
+
     if (normalizedAction === "verify" && safeStatus === 400) {
       if (
         normalizedMessage.includes("invalid code") ||

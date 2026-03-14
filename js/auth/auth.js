@@ -293,6 +293,14 @@ function resolveAuthErrorMessageKey(action, status, rawMessage, fallbackKey) {
     return literalKey;
   }
 
+  if (normalizedRaw.includes("account has been suspended")) {
+    return "auth.accountSuspended";
+  }
+
+  if (normalizedRaw.includes("account has been banned")) {
+    return "auth.accountBanned";
+  }
+
   if (normalizedAction === "login") {
     if (safeStatus === 401) {
       if (
@@ -301,6 +309,7 @@ function resolveAuthErrorMessageKey(action, status, rawMessage, fallbackKey) {
       ) {
         return "auth.emailNotVerifiedLogin";
       }
+
       return "auth.invalidCredentials";
     }
 

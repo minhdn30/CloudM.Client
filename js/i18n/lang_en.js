@@ -269,6 +269,8 @@
       accountRestricted: "Your account is restricted",
       accountRestrictedSupport:
         "Your account is restricted, please contact support",
+      accountSuspended: "Your account has been suspended, please contact support",
+      accountBanned: "Your account has been banned, please contact support",
       accountNotFound: "Account not found",
       invalidResetCode: "Reset code is invalid or has expired",
       prepareResetRequestFailed: "Couldn't start the reset request right now",
