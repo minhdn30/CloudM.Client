@@ -1,16 +1,16 @@
-<div class="admin-report-page">
-  <section class="admin-lookup-grid">
-    <article class="admin-card admin-lookup-search-card">
+<div class="admin-page-stack admin-report-page">
+  <section class="admin-lookup-grid admin-functional-grid">
+    <article class="admin-card admin-section-card">
       <div class="admin-card-header">
         <div>
           <h2 class="admin-card-title" data-i18n="admin.reports.title">
-            Report center
+            Report queue
           </h2>
           <p class="admin-card-description" data-i18n="admin.reports.description">
-            Create internal reports first in the admin lane, then manage the queue without touching the social report flow yet.
+            Create internal cases and review the queue in one place.
           </p>
         </div>
-        <span class="admin-chip" data-i18n="admin.reports.chip">Admin first</span>
+        <span class="admin-chip" data-i18n="admin.reports.chip">Queue</span>
       </div>
 
       <form id="adminReportCreateForm" class="admin-control-form">
@@ -69,14 +69,14 @@
       <div id="adminReportCreateMessage" class="admin-login-message" aria-live="polite"></div>
     </article>
 
-    <article class="admin-card admin-lookup-guide-card">
+    <article class="admin-card admin-section-card">
       <div class="admin-card-header">
         <div>
           <h2 class="admin-card-title" data-i18n="admin.reports.queueTitle">
-            Report queue
+            Filters
           </h2>
           <p class="admin-card-description" data-i18n="admin.reports.queueDescription">
-            Filter recent reports, then move the selected case across the queue with a note.
+            Narrow the queue before changing report status.
           </p>
         </div>
       </div>
@@ -121,10 +121,10 @@
     <div class="admin-card-header">
       <div>
         <h2 class="admin-card-title" data-i18n="admin.reports.statusDeckTitle">
-          Report status control
+          Report status
         </h2>
         <p class="admin-card-description" data-i18n="admin.reports.statusDeckDescription">
-          Select a report card to move it through the queue with an operator note.
+          Move the selected case to the next queue state with a note.
         </p>
       </div>
       <span class="admin-chip muted" id="adminReportStatusChip" data-i18n="admin.reports.statusDeckIdleChip">
@@ -180,7 +180,7 @@
           Recent reports
         </h2>
         <p class="admin-card-description" data-i18n="admin.reports.resultsDescription">
-          Internal and future user-submitted reports will surface through this queue.
+          Queue items appear here after refresh.
         </p>
       </div>
       <span class="admin-chip muted" id="adminReportCount" data-i18n="admin.reports.idleCount">

@@ -2,22 +2,22 @@
   global.__I18N_LOCALES = global.__I18N_LOCALES || {};
   global.__I18N_LOCALES.vi = global.__I18N_LOCALES.vi || {};
   global.__I18N_LOCALES.vi.admin = {
-    title: "Cổng quản trị CloudM",
+    title: "CloudM Admin",
     loadingShell: "Đang tải khung admin...",
     loadingFailed: "Không thể tải khung admin",
     brandTitle: "CloudM Admin",
-    brandSubtitle: "Luồng vận hành tách biệt để quản trị hệ thống",
-    eyebrow: "Bộ điều phối quản trị",
-    heading: "Một lane riêng để vận hành nền tảng",
-    subtitle:
-      "Cổng admin được tách khỏi app social nhưng vẫn đủ bộ công cụ để quản lý trạng thái tài khoản, kiểm duyệt, report và audit.",
+    brandSubtitle: "Bảng điều hành",
+    eyebrow: "Bàn điều phối",
+    heading: "CloudM admin",
+    subtitle: "Tài khoản, kiểm duyệt, báo cáo và audit trong một không gian tách biệt.",
     actions: {
       openMenu: "Mở điều hướng",
       toggleTheme: "Đổi giao diện",
       logout: "Đăng xuất",
     },
     sidebar: {
-      control: "Điều hướng",
+      control: "Khu làm việc",
+      ariaLabel: "Không gian admin",
     },
     nav: {
       overview: "Tổng quan",
@@ -32,30 +32,25 @@
       auditLogMeta: "Lịch sử thao tác đã có",
     },
     topbar: {
-      label: "Trung tâm điều phối",
+      label: "Điều hành",
       sessionTag: "Session theo tab",
       performanceTag: "Bảo vệ lane social",
       views: {
-        overviewTitle: "Tổng quan vận hành admin",
-        overviewSubtitle:
-          "Theo dõi lane admin đã tách riêng và các hàng rào đang bảo vệ luồng user social.",
-        overviewStep: "Công cụ lõi đã sẵn sàng",
-        accountsTitle: "Điều khiển trạng thái tài khoản",
-        accountsSubtitle:
-          "Tra cứu đúng tài khoản, xem metadata và chuyển trạng thái có audit mà không chạm vào UI shell của social.",
-        accountsStep: "Ghi có kiểm soát",
-        moderationTitle: "Trung tâm kiểm duyệt",
-        moderationSubtitle:
-          "Tra đúng post, story, comment hoặc reply rồi thực hiện thao tác có kiểm soát, chỉ phục hồi ở nơi domain hiện có sẵn.",
-        moderationStep: "Đã có thao tác lõi",
-        reportsTitle: "Trung tâm báo cáo",
-        reportsSubtitle:
-          "Tạo report nội bộ trước, sau đó quản lý hàng chờ review ngay trong lane admin trước khi nối report từ user social.",
-        reportsStep: "Admin-first queue",
-        auditTitle: "Nhật ký audit admin",
-        auditSubtitle:
-          "Theo dõi đăng nhập, đổi trạng thái, kiểm duyệt và chuyển trạng thái report mà không đi vào realtime của social.",
-        auditStep: "Lịch sử đang hoạt động",
+        overviewTitle: "Điều hành",
+        overviewSubtitle: "Quản lý tài khoản, nội dung, báo cáo và audit ở một nơi.",
+        overviewStep: "Đang hoạt động",
+        accountsTitle: "Tài khoản",
+        accountsSubtitle: "Tra cứu hồ sơ và đổi trạng thái có audit.",
+        accountsStep: "Điều khiển trạng thái",
+        moderationTitle: "Kiểm duyệt",
+        moderationSubtitle: "Tra đúng đối tượng rồi áp dụng thao tác phù hợp.",
+        moderationStep: "Thao tác",
+        reportsTitle: "Báo cáo",
+        reportsSubtitle: "Xử lý case nội bộ và case do người dùng gửi.",
+        reportsStep: "Hàng chờ",
+        auditTitle: "Nhật ký audit",
+        auditSubtitle: "Lọc thao tác admin gần đây và xem timeline.",
+        auditStep: "Lịch sử",
       },
     },
     shell: {
@@ -127,11 +122,41 @@
     common: {
       notAvailable: "Chưa có",
     },
+    overview: {
+      metrics: {
+        accountsLabel: "Tài khoản",
+        accountsValue: "Điều khiển trạng thái",
+        moderationLabel: "Kiểm duyệt",
+        moderationValue: "Ẩn, phục hồi, xóa",
+        reportsLabel: "Báo cáo",
+        reportsValue: "Rà hàng chờ",
+        auditLabel: "Audit",
+        auditValue: "Lịch sử thao tác",
+      },
+      systemTitle: "Trạng thái hệ thống",
+      systemDescription: "Tư thế hiện tại của lane admin.",
+      systemSession: "Session",
+      systemSessionValue: "Tách theo tab",
+      systemCheckedAt: "Đồng bộ lúc",
+      systemModules: "Module",
+      accountTitle: "Điều khiển tài khoản",
+      accountDescription: "Tra đúng tài khoản và đổi trạng thái kèm lý do audit.",
+      accountPointOne: "Tra cứu bằng email, username hoặc accountId",
+      accountPointTwo: "Dùng được toàn bộ trạng thái tài khoản hiện có",
+      moderationTitle: "Kiểm duyệt",
+      moderationDescription: "Chỉ thao tác trên đối tượng tra cứu chính xác.",
+      moderationPointOne: "Bài viết và tin hỗ trợ ẩn và phục hồi",
+      moderationPointTwo: "Bình luận và phản hồi vẫn chỉ xóa một chiều",
+      reportsTitle: "Báo cáo",
+      reportsDescription: "Làm việc với case nội bộ và case do người dùng gửi.",
+      reportsPointOne: "Tạo report nội bộ ngay trong admin",
+      reportsPointTwo: "Di chuyển case giữa các trạng thái cùng ghi chú",
+    },
     accountLookup: {
-      searchTitle: "Tra cứu tài khoản an toàn",
+      searchTitle: "Tra cứu tài khoản",
       searchDescription:
-        "Tìm theo email, username hoặc accountId trước khi đổi trạng thái có kiểm soát.",
-      readOnlyChip: "Ghi có kiểm soát",
+        "Tìm tài khoản, xem hồ sơ rồi đổi trạng thái kèm lý do audit.",
+      readOnlyChip: "Điều khiển trạng thái",
       searchLabel: "Từ khóa tra cứu",
       searchPlaceholder: "Nhập email, username hoặc accountId",
       searchSubmit: "Tra cứu tài khoản",
@@ -146,9 +171,8 @@
         "Kết quả được giới hạn và sắp xếp để tránh quét nặng trên dữ liệu lớn",
       guidePointThree:
         "Mọi thay đổi trạng thái đều bắt buộc có lý do và được ghi vào audit admin",
-      controlTitle: "Quản lý trạng thái tài khoản",
-      controlDescription:
-        "Chọn một kết quả tài khoản để áp dụng thay đổi trạng thái có kiểm soát cùng lý do audit.",
+      controlTitle: "Trạng thái tài khoản",
+      controlDescription: "Áp dụng thay đổi trạng thái trực tiếp cùng lý do.",
       controlIdleChip: "Đang chờ chọn",
       controlSelectedChip: "Hiện tại: {status}",
       controlTargetSummary:
@@ -162,15 +186,13 @@
       controlUpdated: "Đã đổi trạng thái tài khoản sang {status}",
       controlConfirm:
         "Đổi trạng thái tài khoản của {name} sang {status}? Hành động này sẽ được ghi vào audit admin.",
-      resultsTitle: "Kết quả tài khoản",
-      resultsDescription:
-        "Xem metadata tài khoản và chọn đúng kết quả để quản lý trạng thái trong lane admin tách biệt.",
+      resultsTitle: "Kết quả",
+      resultsDescription: "Chọn một hồ sơ để mở thao tác trạng thái.",
       idleCount: "Đang chờ tra cứu",
       emptyCount: "Không có kết quả",
       resultCount: "{count} kết quả",
       idleSummary: "Tìm theo email, username hoặc accountId",
-      idleState:
-        "Bắt đầu bằng một từ khóa đủ rõ để kiểm tra dữ liệu tài khoản mà không chạm vào luồng social.",
+      idleState: "Kết quả sẽ xuất hiện ở đây sau khi tra cứu.",
       loadingState: "Đang tra cứu dữ liệu tài khoản...",
       emptySummary: "Không có tài khoản phù hợp với \"{keyword}\"",
       emptyState: "Không có tài khoản nào khớp với từ khóa này",
@@ -214,10 +236,9 @@
       },
     },
     moderation: {
-      title: "Trung tâm kiểm duyệt",
-      description:
-        "Tra cứu đúng đối tượng rồi áp dụng thao tác admin tách biệt mà không chỉnh lane query của social.",
-      chip: "Thao tác lõi",
+      title: "Kiểm duyệt",
+      description: "Tra cứu chính xác rồi áp dụng thao tác phù hợp.",
+      chip: "Thao tác",
       targetTypeLabel: "Loại đối tượng",
       targetTypes: {
         post: "Bài viết",
@@ -241,8 +262,7 @@
       guardrailThree:
         "Mọi thay đổi đều bắt buộc có lý do và được ghi vào audit admin",
       actionTitle: "Thao tác kiểm duyệt",
-      actionDescription:
-        "Xem lại đối tượng đã chọn rồi xác nhận thao tác mong muốn cùng lý do.",
+      actionDescription: "Xem đối tượng rồi xác nhận thao tác cùng lý do.",
       actionIdleChip: "Đang chờ đối tượng",
       actionSelectedChip: "Trạng thái hiện tại: {state}",
       actionTargetSummary:
@@ -257,9 +277,9 @@
       actionConfirm:
         "Áp dụng thao tác {action} cho {targetType} {label}? Hành động này sẽ được ghi vào audit admin.",
       noActionAvailable: "Không còn thao tác kiểm duyệt phù hợp cho đối tượng này",
-      resultTitle: "Kết quả tra cứu",
+      resultTitle: "Chi tiết đối tượng",
       resultDescription:
-        "Đối tượng đã chọn sẽ hiển thị ở đây cùng thông tin chủ sở hữu và trạng thái kiểm duyệt hiện tại.",
+        "Đối tượng khớp sẽ hiện ở đây cùng trạng thái và chủ sở hữu.",
       idleCount: "Đang chờ đối tượng",
       emptyCount: "Không tìm thấy đối tượng",
       resultCount: "{count} đối tượng",
@@ -302,10 +322,9 @@
       },
     },
     reports: {
-      title: "Trung tâm báo cáo",
-      description:
-        "Tạo report nội bộ trước trong lane admin, sau đó quản lý hàng chờ mà chưa cần đụng vào flow report của user social.",
-      chip: "Admin trước",
+      title: "Hàng chờ báo cáo",
+      description: "Tạo case nội bộ và rà hàng chờ ở cùng một nơi.",
+      chip: "Hàng chờ",
       targetTypeLabel: "Loại đối tượng",
       targetTypes: {
         account: "Tài khoản",
@@ -335,9 +354,8 @@
       created: "Đã tạo report nội bộ",
       createConfirm:
         "Tạo report nội bộ cho {targetType} {targetId} với lý do {reasonCode}?",
-      queueTitle: "Hàng chờ report",
-      queueDescription:
-        "Lọc các report gần đây rồi di chuyển case đã chọn qua các trạng thái cùng ghi chú của người xử lý.",
+      queueTitle: "Bộ lọc",
+      queueDescription: "Thu gọn hàng chờ trước khi đổi trạng thái report.",
       statusFilterLabel: "Trạng thái",
       statusFilter: {
         all: "Tất cả trạng thái",
@@ -353,9 +371,9 @@
       refreshSubmit: "Tải lại hàng chờ",
       queueLoading: "Đang tải hàng chờ report...",
       queueLoaded: "Đã tải lại hàng chờ report",
-      statusDeckTitle: "Điều khiển trạng thái report",
+      statusDeckTitle: "Trạng thái report",
       statusDeckDescription:
-        "Chọn một thẻ report để chuyển nó qua các trạng thái cùng ghi chú vận hành.",
+        "Chuyển case đã chọn sang trạng thái tiếp theo cùng ghi chú.",
       statusDeckIdleChip: "Đang chờ report",
       statusDeckSelectedChip: "Trạng thái hiện tại: {status}",
       statusDeckSummarySelected:
@@ -370,8 +388,7 @@
       statusConfirm:
         "Chuyển report của {targetType} {targetId} sang trạng thái {status}?",
       resultsTitle: "Report gần đây",
-      resultsDescription:
-        "Report nội bộ hiện tại và report do user gửi sau này sẽ cùng đi qua hàng chờ này.",
+      resultsDescription: "Các case sẽ xuất hiện ở đây sau khi tải hàng chờ.",
       idleCount: "Đang chờ hàng chờ",
       emptyCount: "Chưa có report",
       resultCount: "{count} report",
@@ -414,10 +431,9 @@
       },
     },
     auditLog: {
-      introTitle: "Dòng audit admin gần đây",
-      introDescription:
-        "Theo dõi các thay đổi admin mới nhất nhưng vẫn giữ an toàn vận hành cho lane admin.",
-      liveChip: "Lịch sử thay đổi",
+      introTitle: "Nhật ký audit",
+      introDescription: "Lọc thao tác admin gần đây và xem timeline.",
+      liveChip: "Đang hoạt động",
       moduleLabel: "Module",
       actionLabel: "Loại hành động",
       refreshSubmit: "Tải lại log",
@@ -433,8 +449,7 @@
       guidePointThree:
         "Audit giữ đủ actor, target và note mà không chạm vào realtime của social",
       timelineTitle: "Hoạt động gần đây",
-      timelineDescription:
-        "Mỗi bản ghi đều nằm trong lane admin và không chạm vào realtime của social.",
+      timelineDescription: "Mỗi bản ghi đều nằm gọn trong lane admin.",
       idleCount: "Đang chờ log",
       emptyCount: "Chưa có log",
       resultCount: "{count} log",
@@ -549,10 +564,9 @@
       },
     },
     login: {
-      badge: "CloudM control plane",
-      heading: "Đăng nhập vào cổng admin",
-      description:
-        "Lối vào này tách biệt khỏi app social và dùng session admin riêng trong tab hiện tại.",
+      badge: "CloudM Admin",
+      heading: "Đăng nhập điều hành",
+      description: "Dùng tài khoản admin để vào không gian điều hành tách biệt.",
       pointOne: "Dùng session storage riêng cho admin",
       pointTwo: "Dùng namespace API admin được bảo vệ",
       pointThree: "Dùng lane UI tách khỏi luồng social",

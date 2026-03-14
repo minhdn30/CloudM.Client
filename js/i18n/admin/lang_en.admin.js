@@ -2,22 +2,22 @@
   global.__I18N_LOCALES = global.__I18N_LOCALES || {};
   global.__I18N_LOCALES.en = global.__I18N_LOCALES.en || {};
   global.__I18N_LOCALES.en.admin = {
-    title: "CloudM Admin Portal",
+    title: "CloudM Admin",
     loadingShell: "Loading admin shell...",
     loadingFailed: "Unable to load admin shell",
     brandTitle: "CloudM Admin",
-    brandSubtitle: "Isolated operational lane for system management",
-    eyebrow: "Admin Control Suite",
-    heading: "A dedicated lane for operating the platform",
-    subtitle:
-      "The admin portal stays isolated from the social app while giving operators a complete toolset for status control, moderation, reports and audit.",
+    brandSubtitle: "Operations console",
+    eyebrow: "Operations desk",
+    heading: "CloudM admin",
+    subtitle: "Accounts, moderation, reports and audit in one isolated workspace.",
     actions: {
       openMenu: "Open navigation",
       toggleTheme: "Toggle theme",
       logout: "Sign out",
     },
     sidebar: {
-      control: "Control",
+      control: "Workspace",
+      ariaLabel: "Admin workspace",
     },
     nav: {
       overview: "Overview",
@@ -32,30 +32,25 @@
       auditLogMeta: "Mutation history live",
     },
     topbar: {
-      label: "Control plane",
+      label: "Operations",
       sessionTag: "Tab session",
       performanceTag: "Protected social lane",
       views: {
-        overviewTitle: "Admin operations overview",
-        overviewSubtitle:
-          "Review the isolated admin lane and the safeguards protecting the social user flow.",
-        overviewStep: "Core admin live",
-        accountsTitle: "Account status control",
-        accountsSubtitle:
-          "Search exact accounts, review metadata and apply audited status transitions without touching the social UI shell.",
-        accountsStep: "Controlled write",
-        moderationTitle: "Moderation center",
-        moderationSubtitle:
-          "Use exact lookups for posts, stories, comments and replies, then apply guarded actions with restore support where the domain already allows it.",
-        moderationStep: "Core actions ready",
-        reportsTitle: "Report center",
-        reportsSubtitle:
-          "Create internal reports first, then manage the review queue from the isolated admin lane before social report submission is introduced.",
-        reportsStep: "Admin-first queue",
-        auditTitle: "Admin audit log",
-        auditSubtitle:
-          "Track login, status changes, moderation actions and report queue transitions without joining the social realtime lane.",
-        auditStep: "History live",
+        overviewTitle: "Operations",
+        overviewSubtitle: "Manage accounts, content, reports and audit from one place.",
+        overviewStep: "Live",
+        accountsTitle: "Accounts",
+        accountsSubtitle: "Search records and update status with audit.",
+        accountsStep: "Status control",
+        moderationTitle: "Moderation",
+        moderationSubtitle: "Look up an exact target and apply the right action.",
+        moderationStep: "Actions",
+        reportsTitle: "Reports",
+        reportsSubtitle: "Review internal and user-submitted cases.",
+        reportsStep: "Queue",
+        auditTitle: "Audit log",
+        auditSubtitle: "Filter recent admin actions and inspect the timeline.",
+        auditStep: "History",
       },
     },
     shell: {
@@ -127,11 +122,41 @@
     common: {
       notAvailable: "Not available",
     },
+    overview: {
+      metrics: {
+        accountsLabel: "Accounts",
+        accountsValue: "Status control",
+        moderationLabel: "Moderation",
+        moderationValue: "Hide, restore, remove",
+        reportsLabel: "Reports",
+        reportsValue: "Queue review",
+        auditLabel: "Audit",
+        auditValue: "Action history",
+      },
+      systemTitle: "System pulse",
+      systemDescription: "Current admin lane posture.",
+      systemSession: "Session",
+      systemSessionValue: "Tab isolated",
+      systemCheckedAt: "Last sync",
+      systemModules: "Modules",
+      accountTitle: "Account control",
+      accountDescription: "Search exact accounts and move status with audit reason.",
+      accountPointOne: "Lookup by email, username or accountId",
+      accountPointTwo: "All current account statuses are available",
+      moderationTitle: "Moderation",
+      moderationDescription: "Act on exact targets only.",
+      moderationPointOne: "Post and story support hide and restore",
+      moderationPointTwo: "Comment and reply remain remove only",
+      reportsTitle: "Reports",
+      reportsDescription: "Work through internal and user-submitted cases.",
+      reportsPointOne: "Create internal reports from admin",
+      reportsPointTwo: "Move cases across queue statuses with notes",
+    },
     accountLookup: {
-      searchTitle: "Find accounts safely",
+      searchTitle: "Account search",
       searchDescription:
-        "Search by email, username or accountId before applying a controlled status change.",
-      readOnlyChip: "Controlled write",
+        "Find an account, inspect the record, then update status with audit reason.",
+      readOnlyChip: "Status control",
       searchLabel: "Lookup keyword",
       searchPlaceholder: "Enter email, username or accountId",
       searchSubmit: "Search accounts",
@@ -146,9 +171,8 @@
         "Results stay limited and sorted to avoid heavy scans on large datasets",
       guidePointThree:
         "Every status mutation requires a reason and lands in admin audit",
-      controlTitle: "Account status manager",
-      controlDescription:
-        "Select an account result to apply a controlled status change with an audit reason.",
+      controlTitle: "Account status",
+      controlDescription: "Apply a direct status change with a reason.",
       controlIdleChip: "Awaiting selection",
       controlSelectedChip: "Current: {status}",
       controlTargetSummary:
@@ -162,15 +186,13 @@
       controlUpdated: "Account status changed to {status}",
       controlConfirm:
         "Change the account status for {name} to {status}? This action will be written to admin audit.",
-      resultsTitle: "Account results",
-      resultsDescription:
-        "Review account metadata and pick a result to manage status from the isolated admin lane.",
+      resultsTitle: "Results",
+      resultsDescription: "Select a record to unlock status actions.",
       idleCount: "Waiting for search",
       emptyCount: "No matches",
       resultCount: "{count} result(s)",
       idleSummary: "Search by email, username or accountId",
-      idleState:
-        "Start with a precise keyword to inspect account data without touching the social flow.",
+      idleState: "Results appear here after search.",
       loadingState: "Searching account data...",
       emptySummary: "No matching accounts for \"{keyword}\"",
       emptyState: "No matching accounts for this keyword",
@@ -214,10 +236,9 @@
       },
     },
     moderation: {
-      title: "Moderation center",
-      description:
-        "Look up exact targets and apply isolated admin actions without editing the social query lane.",
-      chip: "Core actions",
+      title: "Moderation",
+      description: "Use an exact lookup, then apply the correct action.",
+      chip: "Actions",
       targetTypeLabel: "Target type",
       targetTypes: {
         post: "Post",
@@ -241,8 +262,7 @@
       guardrailThree:
         "Every mutation requires a reason and lands in admin audit",
       actionTitle: "Moderation action",
-      actionDescription:
-        "Review the selected target, then confirm the intended action with a reason.",
+      actionDescription: "Review the target, then confirm the action with a reason.",
       actionIdleChip: "Awaiting target",
       actionSelectedChip: "Current state: {state}",
       actionTargetSummary:
@@ -257,9 +277,9 @@
       actionConfirm:
         "Apply {action} to {targetType} {label}? This action will be written to admin audit.",
       noActionAvailable: "No further moderation action is available for this target",
-      resultTitle: "Lookup result",
+      resultTitle: "Target details",
       resultDescription:
-        "The selected target appears here with owner context and current moderation state.",
+        "The matched target appears here with current state and owner context.",
       idleCount: "Waiting for target",
       emptyCount: "No target found",
       resultCount: "{count} target(s)",
@@ -302,10 +322,9 @@
       },
     },
     reports: {
-      title: "Report center",
-      description:
-        "Create internal reports first in the admin lane, then manage the queue without touching the social report flow yet.",
-      chip: "Admin first",
+      title: "Report queue",
+      description: "Create internal cases and review the queue in one place.",
+      chip: "Queue",
       targetTypeLabel: "Target type",
       targetTypes: {
         account: "Account",
@@ -335,9 +354,8 @@
       created: "Internal report created",
       createConfirm:
         "Create an internal report for {targetType} {targetId} with reason {reasonCode}?",
-      queueTitle: "Report queue",
-      queueDescription:
-        "Filter recent reports, then move the selected case across the queue with an operator note.",
+      queueTitle: "Filters",
+      queueDescription: "Narrow the queue before changing report status.",
       statusFilterLabel: "Status",
       statusFilter: {
         all: "All statuses",
@@ -353,9 +371,9 @@
       refreshSubmit: "Refresh queue",
       queueLoading: "Loading report queue...",
       queueLoaded: "Report queue refreshed",
-      statusDeckTitle: "Report status control",
+      statusDeckTitle: "Report status",
       statusDeckDescription:
-        "Select a report card to move it through the queue with an operator note.",
+        "Move the selected case to the next queue state with a note.",
       statusDeckIdleChip: "Awaiting report",
       statusDeckSelectedChip: "Current status: {status}",
       statusDeckSummarySelected:
@@ -370,8 +388,7 @@
       statusConfirm:
         "Move the report for {targetType} {targetId} to {status}?",
       resultsTitle: "Recent reports",
-      resultsDescription:
-        "Internal and future user-submitted reports will surface through this queue.",
+      resultsDescription: "Queue items appear here after refresh.",
       idleCount: "Waiting for queue",
       emptyCount: "No reports",
       resultCount: "{count} report(s)",
@@ -414,10 +431,9 @@
       },
     },
     auditLog: {
-      introTitle: "Recent admin audit trail",
-      introDescription:
-        "Track the latest admin mutations while keeping the admin lane operationally safe.",
-      liveChip: "Mutation history",
+      introTitle: "Audit log",
+      introDescription: "Filter recent admin actions and review the timeline.",
+      liveChip: "Live",
       moduleLabel: "Module",
       actionLabel: "Action type",
       refreshSubmit: "Refresh logs",
@@ -433,8 +449,7 @@
       guidePointThree:
         "Audit preserves actor, target and note context without touching social realtime",
       timelineTitle: "Recent activity",
-      timelineDescription:
-        "Each record is isolated inside the admin lane and does not touch social realtime.",
+      timelineDescription: "Every record stays inside the admin lane.",
       idleCount: "Waiting for logs",
       emptyCount: "No logs yet",
       resultCount: "{count} log(s)",
@@ -549,10 +564,9 @@
       },
     },
     login: {
-      badge: "CloudM control plane",
-      heading: "Sign in to the admin portal",
-      description:
-        "This entry is isolated from the social app and uses a dedicated admin session in the current browser tab.",
+      badge: "CloudM Admin",
+      heading: "Operations sign in",
+      description: "Use an admin account to enter the isolated control workspace.",
       pointOne: "Dedicated admin session storage",
       pointTwo: "Protected admin API namespace",
       pointThree: "Separate UI lane from social flow",
