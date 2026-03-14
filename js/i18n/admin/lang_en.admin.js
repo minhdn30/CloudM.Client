@@ -321,8 +321,10 @@
       reasonCodes: {
         spam: "Spam",
         abuse: "Abusive behavior",
+        inappropriate: "Inappropriate or sexual content",
         hate: "Hateful conduct",
         violence: "Violence",
+        false: "False information",
         scam: "Scam",
         other: "Other",
       },
@@ -392,11 +394,13 @@
       },
       sourceTypes: {
         admininternal: "Admin internal",
+        usersubmitted: "User submitted",
+        system: "System",
         unknown: "Unknown",
       },
       fields: {
         reportId: "Report ID",
-        createdBy: "Created by",
+        createdBy: "Submitted by",
         createdAt: "Created at",
         updatedAt: "Updated at",
       },

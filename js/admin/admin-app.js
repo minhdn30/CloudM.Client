@@ -517,6 +517,22 @@
     );
   }
 
+  function getReportActorName(item) {
+    if (normalizeKey(item?.sourceType) === "usersubmitted") {
+      return (
+        item?.reporterFullname ||
+        item?.reporterEmail ||
+        t("admin.common.notAvailable", {}, "Not available")
+      );
+    }
+
+    return (
+      item?.createdByAdminFullname ||
+      item?.createdByAdminEmail ||
+      t("admin.common.notAvailable", {}, "Not available")
+    );
+  }
+
   function getAuditModuleLabel(module) {
     const normalizedModule = normalizeKey(module);
     return t(
@@ -963,7 +979,7 @@
   }
 
   function buildReportCard(item) {
-    const createdBy = item.createdByAdminFullname || item.createdByAdminEmail || t("admin.common.notAvailable", {}, "Not available");
+    const createdBy = getReportActorName(item);
     const isSelected = item.moderationReportId === state.reports.selectedReportId;
 
     return `

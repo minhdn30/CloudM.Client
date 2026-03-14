@@ -321,8 +321,10 @@
       reasonCodes: {
         spam: "Spam",
         abuse: "Hành vi lạm dụng",
+        inappropriate: "Nội dung không phù hợp hoặc nhạy cảm",
         hate: "Nội dung thù ghét",
         violence: "Bạo lực",
+        false: "Thông tin sai sự thật",
         scam: "Lừa đảo",
         other: "Khác",
       },
@@ -392,11 +394,13 @@
       },
       sourceTypes: {
         admininternal: "Nội bộ admin",
+        usersubmitted: "Người dùng gửi",
+        system: "Hệ thống",
         unknown: "Không rõ",
       },
       fields: {
         reportId: "Report ID",
-        createdBy: "Tạo bởi",
+        createdBy: "Gửi bởi",
         createdAt: "Tạo lúc",
         updatedAt: "Cập nhật lúc",
       },
