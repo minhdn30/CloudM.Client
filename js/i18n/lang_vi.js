@@ -1580,6 +1580,7 @@
         uploadMediaFirst: "Vui lòng tải ảnh hoặc video lên trước",
         serverUnavailable: "Không thể kết nối với máy chủ",
         discardTitle: "Không lưu tin này?",
+        tooFast: "Bạn đang tạo tin quá nhanh. Vui lòng chờ vài giây rồi thử lại",
         createFailed: "Không thể tạo tin",
         unsupportedMedia: "Chỉ hỗ trợ tệp ảnh hoặc video",
         createSuccess: "Đã tạo tin",
@@ -3129,14 +3130,16 @@
           "Vì CloudM vẫn là bản thử nghiệm nên chưa phải mọi thứ đã hoàn chỉnh. Một số tính năng còn thiếu, một số tương tác có thể còn thay đổi và bug vẫn có thể xuất hiện. Mong mọi người thông cảm và góp ý thêm để CloudM tốt hơn.",
       },
       experience: {
-        label: "Hiện tại đã có gì",
+        label: "Lúc này trên CloudM, bạn có thể",
         items: {
           sharing:
-            "Đăng bài và chia sẻ tin theo một flow quen thuộc, dễ bắt nhịp",
-          chat: "Nhắn tin được đặt gần toàn bộ trải nghiệm mạng xã hội",
-          privacy: "Các tùy chọn quyền riêng tư rõ ràng và dễ tìm hơn",
+            "Lướt feed để xem bài viết và những cập nhật mới từ người bạn quan tâm",
+          chat:
+            "Trò chuyện cùng bạn bè theo cách quen thuộc và thoải mái",
+          privacy:
+            "Chia sẻ những khoảnh khắc của bạn qua tin và bài viết",
           performance:
-            "Giao diện đang tiếp tục được tối ưu để dùng ổn trên cả máy tính lẫn điện thoại",
+            "Xem thông báo và gợi ý theo dõi để không bỏ lỡ những kết nối đáng chú ý",
         },
       },
       values: {

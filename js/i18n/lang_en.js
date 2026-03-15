@@ -1575,6 +1575,7 @@
         apiUnavailable: "Story isn't available right now",
         processImageFailed:
           "Failed to process image, uploading the original instead",
+        tooFast: "You're creating stories too quickly. Please wait a few seconds",
         createFailed: "Failed to create story",
         createSuccess: "Story created successfully",
         serverUnavailable: "Could not connect to server",
@@ -3102,13 +3103,16 @@
           "Because CloudM is still a test version, not everything is fully complete yet. Some features may be missing, some interactions may still change, and bugs can still happen. We really appreciate your patience.",
       },
       experience: {
-        label: "What is already here",
+        label: "What you can do on CloudM right now",
         items: {
-          sharing: "Posting and story sharing in a flow that feels familiar",
-          chat: "Messaging that stays close to the rest of the social experience",
-          privacy: "Privacy controls that are easier to find and understand",
+          sharing:
+            "Browse your feed to catch posts and fresh updates from people you care about",
+          chat:
+            "Chat with your friends in a way that feels familiar and comfortable",
+          privacy:
+            "Share your moments through stories and posts",
           performance:
-            "A responsive interface that keeps improving on desktop and mobile",
+            "Check notifications and follow suggestions so you do not miss the connections worth noticing",
         },
       },
       values: {

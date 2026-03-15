@@ -223,6 +223,15 @@
     }
 
     if (normalizedFeature === "story" && normalizedAction === "create") {
+      if (
+        normalizedMessage.includes("posting stories too fast") ||
+        normalizedMessage.includes("wait a few seconds") ||
+        normalizedMessage.includes("tạo tin quá nhanh") ||
+        normalizedMessage.includes("vui lòng chờ vài giây")
+      ) {
+        return "story.create.tooFast";
+      }
+
       return "errors.story.create";
     }
 
