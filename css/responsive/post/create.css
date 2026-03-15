@@ -53,10 +53,14 @@
     left: 12px;
     right: 12px;
     bottom: 8px;
+    width: auto;
+    max-width: calc(100% - 24px);
+    transform: none;
     justify-content: flex-start;
     overflow-x: auto;
     scrollbar-width: none;
     padding: 6px;
+    gap: 8px;
   }
 
   #createPostModal .media-thumbnails::-webkit-scrollbar,

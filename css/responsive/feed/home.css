@@ -43,4 +43,31 @@
   .home-suggestions-shell {
     padding: 0 5px;
   }
+
+  .home-suggestions-shell .follow-suggestions-mobile-entry {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .home-suggestions-shell .follow-suggestions-mobile-entry-label {
+    min-width: 0;
+  }
+
+  .home-suggestions-shell .follow-suggestions-mobile-entry i,
+  .home-suggestions-shell .follow-suggestions-mobile-entry svg {
+    width: 16px;
+    height: 16px;
+    color: inherit;
+    flex-shrink: 0;
+  }
 }

@@ -23,6 +23,26 @@
 
   .chat-view-header {
     gap: 8px;
+    padding: 0 12px;
+    justify-content: flex-start;
+  }
+
+  .chat-view-user {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .chat-view-actions {
+    margin-left: auto;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+  }
+
+  .chat-page-container .chat-view-actions #chat-info-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
   }
 
   .chat-mobile-back-btn {
@@ -52,6 +72,72 @@
   }
 
   body.chat-mobile-conversation-active .chat-view-user {
+    min-width: 0;
+  }
+
+  body.chat-mobile-info-active .chat-main {
+    display: none;
+  }
+
+  body.chat-mobile-info-active .chat-sidebar-info-panel {
+    position: fixed;
+    inset: 0 0 var(--cloudm-mobile-nav-offset, 0px) 0;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: calc(
+      var(--cloudm-app-height, 100vh) - var(--cloudm-mobile-nav-offset, 0px)
+    ) !important;
+    max-height: calc(
+      var(--cloudm-app-height, 100vh) - var(--cloudm-mobile-nav-offset, 0px)
+    ) !important;
+    z-index: 1302 !important;
+    border-left: none;
+    opacity: 1;
+    transform: none;
+    visibility: visible;
+    pointer-events: auto;
+    box-shadow: none;
+  }
+
+  body.chat-mobile-conversation-active .chat-sidebar-info-panel.hidden {
+    display: none !important;
+  }
+
+  .chat-info-mobile-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    padding: 2px 4px 8px;
+  }
+
+  .chat-info-mobile-back-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
+
+  .chat-info-mobile-back-btn i,
+  .chat-info-mobile-back-btn svg {
+    width: 20px;
+    height: 20px;
+    color: inherit;
+  }
+
+  .chat-info-mobile-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
     min-width: 0;
   }
 
@@ -100,6 +186,30 @@
     transform: none;
   }
 
+  .chat-tabs-popup-menu {
+    z-index: 1310 !important;
+    left: 50% !important;
+    right: auto !important;
+    top: 50% !important;
+    bottom: auto !important;
+    width: min(320px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+    max-height: min(
+      70vh,
+      calc(var(--cloudm-app-height, 100vh) - env(safe-area-inset-top, 0px) - 32px)
+    );
+    border-radius: 18px;
+    transform: translate(-50%, -50%);
+    transform-origin: center;
+    will-change: transform, opacity;
+    animation: chat-mobile-centered-popup-fade 0.2s
+      cubic-bezier(0.16, 1, 0.3, 1);
+    padding: 8px;
+    box-shadow:
+      0 20px 48px rgba(0, 0, 0, 0.28),
+      0 0 0 1px var(--border-primary);
+  }
+
   .chat-members-actions-menu,
   .chat-window-members-actions-menu,
   #chat-sidebar-settings-popup.chat-settings-popup {
@@ -146,10 +256,38 @@
   }
 
   #chat-sidebar-settings-popup.chat-settings-popup {
-    width: 100% !important;
-    border-radius: 16px 16px 0 0;
-    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
-    transform-origin: center bottom;
+    z-index: 1310 !important;
+    left: 50% !important;
+    right: auto !important;
+    top: 50% !important;
+    bottom: auto !important;
+    width: min(360px, calc(100vw - 32px)) !important;
+    max-width: calc(100vw - 32px) !important;
+    max-height: min(
+      75vh,
+      calc(var(--cloudm-app-height, 100vh) - env(safe-area-inset-top, 0px) - 32px)
+    ) !important;
+    border-radius: 20px;
+    padding: 16px;
+    transform: translate(-50%, -50%);
+    transform-origin: center;
+    will-change: transform, opacity;
+    animation: chat-mobile-centered-popup-fade 0.22s
+      cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow:
+      0 24px 56px rgba(0, 0, 0, 0.32),
+      0 0 0 1px var(--border-primary);
+  }
+
+  @keyframes chat-mobile-centered-popup-fade {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
   }
 }
 

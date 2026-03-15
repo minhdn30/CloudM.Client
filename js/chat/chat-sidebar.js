@@ -1305,10 +1305,10 @@ const ChatSidebar = {
 
     menu.style.position = "fixed";
     if (this.shouldUseMobileFloatingMenuLayout()) {
-      menu.style.top = "auto";
-      menu.style.bottom = "0";
-      menu.style.left = "0";
-      menu.style.right = "0";
+      menu.style.top = "50%";
+      menu.style.bottom = "auto";
+      menu.style.left = "50%";
+      menu.style.right = "auto";
     } else {
       const rect = anchor.getBoundingClientRect();
       menu.style.bottom = "auto";

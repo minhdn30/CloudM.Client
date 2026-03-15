@@ -362,6 +362,7 @@
   border-radius: 4px;
   position: relative;
   cursor: pointer;
+  touch-action: none;
 }
 
 /* Hitbox mở rộng cho thanh trượt - dễ bấm trúng hơn */
@@ -396,6 +397,7 @@
   cursor: grab;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
   z-index: 2;
+  touch-action: none;
 }
 
 /* Hitbox mở rộng cho nút tròn - dễ hover hơn */

@@ -833,13 +833,26 @@
   }
 
   function getVisibleWindowCount() {
-    const { container } = getStoryFeedElements();
-    if (!container) {
+    const { container, shell } = getStoryFeedElements();
+    if (!container || !shell) {
       return Math.max(1, FEED_INITIAL_LOAD_COUNT);
     }
 
-    const visibleCount = resolveStoryFeedVisibleCount(container);
-    return Math.max(1, Math.min(FEED_INITIAL_LOAD_COUNT, visibleCount));
+    if (!isMobileStoryFeedLayout()) {
+      const visibleCount = resolveStoryFeedVisibleCount(container);
+      return Math.max(1, Math.min(FEED_INITIAL_LOAD_COUNT, visibleCount));
+    }
+
+    const visibleCount = resolveMobileStoryFeedVisibleCount(container, shell);
+    return Math.max(1, visibleCount);
+  }
+
+  function isMobileStoryFeedLayout() {
+    if (window.CloudMResponsive?.isMobileLayout) {
+      return window.CloudMResponsive.isMobileLayout();
+    }
+
+    return window.matchMedia?.("(max-width: 768px)")?.matches === true;
   }
 
   function getStoryFeedAvailableWidth(container) {
@@ -852,11 +865,88 @@
     return Math.max(0, containerWidth - paddingInline);
   }
 
-  function getStoryFeedBaseTrackWidth(itemCount) {
+  function readStoryFeedBaseSizing(shell) {
+    if (!shell) {
+      return {
+        itemWidth: DEFAULT_FEED_ITEM_WIDTH_PX,
+        gap: DEFAULT_FEED_GAP_PX,
+        avatarWrapperSize: DEFAULT_FEED_AVATAR_WRAPPER_SIZE_PX,
+        ringAvatarSize: DEFAULT_FEED_RING_AVATAR_SIZE_PX,
+        nameMaxWidth: DEFAULT_FEED_ITEM_WIDTH_PX,
+        nameFontSize: DEFAULT_FEED_NAME_FONT_SIZE_PX,
+        addBtnSize: DEFAULT_FEED_ADD_BTN_SIZE_PX,
+        addIconSize: DEFAULT_FEED_ADD_ICON_SIZE_PX,
+        navTop: DEFAULT_FEED_NAV_TOP_PX,
+      };
+    }
+
+    const previousInlineValues = new Map();
+    STORY_FEED_SIZING_VARIABLES.forEach((variableName) => {
+      previousInlineValues.set(
+        variableName,
+        shell.style.getPropertyValue(variableName),
+      );
+      shell.style.removeProperty(variableName);
+    });
+
+    const style = window.getComputedStyle(shell);
+    const sizing = {
+      itemWidth: parsePixelValue(
+        style.getPropertyValue("--story-feed-item-width"),
+        DEFAULT_FEED_ITEM_WIDTH_PX,
+      ),
+      gap: parsePixelValue(
+        style.getPropertyValue("--story-feed-gap"),
+        DEFAULT_FEED_GAP_PX,
+      ),
+      avatarWrapperSize: parsePixelValue(
+        style.getPropertyValue("--story-feed-avatar-wrapper-size"),
+        DEFAULT_FEED_AVATAR_WRAPPER_SIZE_PX,
+      ),
+      ringAvatarSize: parsePixelValue(
+        style.getPropertyValue("--story-feed-ring-avatar-size"),
+        DEFAULT_FEED_RING_AVATAR_SIZE_PX,
+      ),
+      nameMaxWidth: parsePixelValue(
+        style.getPropertyValue("--story-feed-name-max-width"),
+        DEFAULT_FEED_ITEM_WIDTH_PX,
+      ),
+      nameFontSize: parsePixelValue(
+        style.getPropertyValue("--story-feed-name-font-size"),
+        DEFAULT_FEED_NAME_FONT_SIZE_PX,
+      ),
+      addBtnSize: parsePixelValue(
+        style.getPropertyValue("--story-feed-add-btn-size"),
+        DEFAULT_FEED_ADD_BTN_SIZE_PX,
+      ),
+      addIconSize: parsePixelValue(
+        style.getPropertyValue("--story-feed-add-icon-size"),
+        DEFAULT_FEED_ADD_ICON_SIZE_PX,
+      ),
+      navTop: parsePixelValue(
+        style.getPropertyValue("--story-feed-nav-top"),
+        DEFAULT_FEED_NAV_TOP_PX,
+      ),
+    };
+
+    STORY_FEED_SIZING_VARIABLES.forEach((variableName) => {
+      const previousValue = previousInlineValues.get(variableName) || "";
+      if (previousValue) {
+        shell.style.setProperty(variableName, previousValue);
+      } else {
+        shell.style.removeProperty(variableName);
+      }
+    });
+
+    return sizing;
+  }
+
+  function getStoryFeedBaseTrackWidth(itemCount, sizing) {
     if (!Number.isFinite(itemCount) || itemCount <= 0) return 0;
+    const normalizedSizing = sizing || readStoryFeedBaseSizing(null);
     return (
-      itemCount * DEFAULT_FEED_ITEM_WIDTH_PX +
-      Math.max(0, itemCount - 1) * DEFAULT_FEED_GAP_PX
+      itemCount * normalizedSizing.itemWidth +
+      Math.max(0, itemCount - 1) * normalizedSizing.gap
     );
   }
 
@@ -907,6 +997,64 @@
     return Math.max(1, Math.min(maxVisibleCount, measuredCount));
   }
 
+  function getStoryFeedMaxVisibleCount(availableWidth, sizing) {
+    const gap = Math.max(0, sizing?.gap || DEFAULT_FEED_GAP_PX);
+    const itemWidth = Math.max(
+      1,
+      sizing?.itemWidth || DEFAULT_FEED_ITEM_WIDTH_PX,
+    );
+    const unitWidth = itemWidth + gap;
+    const measuredCount = Math.max(
+      1,
+      Math.floor((availableWidth + gap) / unitWidth),
+    );
+    const scaledCount = Math.max(
+      1,
+      Math.ceil((availableWidth + gap) / (unitWidth * DEFAULT_FEED_FILL_MIN_SCALE)),
+    );
+
+    return Math.max(FEED_INITIAL_LOAD_COUNT, measuredCount, scaledCount);
+  }
+
+  function resolveMobileStoryFeedVisibleCount(container, shell) {
+    const availableWidth = getStoryFeedAvailableWidth(container);
+    if (!availableWidth) {
+      return Math.max(1, FEED_INITIAL_LOAD_COUNT);
+    }
+
+    const sizing = readStoryFeedBaseSizing(shell);
+    const maxVisibleCount = Math.max(
+      1,
+      getStoryFeedMaxVisibleCount(availableWidth, sizing),
+    );
+    for (
+      let candidateCount = maxVisibleCount;
+      candidateCount >= DEFAULT_FEED_FILL_MIN_COUNT;
+      candidateCount -= 1
+    ) {
+      const baseTrackWidth = getStoryFeedBaseTrackWidth(candidateCount, sizing);
+      if (!baseTrackWidth) continue;
+
+      const fillScale = availableWidth / baseTrackWidth;
+      if (
+        fillScale >= DEFAULT_FEED_FILL_MIN_SCALE &&
+        fillScale <= DEFAULT_FEED_FILL_MAX_SCALE
+      ) {
+        return candidateCount;
+      }
+    }
+
+    const measuredCount = Math.max(
+      1,
+      Math.floor(
+        (availableWidth + sizing.gap) /
+          (sizing.itemWidth + sizing.gap),
+      ),
+    );
+
+    return Math.max(1, Math.min(maxVisibleCount, measuredCount));
+  }
+
   function clearStoryFeedSizing(shell) {
     if (!shell) return;
     STORY_FEED_SIZING_VARIABLES.forEach((variableName) => {
@@ -921,8 +1069,12 @@
       return;
     }
 
+    const isMobileLayout = isMobileStoryFeedLayout();
+    const baseSizing = isMobileLayout ? readStoryFeedBaseSizing(shell) : null;
     const availableWidth = getStoryFeedAvailableWidth(container);
-    const baseTrackWidth = getStoryFeedBaseTrackWidth(renderedCount);
+    const baseTrackWidth = isMobileLayout
+      ? getStoryFeedBaseTrackWidth(renderedCount, baseSizing)
+      : getStoryFeedBaseTrackWidth(renderedCount);
     if (!availableWidth || !baseTrackWidth) {
       clearStoryFeedSizing(shell);
       return;
@@ -942,22 +1094,35 @@
       return;
     }
 
-    const avatarWrapperSize = DEFAULT_FEED_AVATAR_WRAPPER_SIZE_PX * scale;
+    const avatarWrapperSize = isMobileLayout
+      ? baseSizing.avatarWrapperSize * scale
+      : DEFAULT_FEED_AVATAR_WRAPPER_SIZE_PX * scale;
     const nameFontSize = clampNumber(
-      DEFAULT_FEED_NAME_FONT_SIZE_PX * scale,
-      12,
+      (isMobileLayout
+        ? baseSizing.nameFontSize
+        : DEFAULT_FEED_NAME_FONT_SIZE_PX) * scale,
+      isMobileLayout ? 11 : 12,
       14,
     );
     const navTopBaseOffset =
-      DEFAULT_FEED_NAV_TOP_PX - DEFAULT_FEED_AVATAR_WRAPPER_SIZE_PX / 2;
+      (isMobileLayout ? baseSizing.navTop : DEFAULT_FEED_NAV_TOP_PX) -
+      (isMobileLayout
+        ? baseSizing.avatarWrapperSize
+        : DEFAULT_FEED_AVATAR_WRAPPER_SIZE_PX) /
+        2;
 
     shell.style.setProperty(
       "--story-feed-item-width",
-      toPixelValue(DEFAULT_FEED_ITEM_WIDTH_PX * scale),
+      toPixelValue(
+        (isMobileLayout ? baseSizing.itemWidth : DEFAULT_FEED_ITEM_WIDTH_PX) *
+          scale,
+      ),
     );
     shell.style.setProperty(
       "--story-feed-gap",
-      toPixelValue(DEFAULT_FEED_GAP_PX * scale),
+      toPixelValue(
+        (isMobileLayout ? baseSizing.gap : DEFAULT_FEED_GAP_PX) * scale,
+      ),
     );
     shell.style.setProperty(
       "--story-feed-avatar-wrapper-size",
@@ -965,11 +1130,18 @@
     );
     shell.style.setProperty(
       "--story-feed-ring-avatar-size",
-      toPixelValue(DEFAULT_FEED_RING_AVATAR_SIZE_PX * scale),
+      toPixelValue(
+        (isMobileLayout
+          ? baseSizing.ringAvatarSize
+          : DEFAULT_FEED_RING_AVATAR_SIZE_PX) * scale,
+      ),
     );
     shell.style.setProperty(
       "--story-feed-name-max-width",
-      toPixelValue(DEFAULT_FEED_ITEM_WIDTH_PX * scale),
+      toPixelValue(
+        (isMobileLayout ? baseSizing.nameMaxWidth : DEFAULT_FEED_ITEM_WIDTH_PX) *
+          scale,
+      ),
     );
     shell.style.setProperty(
       "--story-feed-name-font-size",
@@ -977,11 +1149,18 @@
     );
     shell.style.setProperty(
       "--story-feed-add-btn-size",
-      toPixelValue(DEFAULT_FEED_ADD_BTN_SIZE_PX * scale),
+      toPixelValue(
+        (isMobileLayout ? baseSizing.addBtnSize : DEFAULT_FEED_ADD_BTN_SIZE_PX) *
+          scale,
+      ),
     );
     shell.style.setProperty(
       "--story-feed-add-icon-size",
-      toPixelValue(DEFAULT_FEED_ADD_ICON_SIZE_PX * scale),
+      toPixelValue(
+        (isMobileLayout
+          ? baseSizing.addIconSize
+          : DEFAULT_FEED_ADD_ICON_SIZE_PX) * scale,
+      ),
     );
     shell.style.setProperty(
       "--story-feed-nav-top",

@@ -588,9 +588,15 @@ function showReportReasons(targetId, type = 'post') {
   document.querySelector(".post-options-overlay")?.remove();
 
   const normalizedType = normalizeReportType(type);
+  const isStoryViewerOpen = Boolean(
+    document.querySelector(".sn-story-viewer-modal:not(.sn-story-viewer-hidden)"),
+  );
 
   const overlay = document.createElement("div");
   overlay.className = "post-options-overlay";
+  if (isStoryViewerOpen) {
+    overlay.classList.add("post-options-overlay-story-viewer");
+  }
 
   const popup = document.createElement("div");
   popup.className = "post-options-popup";

@@ -13,6 +13,10 @@
   padding: 20px;
 }
 
+.post-options-overlay.post-options-overlay-story-viewer {
+  z-index: 11600;
+}
+
 .post-options-overlay.show {
   opacity: 1;
 }
