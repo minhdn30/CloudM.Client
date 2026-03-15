@@ -82,6 +82,15 @@
 }
 
 @media (hover: none) and (pointer: coarse) {
+  .media-slider {
+    touch-action: pan-y;
+  }
+
+  .media-track {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
   .media-slider .nav {
     opacity: 1;
     visibility: visible;

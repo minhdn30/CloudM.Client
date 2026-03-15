@@ -1,6 +1,17 @@
 @media (max-width: 768px) {
   .post-user.has-tag-summary .post-name-row > a {
+    flex: 0 1 auto;
     max-width: 56%;
+  }
+
+  .post-user.has-tag-summary .user-meta {
+    min-width: 0;
+    width: 0;
+    flex: 1 1 auto;
+  }
+
+  .post-user.has-tag-summary .post-name-row {
+    min-width: 0;
   }
 
   .post-user.stacked-tag-summary .post-avatar-ring {
@@ -16,7 +27,41 @@
   }
 
   .post-tag-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1 1 0;
+    width: 0;
+    min-width: 0;
     max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .post-tag-summary > * {
+    min-width: 0;
+  }
+
+  .post-tag-summary .post-tag-prefix {
+    flex: 0 0 auto;
+  }
+
+  .post-tag-summary .post-tag-name,
+  .post-tag-summary .post-tag-others-trigger {
+    min-width: 0;
+    max-width: 100%;
+    flex: 0 1 auto;
+    overflow: hidden;
+  }
+
+  .post-tag-summary .post-tag-name-text,
+  .post-tag-summary .post-tag-others-label {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .privacy-dropdown {

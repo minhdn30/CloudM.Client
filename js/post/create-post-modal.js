@@ -2557,17 +2557,33 @@ document.addEventListener("mouseup", () => {
 // Zoom slider interaction
 let isZoomSliding = false;
 
+function isZoomSliderTarget(target) {
+  if (!target) return false;
+  return (
+    target.id === "zoomSlider" ||
+    target.id === "zoomSliderThumb" ||
+    target.id === "zoomSliderTrack" ||
+    !!target.closest?.("#zoomSliderTrack") ||
+    !!target.closest?.("#zoomSliderThumb") ||
+    !!target.closest?.("#zoomSlider")
+  );
+}
+
+function getPointerClientY(event) {
+  if (Number.isFinite(event?.clientY)) {
+    return event.clientY;
+  }
+
+  const touch =
+    event?.touches?.[0] ||
+    event?.changedTouches?.[0] ||
+    null;
+  return Number.isFinite(touch?.clientY) ? touch.clientY : null;
+}
+
 document.addEventListener("mousedown", (e) => {
   const slider = document.getElementById("zoomSlider");
-  const thumb = document.getElementById("zoomSliderThumb");
-  const track = document.getElementById("zoomSliderTrack");
-
-  if (
-    e.target === slider ||
-    e.target === thumb ||
-    e.target === track ||
-    e.target.closest("#zoomSliderTrack")
-  ) {
+  if (slider && isZoomSliderTarget(e.target)) {
     if (currentStep !== 1 || isProcessingCrop || isMediaPreviewLoading) return;
     isZoomSliding = true;
     updateZoomFromSlider(e);
@@ -2585,13 +2601,46 @@ document.addEventListener("mouseup", () => {
   isZoomSliding = false;
 });
 
+document.addEventListener(
+  "touchstart",
+  (e) => {
+    const slider = document.getElementById("zoomSlider");
+    if (!slider || !isZoomSliderTarget(e.target)) return;
+    if (currentStep !== 1 || isProcessingCrop || isMediaPreviewLoading) return;
+    isZoomSliding = true;
+    updateZoomFromSlider(e);
+    e.preventDefault();
+  },
+  { passive: false },
+);
+
+document.addEventListener(
+  "touchmove",
+  (e) => {
+    if (!isZoomSliding || isProcessingCrop || isMediaPreviewLoading) return;
+    updateZoomFromSlider(e);
+    e.preventDefault();
+  },
+  { passive: false },
+);
+
+document.addEventListener("touchend", () => {
+  isZoomSliding = false;
+});
+
+document.addEventListener("touchcancel", () => {
+  isZoomSliding = false;
+});
+
 function updateZoomFromSlider(e) {
   if (isProcessingCrop || isMediaPreviewLoading) return;
   const slider = document.getElementById("zoomSlider");
   if (!slider) return;
 
   const rect = slider.getBoundingClientRect();
-  const y = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+  const clientY = getPointerClientY(e);
+  if (!Number.isFinite(clientY)) return;
+  const y = Math.max(0, Math.min(clientY - rect.top, rect.height));
   const percentage = 1 - y / rect.height; // Inverted for vertical slider
   const newZoomLevel = MIN_ZOOM + percentage * (MAX_ZOOM - MIN_ZOOM);
 

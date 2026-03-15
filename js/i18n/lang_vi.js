@@ -1580,7 +1580,8 @@
         uploadMediaFirst: "Vui lòng tải ảnh hoặc video lên trước",
         serverUnavailable: "Không thể kết nối với máy chủ",
         discardTitle: "Không lưu tin này?",
-        tooFast: "Bạn đang tạo tin quá nhanh. Vui lòng chờ vài giây rồi thử lại",
+        tooFast:
+          "Bạn đang tạo tin quá nhanh. Vui lòng chờ vài giây rồi thử lại",
         createFailed: "Không thể tạo tin",
         unsupportedMedia: "Chỉ hỗ trợ tệp ảnh hoặc video",
         createSuccess: "Đã tạo tin",
@@ -2963,6 +2964,7 @@
       },
       suggestions: {
         actions: {
+          viewSuggestions: "Xem gợi ý của bạn",
           viewMore: "Xem thêm",
         },
         labels: {
@@ -3134,10 +3136,8 @@
         items: {
           sharing:
             "Lướt feed để xem bài viết và những cập nhật mới từ người bạn quan tâm",
-          chat:
-            "Trò chuyện cùng bạn bè theo cách quen thuộc và thoải mái",
-          privacy:
-            "Chia sẻ những khoảnh khắc của bạn qua tin và bài viết",
+          chat: "Trò chuyện cùng bạn bè theo cách quen thuộc và thoải mái",
+          privacy: "Chia sẻ những khoảnh khắc của bạn qua tin và bài viết",
           performance:
             "Xem thông báo và gợi ý theo dõi để không bỏ lỡ những kết nối đáng chú ý",
         },

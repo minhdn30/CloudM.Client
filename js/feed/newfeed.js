@@ -501,8 +501,9 @@
   }
 
   function initMediaSlider(postEl) {
+    const slider = postEl.querySelector(".media-slider");
     const track = postEl.querySelector(".media-track");
-    if (!track) return;
+    if (!slider || !track) return;
 
     const medias = track.querySelectorAll("img, video");
     const prev = postEl.querySelector(".prev");
@@ -529,8 +530,25 @@
     });
 
     const dots = dotsContainer.querySelectorAll("span");
+    const mobileSwipeQuery = window.matchMedia("(max-width: 768px)");
+
+    let activePointerId = null;
+    let startX = 0;
+    let startY = 0;
+    let deltaX = 0;
+    let isDragging = false;
+    let suppressTrackClick = false;
+
+    function isSwipeEnabled() {
+      if (window.CloudMResponsive?.isMobileLayout) {
+        return window.CloudMResponsive.isMobileLayout();
+      }
+
+      return mobileSwipeQuery.matches;
+    }
 
     function update() {
+      track.style.transition = "";
       track.style.transform = `translateX(-${index * 100}%)`;
       dots.forEach((d) => d.classList.remove("active"));
       dots[index].classList.add("active");
@@ -541,6 +559,96 @@
 
     if (prev) prev.onclick = () => { index = (index - 1 + total) % total; update(); };
     if (next) next.onclick = () => { index = (index + 1) % total; update(); };
+
+    track.addEventListener(
+      "click",
+      (event) => {
+        if (!suppressTrackClick) return;
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        suppressTrackClick = false;
+      },
+      true,
+    );
+
+    slider.addEventListener("pointerdown", (event) => {
+      if (!isSwipeEnabled()) return;
+      if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
+      if (event.button !== undefined && event.button !== 0) return;
+      if (event.target.closest(".nav, .media-dots, video")) return;
+
+      activePointerId = event.pointerId;
+      startX = event.clientX;
+      startY = event.clientY;
+      deltaX = 0;
+      isDragging = false;
+      suppressTrackClick = false;
+    });
+
+    slider.addEventListener("pointermove", (event) => {
+      if (event.pointerId !== activePointerId) return;
+
+      deltaX = event.clientX - startX;
+      const deltaY = event.clientY - startY;
+
+      if (!isDragging) {
+        if (Math.abs(deltaX) < 8 && Math.abs(deltaY) < 8) return;
+        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+          activePointerId = null;
+          return;
+        }
+
+        isDragging = true;
+        track.style.transition = "none";
+      }
+
+      const sliderWidth = slider.clientWidth || 1;
+      const minTranslate = -((total - 1) * sliderWidth);
+      const baseTranslate = -(index * sliderWidth);
+      let nextTranslate = baseTranslate + deltaX;
+
+      if (nextTranslate > 0) {
+        nextTranslate *= 0.35;
+      } else if (nextTranslate < minTranslate) {
+        nextTranslate =
+          minTranslate + (nextTranslate - minTranslate) * 0.35;
+      }
+
+      track.style.transform = `translate3d(${nextTranslate}px, 0, 0)`;
+      suppressTrackClick = true;
+      event.preventDefault();
+    });
+
+    function finishPointerDrag(event) {
+      if (event.pointerId !== activePointerId) return;
+
+      const wasDragging = isDragging;
+      const finalDeltaX = deltaX;
+      activePointerId = null;
+      deltaX = 0;
+      isDragging = false;
+
+      if (!wasDragging) return;
+
+      const sliderWidth = slider.clientWidth || 1;
+      const swipeThreshold = Math.min(96, sliderWidth * 0.18);
+
+      if (finalDeltaX <= -swipeThreshold && index < total - 1) {
+        index += 1;
+      } else if (finalDeltaX >= swipeThreshold && index > 0) {
+        index -= 1;
+      }
+
+      update();
+
+      window.setTimeout(() => {
+        suppressTrackClick = false;
+      }, 220);
+    }
+
+    slider.addEventListener("pointerup", finishPointerDrag);
+    slider.addEventListener("pointercancel", finishPointerDrag);
   }
 
   // Scroll listener

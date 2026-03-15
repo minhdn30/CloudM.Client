@@ -23,16 +23,20 @@
   }
 
   .profile-highlight-card-menu {
-    left: 0 !important;
-    right: 0 !important;
-    top: auto !important;
-    bottom: 0 !important;
+    z-index: 13020;
+    left: 50% !important;
+    right: auto !important;
+    top: 50% !important;
+    bottom: auto !important;
     min-width: 0;
-    border-radius: 16px 16px 0 0;
-    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    width: min(320px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+    border-radius: 18px;
+    transform: translate(-50%, -50%);
+    transform-origin: center;
     box-shadow:
-      0 -4px 20px rgba(0, 0, 0, 0.3),
-      0 -1px 4px rgba(0, 0, 0, 0.2);
+      0 20px 48px rgba(0, 0, 0, 0.28),
+      0 0 0 1px var(--border-secondary);
   }
 
   .profile-highlight-card-menu::before,

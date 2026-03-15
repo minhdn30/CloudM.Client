@@ -2934,6 +2934,7 @@
       },
       suggestions: {
         actions: {
+          viewSuggestions: "View suggestions for you",
           viewMore: "View More",
         },
         labels: {

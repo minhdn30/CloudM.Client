@@ -1,7 +1,16 @@
 @media (max-width: 768px) {
   .stories-shell {
-    --story-feed-inline-padding: 20px;
+    --story-feed-inline-padding: 14px;
     --story-feed-leading-padding: var(--story-feed-inline-padding);
+    --story-feed-item-width: 72px;
+    --story-feed-gap: 12px;
+    --story-feed-avatar-wrapper-size: 62px;
+    --story-feed-ring-avatar-size: 52px;
+    --story-feed-name-max-width: 72px;
+    --story-feed-name-font-size: 12px;
+    --story-feed-add-btn-size: 28px;
+    --story-feed-add-icon-size: 16px;
+    --story-feed-nav-top: 46px;
   }
 
   .post-avatar-ring {
@@ -9,14 +18,14 @@
   }
 
   .stories-shell-scrollable .stories {
-    padding-left: 20px;
-    padding-right: 20px;
+    padding-left: 14px;
+    padding-right: 14px;
   }
 
   .story-feed-nav {
     width: 30px;
     height: 30px;
-    top: 50px;
+    top: var(--story-feed-nav-top, 46px);
   }
 
   .story-feed-nav-prev {
@@ -28,12 +37,22 @@
   }
 
   .stories-shell-scrollable .stories-transition-overlay {
-    --stories-transition-clip-inline: 20px;
+    --stories-transition-clip-inline: 14px;
   }
 
   .stories-shell-scrollable .stories-transition-track {
-    padding-left: 20px;
-    padding-right: 20px;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .story-avatar-skeleton {
+    width: 60px;
+    height: 60px;
+  }
+
+  .story-name-skeleton {
+    width: 46px;
+    height: 9px;
   }
 
   .story-quick-mood-popover {
@@ -79,8 +98,50 @@
 }
 
 @media (max-width: 480px) {
+  .stories-shell {
+    --story-feed-inline-padding: 12px;
+    --story-feed-leading-padding: var(--story-feed-inline-padding);
+    --story-feed-item-width: 66px;
+    --story-feed-gap: 10px;
+    --story-feed-avatar-wrapper-size: 56px;
+    --story-feed-ring-avatar-size: 46px;
+    --story-feed-name-max-width: 66px;
+    --story-feed-name-font-size: 11px;
+    --story-feed-add-btn-size: 26px;
+    --story-feed-add-icon-size: 15px;
+    --story-feed-nav-top: 42px;
+  }
+
   .post-avatar-ring {
     --_avatar: 28px;
+  }
+
+  .stories-shell-scrollable .stories {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .stories-shell-scrollable .stories-transition-overlay {
+    --stories-transition-clip-inline: 12px;
+  }
+
+  .stories-shell-scrollable .stories-transition-track {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .story-feed-nav {
+    top: var(--story-feed-nav-top, 42px);
+  }
+
+  .story-avatar-skeleton {
+    width: 54px;
+    height: 54px;
+  }
+
+  .story-name-skeleton {
+    width: 42px;
+    height: 8px;
   }
 
   .story-quick-mood-popover {

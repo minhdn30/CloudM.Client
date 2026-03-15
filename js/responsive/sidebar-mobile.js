@@ -235,15 +235,53 @@
       global.closeAllDropdowns();
     }
 
-    if (global.RouteHelper?.goTo) {
-      global.RouteHelper.goTo("/chat");
-    } else {
-      global.location.hash = "#/chat";
+    const panel = document.getElementById("chat-panel");
+    const isSidebarAlreadyOpen =
+      !!global.ChatSidebar?.isOpen && !!panel?.classList.contains("show");
+
+    if (isSidebarAlreadyOpen) {
+      if (typeof global.closeChatSidebar === "function") {
+        global.closeChatSidebar(true);
+      }
+      return;
     }
 
-    global.requestAnimationFrame(() => {
-      Promise.resolve(global.ChatSidebar?.open?.()).catch(() => {});
-    });
+    Promise.resolve(global.ChatSidebar?.open?.()).catch(() => {});
+  }
+
+  function closeMobileOverlayPanels() {
+    if (typeof global.closeSearchPanel === "function") {
+      global.closeSearchPanel();
+    }
+
+    if (typeof global.closeNotificationsPanel === "function") {
+      global.closeNotificationsPanel();
+    }
+
+    if (typeof global.closeChatSidebar === "function") {
+      global.closeChatSidebar(true);
+    }
+
+    if (typeof global.closeAllDropdowns === "function") {
+      global.closeAllDropdowns();
+    }
+
+    document.body?.classList.remove("sidebar-mobile-sheet-open");
+  }
+
+  function bindMobileHomeRoute() {
+    document.addEventListener(
+      "click",
+      (event) => {
+        if (!isMobileLayout()) return;
+
+        const homeTrigger = event.target.closest("[data-route='/home'], [data-route='/']");
+        if (!homeTrigger) return;
+
+        closeMobileOverlayPanels();
+      },
+      true,
+    );
   }
 
   function bindMobileMessageRoute() {
@@ -275,6 +313,7 @@
   patchLanguageMenuPositioning();
   patchCloseOnViewportExit();
   bindMobileMessageRoute();
+  bindMobileHomeRoute();
 
   refreshMobileRuntimeHooks();
   syncSidebarSheetStateSoon();

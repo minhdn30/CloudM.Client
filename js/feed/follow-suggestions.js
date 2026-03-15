@@ -154,6 +154,14 @@
     return `#${SUGGESTIONS_PATH}`;
   }
 
+  function isMobileSuggestionsRail() {
+    if (global.CloudMResponsive?.isMobileLayout) {
+      return global.CloudMResponsive.isMobileLayout();
+    }
+
+    return global.matchMedia?.("(max-width: 768px)")?.matches === true;
+  }
+
   function isSuggestionsPath(rawHashOrPath) {
     const rawValue = (rawHashOrPath || global.location.hash || "")
       .toString()
@@ -459,6 +467,27 @@
           ${contentHtml}
         </div>
       </section>
+    `;
+  }
+
+  function renderHomeMobileEntry() {
+    return `
+      <a
+        class="follow-suggestions-mobile-entry"
+        href="${escapeAttr(buildSuggestionsHash())}"
+      >
+        <span
+          class="follow-suggestions-mobile-entry-label"
+          data-i18n="follow.suggestions.actions.viewSuggestions"
+        >${escapeHtml(
+          sugT(
+            "follow.suggestions.actions.viewSuggestions",
+            {},
+            "View suggestions for you",
+          ),
+        )}</span>
+        <i data-lucide="chevron-right" aria-hidden="true"></i>
+      </a>
     `;
   }
 
@@ -826,6 +855,12 @@
   async function initHomeRail() {
     const container = getHomeContainer();
     if (!container) return;
+
+    if (isMobileSuggestionsRail()) {
+      container.innerHTML = renderHomeMobileEntry();
+      postRender(container);
+      return;
+    }
 
     const requestToken = ++homeRequestToken;
     container.innerHTML = renderHomeLoading();
