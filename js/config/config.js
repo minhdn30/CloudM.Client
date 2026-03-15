@@ -4,6 +4,7 @@
     currentHost === "127.0.0.1" || currentHost === "localhost";
   const isHttpsPage = global.location?.protocol === "https:";
   const resolvedHost = currentHost || "localhost";
+  const runtimeConfig = global.__CLOUDM_RUNTIME_CONFIG__ || {};
 
   const preferredLoopbackHost =
     currentHost === "127.0.0.1" ? "127.0.0.1" : "localhost";
@@ -55,8 +56,56 @@
   ];
 
   const apiProtocol = isHttpsPage ? "https" : "http";
-  const remoteApiBase = `${apiProtocol}://${resolvedHost}:5000/api`;
-  const remoteHubBase = `${apiProtocol}://${resolvedHost}:5000`;
+  const normalizeConfiguredBase = (value) => {
+    if (typeof value !== "string") {
+      return "";
+    }
+
+    return value.trim().replace(/\/+$/, "");
+  };
+
+  const readMetaConfig = (name) =>
+    normalizeConfiguredBase(
+      global.document?.querySelector(`meta[name="${name}"]`)?.content || ""
+    );
+
+  const configuredApiBase = normalizeConfiguredBase(
+    runtimeConfig.API_BASE || readMetaConfig("cloudm-api-base")
+  );
+  const configuredHubBase = normalizeConfiguredBase(
+    runtimeConfig.HUB_BASE || readMetaConfig("cloudm-hub-base")
+  );
+
+  const managedPreviewSuffixes = [".pages.dev", ".workers.dev"];
+  const isManagedPreviewHost = managedPreviewSuffixes.some((suffix) =>
+    resolvedHost.endsWith(suffix)
+  );
+
+  const hostSegments = resolvedHost.split(".").filter(Boolean);
+  const registrableDomain =
+    hostSegments.length >= 2 ? hostSegments.slice(-2).join(".") : resolvedHost;
+  const inferredDedicatedApiHost = registrableDomain
+    ? `api.${registrableDomain}`
+    : "";
+  const canInferDedicatedApiHost =
+    !isLoopbackHost &&
+    !isManagedPreviewHost &&
+    Boolean(inferredDedicatedApiHost) &&
+    (resolvedHost === registrableDomain ||
+      resolvedHost === `www.${registrableDomain}` ||
+      resolvedHost === `app.${registrableDomain}` ||
+      resolvedHost === inferredDedicatedApiHost);
+
+  const remoteApiBase = configuredApiBase
+    ? configuredApiBase
+    : canInferDedicatedApiHost
+      ? `https://${inferredDedicatedApiHost}/api`
+      : `${apiProtocol}://${resolvedHost}:5000/api`;
+  const remoteHubBase = configuredHubBase
+    ? configuredHubBase
+    : canInferDedicatedApiHost
+      ? `https://${inferredDedicatedApiHost}`
+      : `${apiProtocol}://${resolvedHost}:5000`;
 
   const apiBaseCandidates = isLoopbackHost
     ? localApiBaseCandidates
