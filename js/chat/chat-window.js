@@ -1699,11 +1699,6 @@ const ChatWindow = {
       msg.senderId ||
       "";
     const senderId = senderIdRaw.toString().toLowerCase();
-    const content =
-      normalized?.content || (msg.Content || msg.content || "").trim();
-    const normIncoming =
-      normalized?.normalizedContent || ChatCommon.normalizeContent(content);
-
     const convId = this.getOpenChatId(convIdRaw);
     const chat = convId ? this.openChats.get(convId) : null;
     if (!convId || !chat) return;
@@ -1714,10 +1709,18 @@ const ChatWindow = {
       return;
     }
 
-    if (
-      messageId &&
-      msgContainer.querySelector(`[data-message-id="${messageId}"]`)
-    ) {
+    const existingBubble = messageId
+      ? msgContainer.querySelector(`[data-message-id="${messageId}"]`)
+      : null;
+    if (existingBubble) {
+      window.ChatMessageRuntime?.clearOptimisticBubbleRefs?.(
+        runtimeCtx,
+        existingBubble,
+        {
+          tempId,
+          messageId,
+        },
+      );
       return;
     }
 
@@ -1727,6 +1730,7 @@ const ChatWindow = {
         msgContainer,
         normalized,
         myId,
+        runtimeCtx,
       );
     }
     if (!optimisticBubble && tempId) {
@@ -1735,31 +1739,15 @@ const ChatWindow = {
       );
     }
 
-    if (!optimisticBubble && senderId === myId) {
-      const incomingMedias = msg.Medias || msg.medias || [];
-      const optimisticMsgs = msgContainer.querySelectorAll(
-        '.msg-bubble-wrapper.sent[data-status="pending"]',
-      );
-      for (const opt of optimisticMsgs) {
-        const optContentRaw = opt.querySelector(".msg-bubble")?.innerText || "";
-        const optContent = ChatCommon.normalizeContent(optContentRaw);
-        const optMediaCount =
-          opt.querySelectorAll(".msg-media-item")?.length || 0;
-
-        const matchByContent = content && optContent === normIncoming;
-        const matchByMedia =
-          !content &&
-          !optContent &&
-          incomingMedias.length > 0 &&
-          optMediaCount === incomingMedias.length;
-        if (matchByContent || matchByMedia) {
-          optimisticBubble = opt;
-          break;
-        }
-      }
-    }
-
     if (optimisticBubble) {
+      window.ChatMessageRuntime?.clearOptimisticBubbleRefs?.(
+        runtimeCtx,
+        optimisticBubble,
+        {
+          tempId,
+          messageId,
+        },
+      );
       if (messageId) optimisticBubble.dataset.messageId = messageId;
       delete optimisticBubble.dataset.status;
       optimisticBubble.querySelector(".msg-status")?.remove();
@@ -3539,6 +3527,7 @@ const ChatWindow = {
     this._permissionRefreshInFlight.delete(refreshKey);
     this.revokePreviewBlobUrls(openId);
     chat.pendingFiles = [];
+    window.ChatMessageRuntime?.resetOptimisticBubbleRefs?.(chat.runtimeCtx);
     chat.runtimeCtx = null;
     // Cleanup typing timers
     if (window.ChatTyping) ChatTyping.cleanup(openId);
@@ -9133,6 +9122,12 @@ const ChatWindow = {
     }
 
     this.insertNodeBeforeTypingIndicator(msgContainer, bubble);
+    if (msg.tempId) {
+      const runtimeCtx = this.getRuntimeCtx(id, chat);
+      window.ChatMessageRuntime?.trackOptimisticBubble?.(runtimeCtx, bubble, {
+        tempId: msg.tempId,
+      });
+    }
 
     // Sync grouping with the PREVIOUS message in DOM
     if (lastMsgEl) {
@@ -9488,6 +9483,15 @@ const ChatWindow = {
             el.querySelector(".msg-status")?.remove();
           }
         });
+    }
+
+    // once a message has any seen avatar, "Sent" must not render again
+    if (
+      status === "sent" &&
+      (msgEl.dataset.status !== "sent" ||
+        msgEl.querySelector(".msg-seen-row .seen-avatar-wrapper"))
+    ) {
+      return;
     }
 
     // create status element below bubble

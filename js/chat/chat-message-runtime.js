@@ -8,6 +8,11 @@
         return value.toString().toLowerCase();
     }
 
+    function toStringSafe(value) {
+        if (value === null || value === undefined) return '';
+        return value.toString();
+    }
+
     function runtimeT(key, fallback = '', params = {}) {
         const i18n = global.I18n;
         if (i18n && typeof i18n.t === 'function') {
@@ -36,6 +41,7 @@
             retryFiles: options.retryFiles instanceof Map ? options.retryFiles : new Map(),
             pendingSeenByConv: options.pendingSeenByConv instanceof Map ? options.pendingSeenByConv : new Map(),
             blobUrls: options.blobUrls instanceof Map ? options.blobUrls : new Map(),
+            optimisticTempBubbles: options.optimisticTempBubbles instanceof Map ? options.optimisticTempBubbles : new Map(),
             now: typeof options.now === 'function' ? options.now : () => new Date()
         };
     }
@@ -159,37 +165,130 @@
         ctx.blobUrls.delete(tempId);
     }
 
-    function findOptimisticBubble(container, normalizedMsg, myAccountId = '') {
+    function clearOptimisticTempCleanupTimer(bubble) {
+        if (!bubble || !bubble.__optimisticTempCleanupTimer) return;
+        global.clearTimeout(bubble.__optimisticTempCleanupTimer);
+        bubble.__optimisticTempCleanupTimer = null;
+    }
+
+    function resetOptimisticBubbleRefs(ctx) {
+        if (!ctx) return;
+        if (!(ctx.optimisticTempBubbles instanceof Map)) {
+            ctx.optimisticTempBubbles = new Map();
+        } else {
+            ctx.optimisticTempBubbles.forEach((bubble) => clearOptimisticTempCleanupTimer(bubble));
+            ctx.optimisticTempBubbles.clear();
+        }
+    }
+
+    function removeOptimisticBubbleRef(map, key, bubble) {
+        if (!(map instanceof Map) || !key) return;
+        if (!bubble) {
+            map.delete(key);
+            return;
+        }
+        if (map.get(key) === bubble) {
+            map.delete(key);
+        }
+    }
+
+    function hasSeenAvatar(bubble) {
+        if (!bubble) return false;
+        return !!bubble.querySelector('.msg-seen-row .seen-avatar-wrapper');
+    }
+
+    function trackOptimisticBubble(ctx, bubble, refs = {}) {
+        if (!ctx || !bubble) return;
+
+        if (!(ctx.optimisticTempBubbles instanceof Map)) {
+            ctx.optimisticTempBubbles = new Map();
+        }
+
+        const tempId = toStringSafe(refs.tempId || bubble.dataset.tempId || '');
+        const previousTempId = toStringSafe(refs.previousTempId || '');
+        const cleanupMs = Number.isFinite(refs.cleanupMs) && refs.cleanupMs > 0
+            ? Math.max(0, refs.cleanupMs)
+            : 0;
+
+        if (previousTempId && previousTempId !== tempId) {
+            removeOptimisticBubbleRef(ctx.optimisticTempBubbles, previousTempId, bubble);
+        }
+
+        clearOptimisticTempCleanupTimer(bubble);
+        if (tempId) {
+            ctx.optimisticTempBubbles.set(tempId, bubble);
+            if (cleanupMs > 0) {
+                bubble.__optimisticTempCleanupTimer = global.setTimeout(() => {
+                    if (ctx.optimisticTempBubbles instanceof Map) {
+                        removeOptimisticBubbleRef(ctx.optimisticTempBubbles, tempId, bubble);
+                    }
+                    bubble.__optimisticTempCleanupTimer = null;
+                }, cleanupMs);
+            }
+        }
+    }
+
+    function clearOptimisticBubbleRefs(ctx, bubble, refs = {}) {
+        if (!ctx || !bubble) return;
+        clearOptimisticTempCleanupTimer(bubble);
+
+        if (ctx.optimisticTempBubbles instanceof Map) {
+            const tempId = toStringSafe(refs.tempId || bubble.dataset.tempId || '');
+            if (tempId) {
+                removeOptimisticBubbleRef(ctx.optimisticTempBubbles, tempId, bubble);
+            }
+            for (const [key, value] of ctx.optimisticTempBubbles.entries()) {
+                if (value === bubble) {
+                    ctx.optimisticTempBubbles.delete(key);
+                }
+            }
+        }
+    }
+
+    function findTrackedOptimisticBubble(ctx, normalizedMsg) {
+        if (!ctx || !normalizedMsg) return null;
+
+        const tempId = toStringSafe(normalizedMsg.tempId || normalizedMsg.TempId || '');
+
+        const validateBubble = (bubble) => {
+            if (!bubble || !bubble.isConnected) return null;
+
+            const bubbleTempId = toStringSafe(bubble.dataset.tempId || '');
+
+            if (tempId && bubbleTempId && bubbleTempId !== tempId) {
+                clearOptimisticBubbleRefs(ctx, bubble, { tempId });
+                return null;
+            }
+
+            return bubble;
+        };
+
+        if (tempId && ctx.optimisticTempBubbles instanceof Map) {
+            const bubble = validateBubble(ctx.optimisticTempBubbles.get(tempId));
+            if (bubble) return bubble;
+            ctx.optimisticTempBubbles.delete(tempId);
+        }
+
+        return null;
+    }
+
+    function findOptimisticBubble(container, normalizedMsg, myAccountId = '', ctx = null) {
         if (!container || !normalizedMsg) return null;
-        const myId = toLowerSafe(myAccountId || localStorage.getItem('accountId') || '');
+        if (ctx) {
+            const trackedBubble = findTrackedOptimisticBubble(ctx, normalizedMsg);
+            if (trackedBubble) return trackedBubble;
+        }
+
+        const messageId = toLowerSafe(normalizedMsg.messageId || normalizedMsg.MessageId || '');
+        if (messageId) {
+            const bubble = container.querySelector(`[data-message-id="${messageId}"]`);
+            if (bubble) return bubble;
+        }
+
         const tempId = normalizedMsg.tempId || normalizedMsg.TempId || null;
         if (tempId) {
             const bubble = container.querySelector(`[data-temp-id="${tempId}"]`);
             if (bubble) return bubble;
-        }
-
-        const senderId = toLowerSafe(normalizedMsg.senderId || normalizedMsg.SenderId || normalizedMsg.sender?.accountId);
-        const isOwn = typeof normalizedMsg.isOwn === 'boolean' ? normalizedMsg.isOwn : !!(myId && senderId === myId);
-        if (!isOwn) return null;
-
-        const incomingMedias = normalizedMsg.medias || normalizedMsg.Medias || [];
-        const incomingContent = normalizedMsg.normalizedContent || (global.ChatCommon?.normalizeContent
-            ? global.ChatCommon.normalizeContent(normalizedMsg.content || '')
-            : (normalizedMsg.content || '').trim());
-
-        const optimisticMsgs = container.querySelectorAll('.msg-bubble-wrapper.sent[data-status="pending"]');
-        for (const opt of optimisticMsgs) {
-            const optContentRaw = opt.querySelector('.msg-bubble')?.innerText || '';
-            const optContent = global.ChatCommon?.normalizeContent
-                ? global.ChatCommon.normalizeContent(optContentRaw)
-                : optContentRaw.trim();
-            const optMediaCount = opt.querySelectorAll('.msg-media-item')?.length || 0;
-
-            const matchByContent = incomingContent && optContent === incomingContent;
-            const matchByMedia = !incomingContent && !optContent && incomingMedias.length > 0 && optMediaCount === incomingMedias.length;
-            if (matchByContent || matchByMedia) {
-                return opt;
-            }
         }
 
         return null;
@@ -334,6 +433,7 @@
 
         if (!ctx || !container || !bubble) return false;
 
+        const previousTempId = toStringSafe(bubble.dataset.tempId || '');
         bubble.dataset.status = status;
 
         const normalizedMessageId = realMessageId ? toLowerSafe(realMessageId) : null;
@@ -346,6 +446,26 @@
             if (typeof onPendingSeen === 'function') {
                 onPendingSeen(normalizedMessageId);
             }
+        }
+
+        const trackedTempId = tempId || bubble.dataset.tempId || '';
+        if (status === 'pending') {
+            trackOptimisticBubble(ctx, bubble, {
+                tempId: trackedTempId,
+                previousTempId
+            });
+        } else if (status === 'sent') {
+            if (normalizedMessageId) {
+                clearOptimisticBubbleRefs(ctx, bubble, { tempId: trackedTempId });
+            } else if (trackedTempId) {
+                trackOptimisticBubble(ctx, bubble, {
+                    tempId: trackedTempId,
+                    previousTempId,
+                    cleanupMs: 15000
+                });
+            }
+        } else {
+            clearOptimisticBubbleRefs(ctx, bubble, { tempId: trackedTempId });
         }
 
         if (status === 'sent') {
@@ -371,6 +491,11 @@
 
         const existingStatus = bubble.querySelector('.msg-status');
         if (existingStatus) existingStatus.remove();
+
+        // once a message has any seen avatar, "Sent" must not render again
+        if (status === 'sent' && (bubble.dataset.status !== 'sent' || hasSeenAvatar(bubble))) {
+            return true;
+        }
 
         const statusEl = document.createElement('div');
         statusEl.className = 'msg-status';
@@ -404,6 +529,10 @@
         trackBlobUrl,
         revokeBlobUrlIfNeeded,
         revokeMediaUrlsForTemp,
+        resetOptimisticBubbleRefs,
+        trackOptimisticBubble,
+        clearOptimisticBubbleRefs,
+        findTrackedOptimisticBubble,
         findOptimisticBubble,
         replaceOptimisticMediaUrls,
         buildRetryFormData,

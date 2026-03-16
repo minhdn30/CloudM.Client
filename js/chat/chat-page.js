@@ -239,6 +239,7 @@ const ChatPage = {
     this.isLoading = false;
     this.pendingFiles = [];
     this.retryFiles.clear();
+    window.ChatMessageRuntime?.resetOptimisticBubbleRefs?.(this.runtimeCtx);
     this.runtimeCtx = null;
     this._replyToMessageId = null;
     this._replySenderName = null;
@@ -288,19 +289,22 @@ const ChatPage = {
   getRuntimeCtx() {
     if (!window.ChatMessageRuntime) return null;
     const myId = (localStorage.getItem("accountId") || "").toLowerCase();
+    const nextConversationId = this.currentChatId || null;
     if (!this.runtimeCtx) {
       this.runtimeCtx = window.ChatMessageRuntime.createContext({
         scope: "page",
-        conversationId: this.currentChatId || null,
+        conversationId: nextConversationId,
         myAccountId: myId,
         retryFiles: this.retryFiles,
         pendingSeenByConv: this.pendingSeenByConv,
         blobUrls: this._blobUrls,
         now: () => new Date(),
       });
+    } else if (this.runtimeCtx.conversationId !== nextConversationId) {
+      window.ChatMessageRuntime.resetOptimisticBubbleRefs?.(this.runtimeCtx);
     }
     this.runtimeCtx.scope = "page";
-    this.runtimeCtx.conversationId = this.currentChatId || null;
+    this.runtimeCtx.conversationId = nextConversationId;
     this.runtimeCtx.myAccountId = myId;
     this.runtimeCtx.retryFiles = this.retryFiles;
     this.runtimeCtx.pendingSeenByConv = this.pendingSeenByConv;
@@ -1512,10 +1516,18 @@ const ChatPage = {
       if (!msgContainer) return;
 
       // 1. Check if message already exists in DOM (by real ID)
-      if (
-        messageId &&
-        msgContainer.querySelector(`[data-message-id="${messageId}"]`)
-      ) {
+      const existingBubble = messageId
+        ? msgContainer.querySelector(`[data-message-id="${messageId}"]`)
+        : null;
+      if (existingBubble) {
+        window.ChatMessageRuntime?.clearOptimisticBubbleRefs?.(
+          this.getRuntimeCtx(),
+          existingBubble,
+          {
+            tempId,
+            messageId,
+          },
+        );
         return;
       }
 
@@ -1526,6 +1538,7 @@ const ChatPage = {
           msgContainer,
           normalized,
           myId,
+          this.getRuntimeCtx(),
         );
       }
       if (!optimisticBubble && tempId) {
@@ -1535,6 +1548,14 @@ const ChatPage = {
       }
 
       if (optimisticBubble) {
+        window.ChatMessageRuntime?.clearOptimisticBubbleRefs?.(
+          this.getRuntimeCtx(),
+          optimisticBubble,
+          {
+            tempId,
+            messageId,
+          },
+        );
         // Confirm optimistic message
         if (messageId) optimisticBubble.dataset.messageId = messageId;
         delete optimisticBubble.dataset.status;
@@ -7697,6 +7718,15 @@ const ChatPage = {
     }
 
     this.insertNodeBeforeTypingIndicator(msgContainer, bubble);
+    if (msg.tempId) {
+      window.ChatMessageRuntime?.trackOptimisticBubble?.(
+        this.getRuntimeCtx(),
+        bubble,
+        {
+          tempId: msg.tempId,
+        },
+      );
+    }
 
     // Sync grouping with the PREVIOUS message in DOM
     if (lastMsgEl) {
@@ -8479,6 +8509,15 @@ const ChatPage = {
             el.querySelector(".msg-status")?.remove();
           }
         });
+    }
+
+    // once a message has any seen avatar, "Sent" must not render again
+    if (
+      status === "sent" &&
+      (bubble.dataset.status !== "sent" ||
+        bubble.querySelector(".msg-seen-row .seen-avatar-wrapper"))
+    ) {
+      return;
     }
 
     // create status element below bubble
